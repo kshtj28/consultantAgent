@@ -1,0 +1,21 @@
+.app-layout {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+  background: #060a13;
+}
+
+.app-layout-center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+  margin-left: 220px;  /* offset for fixed sidebar */
+}
+
+.app-layout-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 28px;
+}

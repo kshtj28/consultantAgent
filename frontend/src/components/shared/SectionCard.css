@@ -1,0 +1,30 @@
+.section-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    overflow: hidden;
+}
+
+.section-card__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.section-card__title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.section-card__header-right {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.section-card__body {
+    padding: 1.25rem;
+}

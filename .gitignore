@@ -1,0 +1,42 @@
+# Node modules
+node_modules/
+
+# Build output
+dist/
+build/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE configurations
+.vscode/
+.idea/
+
+backend/node_modules/
+backend/.mastra
+
+frontend/node_modules/
+
+artifacts/consultant/.obsidian/
+
+infra/.terraform/
+infra/.terraform.lock.hcl
+infra/tfplan
+
+# Test artifacts
+test-results/
+playwright-report/
+
+# Local tool config
+.mcp.json
+.superpowers/
+
+# playwright-bdd generated files
+.features-gen/
+

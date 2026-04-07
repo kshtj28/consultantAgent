@@ -1,0 +1,395 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxGraphModel dx="1800" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1920" pageHeight="1080" math="0" shadow="0">
+  <root>
+    <mxCell id="0" />
+    <mxCell id="1" parent="0" />
+
+    <!-- ═══════════════════════════════════════════════════════════
+         BACKGROUND BANDS
+    ═══════════════════════════════════════════════════════════ -->
+
+    <!-- Internet band -->
+    <mxCell id="band_internet" value="Internet" style="swimlane;startSize=20;fillColor=#232F3E;fontColor=#ffffff;strokeColor=none;fontSize=11;fontStyle=1;horizontal=1;" vertex="1" parent="1">
+      <mxGeometry x="20" y="20" width="180" height="500" as="geometry" />
+    </mxCell>
+
+    <!-- AWS Account band -->
+    <mxCell id="band_aws" value="AWS Cloud  (us-east-1 staging  |  me-central-1 production)" style="swimlane;startSize=24;fillColor=#F8F4ED;strokeColor=#FF9900;fontSize=12;fontStyle=1;strokeWidth=2;" vertex="1" parent="1">
+      <mxGeometry x="220" y="20" width="1660" height="1040" as="geometry" />
+    </mxCell>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         VPC
+    ═══════════════════════════════════════════════════════════ -->
+    <mxCell id="vpc" value="Amazon VPC  —  10.0.0.0/16 (staging)  |  10.1.0.0/16 (production)  |  2 Availability Zones" style="swimlane;startSize=22;fillColor=#E8F4E8;strokeColor=#7AA116;fontSize=11;fontStyle=1;" vertex="1" parent="band_aws">
+      <mxGeometry x="20" y="40" width="1080" height="980" as="geometry" />
+    </mxCell>
+
+    <!-- Public Subnets -->
+    <mxCell id="pub_sub" value="Public Subnets  AZ-a (x.x.101.0/24)  +  AZ-b (x.x.102.0/24)" style="swimlane;startSize=20;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=10;" vertex="1" parent="vpc">
+      <mxGeometry x="20" y="30" width="1040" height="160" as="geometry" />
+    </mxCell>
+
+    <!-- Private Subnets -->
+    <mxCell id="priv_sub" value="Private Subnets  AZ-a (x.x.1.0/24)  +  AZ-b (x.x.2.0/24)" style="swimlane;startSize=20;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=10;" vertex="1" parent="vpc">
+      <mxGeometry x="20" y="210" width="1040" height="750" as="geometry" />
+    </mxCell>
+
+    <!-- App Tier cluster -->
+    <mxCell id="app_tier" value="App Tier  |  ECS Capacity Provider  |  t3.small  |  ASG min=1 always-on" style="swimlane;startSize=20;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=10;" vertex="1" parent="priv_sub">
+      <mxGeometry x="20" y="30" width="500" height="200" as="geometry" />
+    </mxCell>
+
+    <!-- GPU Tier cluster -->
+    <mxCell id="gpu_tier" value="GPU Tier  |  ECS Capacity Provider  |  g5.2xlarge Spot  |  ASG min=0 cold-start" style="swimlane;startSize=20;fillColor=#F8CECC;strokeColor=#B85450;fontSize=10;" vertex="1" parent="priv_sub">
+      <mxGeometry x="20" y="250" width="500" height="160" as="geometry" />
+    </mxCell>
+
+    <!-- EFS cluster -->
+    <mxCell id="efs_cluster" value="Amazon EFS  —  consultant-agent-efs-{env}  |  encrypted at rest  |  multi-AZ mount targets" style="swimlane;startSize=20;fillColor=#D5E8D4;strokeColor=#3F8624;fontSize=10;" vertex="1" parent="priv_sub">
+      <mxGeometry x="20" y="440" width="500" height="160" as="geometry" />
+    </mxCell>
+
+    <!-- Cloud Map cluster -->
+    <mxCell id="cloudmap_cluster" value="AWS Cloud Map  —  Private DNS" style="swimlane;startSize=20;fillColor=#E1D5E7;strokeColor=#9673A6;fontSize=10;" vertex="1" parent="priv_sub">
+      <mxGeometry x="560" y="440" width="460" height="110" as="geometry" />
+    </mxCell>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         ACCOUNT-LEVEL SERVICES (right column)
+    ═══════════════════════════════════════════════════════════ -->
+    <mxCell id="acct_services" value="Account-Level Services" style="swimlane;startSize=22;fillColor=#FFF9F0;strokeColor=#FF9900;fontSize=11;fontStyle=1;" vertex="1" parent="band_aws">
+      <mxGeometry x="1120" y="40" width="520" height="980" as="geometry" />
+    </mxCell>
+
+    <!-- ECR sub-cluster -->
+    <mxCell id="ecr_cluster" value="Amazon ECR — Container Registry" style="swimlane;startSize=20;fillColor=#FFE6CC;strokeColor=#d6a100;fontSize=10;" vertex="1" parent="acct_services">
+      <mxGeometry x="20" y="30" width="480" height="130" as="geometry" />
+    </mxCell>
+
+    <!-- Secrets Manager sub-cluster -->
+    <mxCell id="sm_cluster" value="AWS Secrets Manager" style="swimlane;startSize=20;fillColor=#FADADD;strokeColor=#C0392B;fontSize=10;" vertex="1" parent="acct_services">
+      <mxGeometry x="20" y="180" width="480" height="130" as="geometry" />
+    </mxCell>
+
+    <!-- IAM sub-cluster -->
+    <mxCell id="iam_cluster" value="AWS IAM — Roles" style="swimlane;startSize=20;fillColor=#FADADD;strokeColor=#C0392B;fontSize=10;" vertex="1" parent="acct_services">
+      <mxGeometry x="20" y="330" width="480" height="200" as="geometry" />
+    </mxCell>
+
+    <!-- Terraform State sub-cluster -->
+    <mxCell id="tf_cluster" value="Terraform Remote State" style="swimlane;startSize=20;fillColor=#E8E8FF;strokeColor=#6666CC;fontSize=10;" vertex="1" parent="acct_services">
+      <mxGeometry x="20" y="550" width="480" height="130" as="geometry" />
+    </mxCell>
+
+    <!-- CloudWatch sub-cluster -->
+    <mxCell id="cw_cluster" value="Amazon CloudWatch" style="swimlane;startSize=20;fillColor=#E8FFE8;strokeColor=#3F8624;fontSize=10;" vertex="1" parent="acct_services">
+      <mxGeometry x="20" y="700" width="480" height="130" as="geometry" />
+    </mxCell>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         NODES — Internet
+    ═══════════════════════════════════════════════════════════ -->
+
+    <!-- End User -->
+    <mxCell id="user" value="End User&#xa;(Browser)" style="outlineConnect=0;fontColor=#232F3E;gradientColor=none;strokeColor=none;fillColor=#232F3E;labelBackgroundColor=#ffffff;align=center;html=1;fontSize=10;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.user;" vertex="1" parent="band_internet">
+      <mxGeometry x="50" y="80" width="78" height="78" as="geometry" />
+    </mxCell>
+
+    <!-- GitHub Actions -->
+    <mxCell id="gha" value="GitHub Actions&#xa;CI/CD · OIDC" style="outlineConnect=0;fontColor=#232F3E;gradientColor=none;strokeColor=none;fillColor=#232F3E;labelBackgroundColor=#ffffff;align=center;html=1;fontSize=10;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.general;" vertex="1" parent="band_internet">
+      <mxGeometry x="50" y="240" width="78" height="78" as="geometry" />
+    </mxCell>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         NODES — VPC Public Subnets
+    ═══════════════════════════════════════════════════════════ -->
+
+    <!-- Internet Gateway -->
+    <mxCell id="igw" value="Internet Gateway" style="outlineConnect=0;fontColor=#232F3E;gradientColor=none;strokeColor=none;fillColor=#8C4FFF;labelBackgroundColor=#ffffff;align=center;html=1;fontSize=10;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.internet_gateway;" vertex="1" parent="pub_sub">
+      <mxGeometry x="60" y="45" width="60" height="60" as="geometry" />
+    </mxCell>
+
+    <!-- ALB -->
+    <mxCell id="alb" value="ALB — processiq-{env}&#xa;HTTP :80  internet-facing&#xa;─────────────────────&#xa;/        → frontend TG&#xa;/api/*   → backend TG&#xa;/health  → backend TG" style="outlineConnect=0;fontColor=#232F3E;gradientColor=none;strokeColor=none;fillColor=#8C4FFF;labelBackgroundColor=#ffffff;align=center;html=1;fontSize=9;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.application_load_balancer;" vertex="1" parent="pub_sub">
+      <mxGeometry x="300" y="40" width="60" height="60" as="geometry" />
+    </mxCell>
+
+    <!-- NAT Gateway -->
+    <mxCell id="nat" value="NAT Gateway&#xa;Elastic IP" style="outlineConnect=0;fontColor=#232F3E;gradientColor=none;strokeColor=none;fillColor=#8C4FFF;labelBackgroundColor=#ffffff;align=center;html=1;fontSize=10;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.nat_gateway;" vertex="1" parent="pub_sub">
+      <mxGeometry x="700" y="45" width="60" height="60" as="geometry" />
+    </mxCell>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         NODES — App Tier
+    ═══════════════════════════════════════════════════════════ -->
+
+    <!-- Frontend ECS Service -->
+    <mxCell id="fe" value="ECS Service: frontend&#xa;────────────────&#xa;Image: ECR :latest&#xa;CPU 128 · RAM 256 MB&#xa;Port :80 (bridge)&#xa;React SPA" style="outlineConnect=0;fontColor=#232F3E;gradientColor=none;strokeColor=none;fillColor=#E83D84;labelBackgroundColor=#ffffff;align=center;html=1;fontSize=9;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.ecs;" vertex="1" parent="app_tier">
+      <mxGeometry x="60" y="50" width="60" height="60" as="geometry" />
+    </mxCell>
+
+    <!-- Backend ECS Service -->
+    <mxCell id="be" value="ECS Service: backend&#xa;────────────────&#xa;Image: ECR :latest&#xa;CPU 256 · RAM 512 MB&#xa;Port :3001 (bridge)&#xa;JWT_SECRET · ADMIN_PASSWORD" style="outlineConnect=0;fontColor=#232F3E;gradientColor=none;strokeColor=none;fillColor=#E83D84;labelBackgroundColor=#ffffff;align=center;html=1;fontSize=9;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.ecs;" vertex="1" parent="app_tier">
+      <mxGeometry x="300" y="50" width="60" height="60" as="geometry" />
+    </mxCell>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         NODES — GPU Tier
+    ═══════════════════════════════════════════════════════════ -->
+
+    <!-- Ollama ECS Service -->
+    <mxCell id="ollama" value="ECS Service: ollama&#xa;────────────────────&#xa;Image: ollama/ollama:latest&#xa;CPU 2048 · RAM 22 GB · GPU 1&#xa;Port :11434 (awsvpc)&#xa;gemma3:4b · nomic-embed-text · qwen2.5:7b&#xa;Init: model-pull sidecar" style="outlineConnect=0;fontColor=#232F3E;gradientColor=none;strokeColor=none;fillColor=#E83D84;labelBackgroundColor=#ffffff;align=center;html=1;fontSize=9;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.ecs;" vertex="1" parent="gpu_tier">
+      <mxGeometry x="190" y="45" width="60" height="60" as="geometry" />
+    </mxCell>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         NODES — EFS
+    ═══════════════════════════════════════════════════════════ -->
+
+    <!-- EFS backend access point -->
+    <mxCell id="efs_be" value="Access Point /backend&#xa;/app/uploads&#xa;uid/gid 1000 · perms 755" style="outlineConnect=0;fontColor=#232F3E;gradientColor=none;strokeColor=none;fillColor=#3F8624;labelBackgroundColor=#ffffff;align=center;html=1;fontSize=9;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.elastic_file_system;" vertex="1" parent="efs_cluster">
+      <mxGeometry x="80" y="50" width="60" height="60" as="geometry" />
+    </mxCell>
+
+    <!-- EFS ollama access point -->
+    <mxCell id="efs_ol" value="Access Point /ollama&#xa;/root/.ollama&#xa;LLM model weights&#xa;uid/gid 0 · perms 755" style="outlineConnect=0;fontColor=#232F3E;gradientColor=none;strokeColor=none;fillColor=#3F8624;labelBackgroundColor=#ffffff;align=center;html=1;fontSize=9;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.elastic_file_system;" vertex="1" parent="efs_cluster">
+      <mxGeometry x="320" y="50" width="60" height="60" as="geometry" />
+    </mxCell>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         NODES — OpenSearch (direct child of priv_sub)
+    ═══════════════════════════════════════════════════════════ -->
+    <mxCell id="opensearch" value="OpenSearch Service&#xa;────────────────────&#xa;consultant-agent-{env}&#xa;OpenSearch 2.11&#xa;t3.small.search · 10 GB gp3&#xa;encrypt at rest + TLS 1.2&#xa;fine-grained access control" style="outlineConnect=0;fontColor=#232F3E;gradientColor=none;strokeColor=none;fillColor=#005EB8;labelBackgroundColor=#ffffff;align=center;html=1;fontSize=9;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.opensearch_service;" vertex="1" parent="priv_sub">
+      <mxGeometry x="590" y="250" width="60" height="60" as="geometry" />
+    </mxCell>
+
+    <!-- Cloud Map service -->
+    <mxCell id="cloudmap" value="Cloud Map&#xa;consultant-agent-{env}.local&#xa;ollama → task IP&#xa;TTL 10s · MULTIVALUE" style="outlineConnect=0;fontColor=#232F3E;gradientColor=none;strokeColor=none;fillColor=#E7157B;labelBackgroundColor=#ffffff;align=center;html=1;fontSize=9;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.cloud_map;" vertex="1" parent="cloudmap_cluster">
+      <mxGeometry x="170" y="30" width="60" height="60" as="geometry" />
+    </mxCell>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         NODES — Account-Level Services
+    ═══════════════════════════════════════════════════════════ -->
+
+    <!-- ECR frontend -->
+    <mxCell id="ecr_fe" value="consultant-agent/frontend&#xa;scan on push · keep last 10" style="outlineConnect=0;fontColor=#232F3E;gradientColor=none;strokeColor=none;fillColor=#C7131F;labelBackgroundColor=#ffffff;align=center;html=1;fontSize=9;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.ecr;" vertex="1" parent="ecr_cluster">
+      <mxGeometry x="60" y="35" width="60" height="60" as="geometry" />
+    </mxCell>
+
+    <!-- ECR backend -->
+    <mxCell id="ecr_be" value="consultant-agent/backend&#xa;scan on push · keep last 10" style="outlineConnect=0;fontColor=#232F3E;gradientColor=none;strokeColor=none;fillColor=#C7131F;labelBackgroundColor=#ffffff;align=center;html=1;fontSize=9;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.ecr;" vertex="1" parent="ecr_cluster">
+      <mxGeometry x="300" y="35" width="60" height="60" as="geometry" />
+    </mxCell>
+
+    <!-- Secrets Manager JWT -->
+    <mxCell id="sm_jwt" value="jwt-secret&#xa;{env}/jwt-secret&#xa;recovery: 0 days" style="outlineConnect=0;fontColor=#232F3E;gradientColor=none;strokeColor=none;fillColor=#DD344C;labelBackgroundColor=#ffffff;align=center;html=1;fontSize=9;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.secrets_manager;" vertex="1" parent="sm_cluster">
+      <mxGeometry x="60" y="35" width="60" height="60" as="geometry" />
+    </mxCell>
+
+    <!-- Secrets Manager Admin -->
+    <mxCell id="sm_admin" value="admin-password&#xa;{env}/admin-password&#xa;recovery: 0 days" style="outlineConnect=0;fontColor=#232F3E;gradientColor=none;strokeColor=none;fillColor=#DD344C;labelBackgroundColor=#ffffff;align=center;html=1;fontSize=9;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.secrets_manager;" vertex="1" parent="sm_cluster">
+      <mxGeometry x="300" y="35" width="60" height="60" as="geometry" />
+    </mxCell>
+
+    <!-- IAM Exec Role -->
+    <mxCell id="iam_exec" value="ECS Task Execution Role&#xa;ECR pull · CW logs&#xa;SecretsManager:GetSecretValue" style="outlineConnect=0;fontColor=#232F3E;gradientColor=none;strokeColor=none;fillColor=#DD344C;labelBackgroundColor=#ffffff;align=center;html=1;fontSize=9;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.role;" vertex="1" parent="iam_cluster">
+      <mxGeometry x="30" y="45" width="60" height="60" as="geometry" />
+    </mxCell>
+
+    <!-- IAM Task Role -->
+    <mxCell id="iam_task" value="ECS Task Role&#xa;es:* on OpenSearch&#xa;EFS ClientMount/Write" style="outlineConnect=0;fontColor=#232F3E;gradientColor=none;strokeColor=none;fillColor=#DD344C;labelBackgroundColor=#ffffff;align=center;html=1;fontSize=9;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.role;" vertex="1" parent="iam_cluster">
+      <mxGeometry x="200" y="45" width="60" height="60" as="geometry" />
+    </mxCell>
+
+    <!-- IAM GitHub Actions Role -->
+    <mxCell id="iam_gha" value="GitHub Actions Role&#xa;OIDC trust&#xa;ECR push · ECS update&#xa;Secrets:PutSecretValue" style="outlineConnect=0;fontColor=#232F3E;gradientColor=none;strokeColor=none;fillColor=#DD344C;labelBackgroundColor=#ffffff;align=center;html=1;fontSize=9;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.role;" vertex="1" parent="iam_cluster">
+      <mxGeometry x="370" y="45" width="60" height="60" as="geometry" />
+    </mxCell>
+
+    <!-- S3 TF state -->
+    <mxCell id="tf_s3" value="S3 Bucket&#xa;consultant-agent-tfstate-us-east-1&#xa;infra/* state files" style="outlineConnect=0;fontColor=#232F3E;gradientColor=none;strokeColor=none;fillColor=#3F8624;labelBackgroundColor=#ffffff;align=center;html=1;fontSize=9;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.s3;" vertex="1" parent="tf_cluster">
+      <mxGeometry x="60" y="35" width="60" height="60" as="geometry" />
+    </mxCell>
+
+    <!-- DynamoDB TF lock -->
+    <mxCell id="tf_ddb" value="DynamoDB Table&#xa;consultant-agent-tflock-us-east-1&#xa;Terraform state lock" style="outlineConnect=0;fontColor=#232F3E;gradientColor=none;strokeColor=none;fillColor=#3F8624;labelBackgroundColor=#ffffff;align=center;html=1;fontSize=9;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.dynamodb;" vertex="1" parent="tf_cluster">
+      <mxGeometry x="300" y="35" width="60" height="60" as="geometry" />
+    </mxCell>
+
+    <!-- CloudWatch frontend log group -->
+    <mxCell id="cw_fe" value="/ecs/…/frontend&#xa;7-day retention" style="outlineConnect=0;fontColor=#232F3E;gradientColor=none;strokeColor=none;fillColor=#E7157B;labelBackgroundColor=#ffffff;align=center;html=1;fontSize=9;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.cloudwatch;" vertex="1" parent="cw_cluster">
+      <mxGeometry x="30" y="35" width="60" height="60" as="geometry" />
+    </mxCell>
+
+    <!-- CloudWatch backend log group -->
+    <mxCell id="cw_be" value="/ecs/…/backend&#xa;7-day retention" style="outlineConnect=0;fontColor=#232F3E;gradientColor=none;strokeColor=none;fillColor=#E7157B;labelBackgroundColor=#ffffff;align=center;html=1;fontSize=9;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.cloudwatch;" vertex="1" parent="cw_cluster">
+      <mxGeometry x="200" y="35" width="60" height="60" as="geometry" />
+    </mxCell>
+
+    <!-- CloudWatch ollama log group -->
+    <mxCell id="cw_ol" value="/ecs/…/ollama&#xa;7-day retention" style="outlineConnect=0;fontColor=#232F3E;gradientColor=none;strokeColor=none;fillColor=#E7157B;labelBackgroundColor=#ffffff;align=center;html=1;fontSize=9;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.cloudwatch;" vertex="1" parent="cw_cluster">
+      <mxGeometry x="370" y="35" width="60" height="60" as="geometry" />
+    </mxCell>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         EDGES — User Traffic
+    ═══════════════════════════════════════════════════════════ -->
+
+    <!-- User → IGW -->
+    <mxCell id="e_user_igw" value="HTTP :80" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeColor=#232F3E;strokeWidth=2;fontSize=9;" edge="1" source="user" target="igw" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- IGW → ALB -->
+    <mxCell id="e_igw_alb" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#8C4FFF;strokeWidth=2;" edge="1" source="igw" target="alb" parent="pub_sub">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- ALB → Frontend -->
+    <mxCell id="e_alb_fe" value="/ default route&#xa;frontend TG" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#8C4FFF;strokeWidth=2;fontSize=9;" edge="1" source="alb" target="fe" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- ALB → Backend -->
+    <mxCell id="e_alb_be" value="/api/*  /health&#xa;backend TG" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#8C4FFF;strokeWidth=2;fontSize=9;" edge="1" source="alb" target="be" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         EDGES — Backend Service Calls
+    ═══════════════════════════════════════════════════════════ -->
+
+    <!-- Backend → OpenSearch -->
+    <mxCell id="e_be_os" value="HTTPS :443&#xa;IAM SigV4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#005EB8;strokeWidth=2;fontSize=9;" edge="1" source="be" target="opensearch" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- Backend → Ollama -->
+    <mxCell id="e_be_ollama" value="HTTP :11434&#xa;Cloud Map DNS" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#E07B00;strokeWidth=2;fontSize=9;" edge="1" source="be" target="ollama" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- Backend ↔ EFS backend AP -->
+    <mxCell id="e_be_efs" value="NFS :2049  IAM+TLS&#xa;file uploads" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#3F8624;strokeWidth=2;fontSize=9;" edge="1" source="be" target="efs_be" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         EDGES — Ollama
+    ═══════════════════════════════════════════════════════════ -->
+
+    <!-- Ollama ↔ EFS ollama AP -->
+    <mxCell id="e_ollama_efs" value="NFS :2049  IAM+TLS&#xa;model weights persist" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#3F8624;strokeWidth=2;fontSize=9;" edge="1" source="ollama" target="efs_ol" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- Cloud Map → Ollama -->
+    <mxCell id="e_cm_ollama" value="A record · auto-registered&#xa;TTL 10s" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;strokeColor=#E7157B;strokeWidth=1;fontSize=9;" edge="1" source="cloudmap" target="ollama" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         EDGES — Secrets Injection
+    ═══════════════════════════════════════════════════════════ -->
+
+    <!-- SM JWT → Backend -->
+    <mxCell id="e_sm_jwt_be" value="injected at task start&#xa;GetSecretValue" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;strokeColor=#DD344C;strokeWidth=1;fontSize=9;" edge="1" source="sm_jwt" target="be" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- SM Admin → Backend -->
+    <mxCell id="e_sm_admin_be" value="injected at task start&#xa;GetSecretValue" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;strokeColor=#DD344C;strokeWidth=1;fontSize=9;" edge="1" source="sm_admin" target="be" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         EDGES — Outbound Internet via NAT
+    ═══════════════════════════════════════════════════════════ -->
+
+    <!-- Backend → NAT (ECR pull / AWS APIs) -->
+    <mxCell id="e_be_nat" value="outbound&#xa;ECR pull · AWS APIs" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;strokeColor=#999999;strokeWidth=1;fontSize=9;" edge="1" source="be" target="nat" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- Ollama → NAT (model pull) -->
+    <mxCell id="e_ollama_nat" value="outbound&#xa;model pull · ECR pull" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;strokeColor=#999999;strokeWidth=1;fontSize=9;" edge="1" source="ollama" target="nat" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         EDGES — CI/CD (GitHub Actions)
+    ═══════════════════════════════════════════════════════════ -->
+
+    <!-- GHA → ECR frontend -->
+    <mxCell id="e_gha_ecr_fe" value="docker push · OIDC" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#555555;strokeWidth=1;fontSize=9;" edge="1" source="gha" target="ecr_fe" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- GHA → ECR backend -->
+    <mxCell id="e_gha_ecr_be" value="docker push · OIDC" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#555555;strokeWidth=1;fontSize=9;" edge="1" source="gha" target="ecr_be" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- GHA → SM JWT -->
+    <mxCell id="e_gha_sm_jwt" value="PutSecretValue" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;strokeColor=#555555;strokeWidth=1;fontSize=9;" edge="1" source="gha" target="sm_jwt" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- GHA → Frontend ECS -->
+    <mxCell id="e_gha_fe" value="UpdateService&#xa;RegisterTaskDef" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#555555;strokeWidth=1;fontSize=9;" edge="1" source="gha" target="fe" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- GHA → Backend ECS -->
+    <mxCell id="e_gha_be" value="UpdateService&#xa;RegisterTaskDef" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#555555;strokeWidth=1;fontSize=9;" edge="1" source="gha" target="be" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- GHA → Ollama ECS -->
+    <mxCell id="e_gha_ollama" value="UpdateService&#xa;(force redeploy)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#555555;strokeWidth=1;fontSize=9;" edge="1" source="gha" target="ollama" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- GHA → TF State -->
+    <mxCell id="e_gha_tf" value="S3 state R/W&#xa;DynamoDB lock" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;strokeColor=#555555;strokeWidth=1;fontSize=9;" edge="1" source="gha" target="tf_s3" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         EDGES — CloudWatch Logs
+    ═══════════════════════════════════════════════════════════ -->
+
+    <!-- Frontend → CW -->
+    <mxCell id="e_fe_cw" value="awslogs" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;strokeColor=#3F8624;strokeWidth=1;fontSize=9;" edge="1" source="fe" target="cw_fe" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- Backend → CW -->
+    <mxCell id="e_be_cw" value="awslogs" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;strokeColor=#3F8624;strokeWidth=1;fontSize=9;" edge="1" source="be" target="cw_be" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- Ollama → CW -->
+    <mxCell id="e_ollama_cw" value="awslogs" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;strokeColor=#3F8624;strokeWidth=1;fontSize=9;" edge="1" source="ollama" target="cw_ol" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- IAM Exec Role → Backend -->
+    <mxCell id="e_iam_exec_be" value="execution role" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;strokeColor=#DD344C;strokeWidth=1;fontSize=9;" edge="1" source="iam_exec" target="be" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- IAM Task Role → Backend -->
+    <mxCell id="e_iam_task_be" value="task role" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;strokeColor=#DD344C;strokeWidth=1;fontSize=9;" edge="1" source="iam_task" target="be" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- IAM Task Role → Ollama -->
+    <mxCell id="e_iam_task_ollama" value="task role" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;strokeColor=#DD344C;strokeWidth=1;fontSize=9;" edge="1" source="iam_task" target="ollama" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+  </root>
+</mxGraphModel>

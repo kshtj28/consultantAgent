@@ -1,0 +1,61 @@
+# Customer Onboarding Process
+
+## Overview
+
+The customer onboarding process is critical for ensuring new customers can effectively use our services. This document outlines the current state and challenges.
+
+## Current Process
+
+### Stage 1: Initial Contact
+- Sales team captures customer information in CRM
+- Customer receives welcome email template
+- Account manager assigned within 24-48 hours
+
+### Stage 2: Documentation
+- Customer completes:
+  - Service agreement (paper-based)
+  - Tax forms
+  - Banking details for billing
+- Documents sent via email, printed, signed, scanned, and returned
+
+### Stage 3: Account Setup
+- IT team creates user accounts manually
+- Access permissions configured individually
+- Training scheduled via Outlook calendar
+
+### Stage 4: Go-Live
+- Customer receives login credentials
+- Initial training session (2 hours)
+- 30-day support period begins
+
+## Pain Points
+
+1. **Document Handling**: Paper-based contracts cause delays
+2. **Manual Account Setup**: IT involvement creates bottleneck
+3. **Communication Gaps**: Multiple teams without unified tracking
+4. **Training Scheduling**: Manual back-and-forth for availability
+5. **No Self-Service**: Customers cannot track their own progress
+
+## Automation Opportunities
+
+| Task | Current | Automation Potential |
+|------|---------|---------------------|
+| Document Signing | Manual (3-5 days) | E-signature (same day) |
+| Account Creation | Manual IT (1-2 days) | Automated provisioning |
+| Training Booking | Email (1-3 days) | Self-service calendar |
+| Status Updates | On-request | Automated notifications |
+
+## Success Criteria
+
+- Reduce time-to-value from 14 days to 3 days
+- Improve customer satisfaction (NPS) by 20 points
+- Reduce onboarding cost per customer by 40%
+- Achieve 100% digital document completion
+
+## Stakeholders
+
+- **Sales Team**: Initiates onboarding
+- **Account Management**: Oversees customer relationship
+- **IT Department**: Manages technical setup
+- **Training Team**: Provides customer education
+- **Customer Success**: Ensures adoption and satisfaction

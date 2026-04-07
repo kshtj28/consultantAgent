@@ -1,0 +1,145 @@
+/* SettingsBar Component Styles */
+
+.settings-bar {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.5rem 1rem;
+    background: linear-gradient(135deg, rgba(30, 30, 40, 0.95) 0%, rgba(25, 25, 35, 0.95) 100%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(10px);
+}
+
+.settings-bar.loading {
+    justify-content: center;
+    min-height: 48px;
+}
+
+.settings-spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    border-top-color: var(--primary-color, #6366f1);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.settings-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.settings-icon {
+    color: rgba(255, 255, 255, 0.5);
+    flex-shrink: 0;
+}
+
+.settings-select-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.settings-select {
+    appearance: none;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    padding: 0.4rem 2rem 0.4rem 0.75rem;
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.9);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 100px;
+}
+
+.settings-select:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.settings-select:focus {
+    outline: none;
+    border-color: var(--primary-color, #6366f1);
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+}
+
+.settings-select option {
+    background: #1a1a2e;
+    color: rgba(255, 255, 255, 0.9);
+    padding: 0.5rem;
+}
+
+.settings-select optgroup {
+    background: #252540;
+    color: var(--primary-color, #6366f1);
+    font-weight: 600;
+    padding: 0.5rem;
+}
+
+.select-arrow {
+    position: absolute;
+    right: 0.5rem;
+    color: rgba(255, 255, 255, 0.4);
+    pointer-events: none;
+}
+
+/* Specific selector widths */
+.domain-select {
+    min-width: 130px;
+}
+
+.model-select {
+    min-width: 150px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .settings-bar {
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        padding: 0.75rem;
+    }
+
+    .settings-group {
+        flex: 1;
+        min-width: 120px;
+    }
+
+    .settings-select {
+        width: 100%;
+    }
+}
+
+/* RTL Support */
+[dir="rtl"] .settings-bar {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .settings-group {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .settings-select {
+    padding: 0.4rem 0.75rem 0.4rem 2rem;
+    text-align: right;
+}
+
+[dir="rtl"] .select-arrow {
+    right: auto;
+    left: 0.5rem;
+}
+
+/* Provider badges in model selector */
+.settings-select optgroup {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}

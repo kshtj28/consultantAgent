@@ -1,0 +1,101 @@
+{
+    "id": "hr",
+    "name": "Human Resources",
+    "description": "HR process readiness assessment",
+    "persona": "You are a senior HR consultant with extensive experience in talent management, payroll transformation, and HR technology implementations. You specialize in identifying process inefficiencies and recommending modern HR best practices.",
+    "broadAreas": [
+        {
+            "id": "hire_to_retire",
+            "name": "Hire-to-Retire",
+            "icon": "users",
+            "description": "End-to-end employee lifecycle from recruitment through development and retention",
+            "order": 1,
+            "subAreas": [
+                {
+                    "id": "recruiting",
+                    "name": "Recruiting & Talent Acquisition",
+                    "icon": "users",
+                    "description": "Job postings, applicant tracking, interviewing",
+                    "order": 1,
+                    "basePrompt": "Ask questions about the recruiting pipeline, applicant tracking, interviewing processes, and candidate experience.",
+                    "benchmarks": {
+                        "maturity_1": "Manual job postings and spreadsheet tracking",
+                        "maturity_2": "Basic ATS with email communication",
+                        "maturity_3": "Integrated ATS with automated screening",
+                        "maturity_4": "AI-powered resume screening and scheduling",
+                        "maturity_5": "Predictive hiring with talent intelligence"
+                    }
+                },
+                {
+                    "id": "onboarding",
+                    "name": "Onboarding",
+                    "icon": "user-plus",
+                    "description": "New hire setup, documentation, training",
+                    "order": 2,
+                    "basePrompt": "Ask questions about new hire processes, documentation, system access, and initial training.",
+                    "benchmarks": {
+                        "maturity_1": "Paper-based forms and manual setup",
+                        "maturity_2": "Digital forms with manual provisioning",
+                        "maturity_3": "Automated workflows with checklist tracking",
+                        "maturity_4": "Self-service onboarding with automated provisioning",
+                        "maturity_5": "AI-personalized onboarding journeys"
+                    }
+                },
+                {
+                    "id": "performance",
+                    "name": "Performance Management",
+                    "icon": "trending-up",
+                    "description": "Reviews, goals, feedback",
+                    "order": 3,
+                    "basePrompt": "Ask questions about performance review cycles, goal setting, and feedback mechanisms.",
+                    "benchmarks": {
+                        "maturity_1": "Annual paper-based reviews",
+                        "maturity_2": "Digital forms with manual tracking",
+                        "maturity_3": "HRIS-integrated performance cycles",
+                        "maturity_4": "Continuous feedback with real-time goals",
+                        "maturity_5": "AI-driven performance insights and coaching"
+                    }
+                },
+                {
+                    "id": "learning",
+                    "name": "Learning & Development",
+                    "icon": "book-open",
+                    "description": "Training, certifications, career paths",
+                    "order": 4,
+                    "basePrompt": "Ask questions about training programs, learning management, and career development.",
+                    "benchmarks": {
+                        "maturity_1": "Ad-hoc training with no tracking",
+                        "maturity_2": "Basic LMS with manual enrollment",
+                        "maturity_3": "Integrated LMS with completion tracking",
+                        "maturity_4": "Personalized learning paths with AI recommendations",
+                        "maturity_5": "Adaptive learning with skills-based development"
+                    }
+                }
+            ]
+        },
+        {
+            "id": "payroll_compensation",
+            "name": "Payroll & Compensation",
+            "icon": "credit-card",
+            "description": "Salary processing, benefits administration, and compensation management",
+            "order": 2,
+            "subAreas": [
+                {
+                    "id": "payroll",
+                    "name": "Payroll & Compensation",
+                    "icon": "credit-card",
+                    "description": "Salary processing, benefits, deductions",
+                    "order": 1,
+                    "basePrompt": "Ask questions about payroll processing, compensation management, and benefits administration.",
+                    "benchmarks": {
+                        "maturity_1": "Manual payroll with spreadsheet calculations",
+                        "maturity_2": "Basic payroll software with manual inputs",
+                        "maturity_3": "Integrated HRIS with automated calculations",
+                        "maturity_4": "Real-time payroll with self-service changes",
+                        "maturity_5": "AI-optimized compensation with predictive analytics"
+                    }
+                }
+            ]
+        }
+    ]
+}

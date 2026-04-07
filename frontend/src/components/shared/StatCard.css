@@ -1,0 +1,42 @@
+.stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 0;
+}
+
+.stat-card__icon {
+    color: var(--primary);
+    margin-bottom: 0.25rem;
+}
+
+.stat-card__label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+}
+
+.stat-card__value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.2;
+}
+
+.stat-card__value--success { color: var(--success); }
+.stat-card__value--warning { color: var(--warning); }
+.stat-card__value--error { color: var(--error); }
+
+.stat-card__subtitle {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.stat-card__subtitle--success { color: var(--success); }
+.stat-card__subtitle--warning { color: var(--warning); }
+.stat-card__subtitle--error { color: var(--error); }

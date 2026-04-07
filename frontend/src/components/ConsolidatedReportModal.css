@@ -1,0 +1,433 @@
+/* ─── Overlay ─────────────────────────────────────────── */
+.crm-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: stretch;
+}
+
+.crm {
+    margin: 24px auto;
+    width: min(1100px, 96vw);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 32px 80px rgba(0, 0, 0, 0.5);
+    max-height: calc(100vh - 48px);
+}
+
+/* ─── Header ──────────────────────────────────────────── */
+.crm__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+}
+
+.crm__title {
+    margin: 0;
+    font-size: 1.1rem;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.crm__meta {
+    margin: 3px 0 0;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.crm__header-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.crm__btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.crm__btn:hover {
+    border-color: var(--border-light);
+    color: var(--text);
+}
+
+.crm__btn--icon {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    justify-content: center;
+}
+
+/* ─── Tabs ────────────────────────────────────────────── */
+.crm__tabs {
+    display: flex;
+    gap: 4px;
+    padding: 12px 24px 0;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    overflow-x: auto;
+}
+
+.crm__tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: 8px 8px 0 0;
+    border: none;
+    cursor: pointer;
+    font-size: 0.82rem;
+    font-weight: 400;
+    background: transparent;
+    color: var(--text-secondary);
+    transition: all 0.15s;
+    margin-bottom: -1px;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+}
+
+.crm__tab--active {
+    font-weight: 700;
+    background: var(--primary);
+    color: #fff;
+    border-bottom-color: var(--primary);
+}
+
+/* ─── Body ────────────────────────────────────────────── */
+.crm__body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* ─── Executive Tab ───────────────────────────────────── */
+.crm__score-row {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+}
+
+.crm__score-info {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex: 1;
+}
+
+.crm__maturity-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: capitalize;
+    background: rgba(99, 102, 241, 0.15);
+    color: #a5b4fc;
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    align-self: flex-start;
+}
+
+/* ─── Section card ────────────────────────────────────── */
+.crm__card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+}
+
+.crm__card-title {
+    margin: 0 0 12px;
+    font-size: 0.9rem;
+    color: var(--text);
+    font-weight: 600;
+}
+
+.crm__list {
+    margin: 0;
+    padding: 0 0 0 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.crm__list li {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+/* ─── Area Tab ────────────────────────────────────────── */
+.crm__area {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+}
+
+.crm__area-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.crm__area-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text);
+    flex: 1;
+}
+
+.crm__area-score {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.crm__area-bar-bg {
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    margin-bottom: 12px;
+    overflow: hidden;
+}
+
+.crm__area-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    background: linear-gradient(90deg, #6366f1, #3b82f6);
+    transition: width 0.4s ease;
+}
+
+.crm__tag-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px;
+    margin-bottom: 6px;
+}
+
+.crm__tag {
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    flex-shrink: 0;
+}
+
+.crm__tag--success { background: rgba(16, 185, 129, 0.12); color: #10b981; }
+.crm__tag--error   { background: rgba(239,  68,  68, 0.12); color: #ef4444; }
+.crm__tag--primary { background: rgba( 99, 102, 241, 0.12); color: #a5b4fc; }
+
+/* ─── Gap Tab — stat row ──────────────────────────────── */
+.crm__stat-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+}
+
+.crm__stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    text-align: center;
+}
+
+.crm__stat-value {
+    font-size: 1.8rem;
+    font-weight: 700;
+}
+
+.crm__stat-label {
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+    margin-top: 4px;
+}
+
+/* ─── Gap Table ───────────────────────────────────────── */
+.crm__table-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.crm__table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.crm__th {
+    padding: 10px 12px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    text-align: left;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+}
+
+.crm__td {
+    padding: 10px 12px;
+    font-size: 0.8rem;
+    color: var(--text);
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+}
+
+.crm__td-main {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 3px;
+}
+
+.crm__td-sub {
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+.crm__gap-id {
+    font-family: monospace;
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+}
+
+.crm__badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.crm__size-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 5px;
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+.crm__sap-standard {
+    font-size: 0.75rem;
+    color: #818cf8;
+    font-style: italic;
+}
+
+/* ─── Roadmap ─────────────────────────────────────────── */
+.crm__phase {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+}
+
+.crm__phase-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.crm__phase-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.crm__phase-dur {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    background: var(--border);
+    padding: 2px 8px;
+    border-radius: 10px;
+}
+
+/* ─── Risk cards ──────────────────────────────────────── */
+.crm__risk {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+}
+
+.crm__risk-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 8px;
+    gap: 12px;
+}
+
+.crm__risk-name {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.crm__risk-badges {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.crm__risk-mitigation {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin: 0;
+}
+
+/* ─── Empty state ─────────────────────────────────────── */
+.crm__empty {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 48px 24px;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}

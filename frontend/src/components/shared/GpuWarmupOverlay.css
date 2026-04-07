@@ -1,0 +1,102 @@
+/* GPU warm-up overlay — appears as a centered popup on top of any page */
+
+.gpu-warmup-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(4px);
+}
+
+.gpu-warmup-popup {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 2.5rem 2.5rem 2rem;
+    text-align: center;
+    background: var(--card-bg, #1e293b);
+    border: 1px solid var(--border, #334155);
+    border-radius: 1rem;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+    max-width: 420px;
+    width: 90%;
+}
+
+.gpu-warmup-popup__icon {
+    color: var(--primary, #3b82f6);
+    animation: gpu-warmup-pulse 2s ease-in-out infinite;
+}
+
+@keyframes gpu-warmup-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: 0.6; transform: scale(0.95); }
+}
+
+.gpu-warmup-popup__title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary, #f8fafc);
+    margin: 0;
+}
+
+.gpu-warmup-popup__subtitle {
+    font-size: 0.85rem;
+    color: var(--text-secondary, #94a3b8);
+    max-width: 340px;
+    margin: 0;
+    line-height: 1.5;
+}
+
+.gpu-warmup-popup__progress {
+    width: 100%;
+    max-width: 300px;
+    height: 6px;
+    background: var(--border, #334155);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.gpu-warmup-popup__progress-fill {
+    height: 100%;
+    background: var(--primary, #3b82f6);
+    border-radius: 3px;
+    transition: width 1s ease;
+}
+
+.gpu-warmup-popup__attempts {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.78rem;
+    color: var(--text-secondary, #94a3b8);
+    margin: 0;
+}
+
+.gpu-warmup-spin {
+    animation: gpu-warmup-spin-anim 1s linear infinite;
+}
+
+@keyframes gpu-warmup-spin-anim {
+    to { transform: rotate(360deg); }
+}
+
+.gpu-warmup-popup__cancel {
+    margin-top: 0.75rem;
+    padding: 0.45rem 1.2rem;
+    font-size: 0.82rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--border, #334155);
+    background: transparent;
+    color: var(--text-secondary, #94a3b8);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+
+.gpu-warmup-popup__cancel:hover {
+    background: var(--border, #334155);
+    color: var(--text-primary, #f8fafc);
+}

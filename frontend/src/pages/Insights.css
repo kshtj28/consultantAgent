@@ -1,0 +1,153 @@
+.insights {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.insights__trend-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.75rem;
+    color: var(--success);
+    font-weight: 500;
+}
+
+.insights__chart {
+    min-height: 300px;
+}
+
+.insights__section-label {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.insights__actions {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* Action card */
+.action-card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+}
+
+.action-card__icon {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    border-radius: 0.6rem;
+    background: rgba(139, 92, 246, 0.15);
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.action-card__content {
+    flex: 1;
+    min-width: 0;
+}
+
+.action-card__title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 0.25rem;
+}
+
+.action-card__desc {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+}
+
+.action-card__tags {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.action-card__tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.action-card__btn {
+    flex-shrink: 0;
+    padding: 8px 16px;
+    background: #3b82f6;
+    border: none;
+    border-radius: 0.5rem;
+    color: #fff;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.action-card__btn:hover:not(:disabled) {
+    background: var(--primary-dark);
+}
+
+.action-card__btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.action-card--expanded {
+    align-items: flex-start;
+}
+
+.action-card--expanded .action-card__desc {
+    white-space: pre-wrap;
+    max-height: 400px;
+    overflow-y: auto;
+    font-size: 0.78rem;
+    line-height: 1.6;
+    background: var(--surface-light);
+    padding: 0.75rem;
+    border-radius: 0.4rem;
+    border: 1px solid var(--border);
+}
+
+/* AI-specific styles */
+.insights__analyzing {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin-left: 0.75rem;
+    font-size: 0.8rem;
+    font-weight: 400;
+    color: var(--text-secondary);
+}
+
+.action-card__icon--ai {
+    background: rgba(59, 130, 246, 0.15);
+    color: var(--primary);
+}
+
+.action-card__ai-tag {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 0.4rem;
+    padding: 0.1rem 0.4rem;
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    background: rgba(59, 130, 246, 0.15);
+    color: var(--primary);
+    border-radius: 0.25rem;
+    vertical-align: middle;
+}

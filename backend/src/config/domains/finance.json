@@ -1,0 +1,278 @@
+{
+    "id": "finance",
+    "name": "Banking",
+    "description": "Banking and financial services process readiness assessment",
+    "persona": "You are a senior banking and financial services consultant with 20 years of experience in ERP transformations, core banking modernisation, procure-to-pay optimisation, and record-to-report automation. You have deep expertise in IFRS/GAAP consolidation, treasury operations, regulatory compliance (SOX, Basel III, IFRS 9), and digital finance transformation. You specialise in identifying process inefficiencies, control gaps, and automation opportunities across the full finance function, and you recommend modern best practices tailored to banking and financial services organisations.",
+    "broadAreas": [
+        {
+            "id": "order_to_cash",
+            "name": "Order-to-Cash",
+            "icon": "dollar-sign",
+            "description": "End-to-end revenue cycle from customer order through billing and cash collection",
+            "order": 1,
+            "subAreas": [
+                {
+                    "id": "accounts_receivable",
+                    "name": "Accounts Receivable",
+                    "icon": "dollar-sign",
+                    "description": "Billing, collections, and credit management",
+                    "order": 1,
+                    "basePrompt": "Ask questions about billing processes, collections, credit management, and customer payment behavior.",
+                    "benchmarks": {
+                        "maturity_1": "Manual invoice creation and collections",
+                        "maturity_2": "Basic automated billing with manual collections",
+                        "maturity_3": "Integrated billing with basic dunning",
+                        "maturity_4": "Automated collections with credit scoring",
+                        "maturity_5": "AI-powered credit risk and predictive collections"
+                    }
+                }
+            ]
+        },
+        {
+            "id": "procure_to_pay",
+            "name": "Procure-to-Pay",
+            "icon": "shopping-cart",
+            "description": "End-to-end procurement lifecycle from sourcing through payment",
+            "order": 2,
+            "subAreas": [
+                {
+                    "id": "procurement_sourcing",
+                    "name": "Procurement & Sourcing",
+                    "icon": "search",
+                    "description": "Strategic sourcing, category management, RFQ/RFP process",
+                    "order": 1,
+                    "basePrompt": "Ask questions about strategic sourcing practices, category management maturity, RFQ/RFP processes, supplier selection criteria, and how sourcing decisions are governed and tracked.",
+                    "benchmarks": {
+                        "maturity_1": "Ad-hoc purchasing with no formal sourcing strategy; supplier selection is manual and undocumented, relying on spreadsheets and email",
+                        "maturity_2": "Basic category groupings exist and RFQ/RFP templates are used for major spend; sourcing decisions are documented but not systematically reviewed",
+                        "maturity_3": "Structured category management with defined sourcing strategies; RFQ/RFP process is managed within an e-sourcing tool with approval workflows",
+                        "maturity_4": "Data-driven category strategies informed by spend analytics; competitive RFP events are benchmarked against market data and supplier scorecards are maintained",
+                        "maturity_5": "AI-driven supplier intelligence continuously identifies savings opportunities, predicts supply risk, and recommends optimal sourcing strategies across all categories"
+                    }
+                },
+                {
+                    "id": "purchase_order_management",
+                    "name": "Purchase Order Management",
+                    "icon": "clipboard-list",
+                    "description": "Requisition-to-PO, approval workflows, change orders",
+                    "order": 2,
+                    "basePrompt": "Ask questions about the purchase requisition and PO creation process, approval delegation, change order handling, goods receipt matching, and how PO compliance and maverick spend are managed.",
+                    "benchmarks": {
+                        "maturity_1": "Purchase orders are created manually on paper or in spreadsheets; approvals are informal with no documented delegation of authority",
+                        "maturity_2": "POs are raised in an ERP system but requisitions are email-based; approval workflows are configured but change orders require manual intervention",
+                        "maturity_3": "End-to-end requisition-to-PO process is managed in the ERP with configured approval thresholds; change orders follow a defined workflow and are tracked",
+                        "maturity_4": "Automated PO generation from approved requisitions with dynamic approval routing; goods receipt and invoice matching is automated with exception-based review",
+                        "maturity_5": "Touchless PO lifecycle from AI-assisted requisitioning through automated receipt, matching, and closure; real-time compliance monitoring eliminates maverick spend"
+                    }
+                },
+                {
+                    "id": "vendor_management",
+                    "name": "Vendor Management",
+                    "icon": "users",
+                    "description": "Vendor onboarding, performance scoring, contract management, SRM",
+                    "order": 3,
+                    "basePrompt": "Ask questions about vendor onboarding procedures, due diligence and risk screening, vendor master data governance, performance KPIs, contract lifecycle management, and the maturity of supplier relationship management practices.",
+                    "benchmarks": {
+                        "maturity_1": "Vendor onboarding is manual and paper-based; no formal performance tracking or contract repository exists; vendor master data is inconsistent across systems",
+                        "maturity_2": "A basic vendor master is maintained in the ERP; onboarding involves email-based collection of documents; contract management is handled via shared drives with no workflow",
+                        "maturity_3": "Structured onboarding process with defined due diligence checklists and risk screening; vendor performance is tracked against agreed KPIs on a periodic basis; contracts are stored in a central repository",
+                        "maturity_4": "Automated vendor onboarding portal with integrated compliance and sanctions screening; real-time performance scorecards are shared with suppliers; contract management system tracks milestones and renewals",
+                        "maturity_5": "AI-powered supplier relationship management platform continuously monitors supplier risk, financial health, and ESG performance; proactive collaboration portals enable joint business planning and innovation"
+                    }
+                },
+                {
+                    "id": "accounts_payable",
+                    "name": "Accounts Payable",
+                    "icon": "receipt",
+                    "description": "Invoice processing, approvals, and payments",
+                    "order": 4,
+                    "basePrompt": "Ask questions about the invoice-to-pay cycle, approval workflows, payment methods, and vendor management.",
+                    "benchmarks": {
+                        "maturity_1": "Fully manual invoice entry and paper-based approvals",
+                        "maturity_2": "Basic electronic invoicing with email approvals",
+                        "maturity_3": "ERP-based AP with some automation",
+                        "maturity_4": "Automated 3-way matching and workflow approvals",
+                        "maturity_5": "Full touchless processing with AI-driven exception handling"
+                    }
+                },
+                {
+                    "id": "payment_execution",
+                    "name": "Payment Execution",
+                    "icon": "credit-card",
+                    "description": "Payment runs, bank connectivity, payment methods, cash forecasting",
+                    "order": 5,
+                    "basePrompt": "Ask questions about payment run scheduling, bank connectivity methods (SWIFT, host-to-host, open banking), supported payment instruments, payment approval and release controls, fraud prevention measures, and short-term cash flow forecasting linked to payables.",
+                    "benchmarks": {
+                        "maturity_1": "Payments are initiated manually via individual bank portals or cheques; no straight-through processing; cash position is estimated from bank statements downloaded manually",
+                        "maturity_2": "Payment files are generated from the ERP and uploaded to bank portals manually; basic dual-authorisation controls are in place; cash forecasting relies on spreadsheet models",
+                        "maturity_3": "Automated payment file generation and transmission via host-to-host or SFTP bank connectivity; multiple payment methods are supported; cash forecasts are produced from ERP payment schedules",
+                        "maturity_4": "Real-time bank connectivity (SWIFT or open banking APIs) enables same-day payment execution and intraday cash visibility; automated payment approval workflows enforce segregation of duties",
+                        "maturity_5": "AI-optimised payment scheduling maximises early payment discounts and minimises idle cash; predictive cash forecasting integrates payables, receivables, and treasury data for a real-time liquidity view"
+                    }
+                }
+            ]
+        },
+        {
+            "id": "record_to_report",
+            "name": "Record-to-Report",
+            "icon": "book",
+            "description": "End-to-end accounting cycle from journal entries through financial reporting",
+            "order": 3,
+            "subAreas": [
+                {
+                    "id": "general_ledger",
+                    "name": "General Ledger",
+                    "icon": "book",
+                    "description": "Chart of accounts, journal entries, close process",
+                    "order": 1,
+                    "basePrompt": "Ask questions about the chart of accounts structure, journal entry processes, and month-end close procedures.",
+                    "benchmarks": {
+                        "maturity_1": "Manual journal entries with spreadsheet tracking",
+                        "maturity_2": "ERP-based GL with manual close tasks",
+                        "maturity_3": "Automated recurring entries with close checklist",
+                        "maturity_4": "Continuous close with real-time reporting",
+                        "maturity_5": "Zero-day close with AI-assisted anomaly detection"
+                    }
+                },
+                {
+                    "id": "journal_entries_accruals",
+                    "name": "Journal Entries & Accruals",
+                    "icon": "edit",
+                    "description": "Month-end accruals, prepayments, deferrals, recurring entries",
+                    "order": 2,
+                    "basePrompt": "Ask questions about how month-end accruals, prepayments, and deferrals are identified and posted, the volume and nature of manual journal entries, the controls around journal entry preparation and approval, and how recurring entries are managed.",
+                    "benchmarks": {
+                        "maturity_1": "All accruals and journal entries are prepared manually in spreadsheets and posted individually; no formal preparer/approver segregation; recurring entries are re-keyed each period",
+                        "maturity_2": "Journal entries are posted directly in the ERP but supporting calculations remain in spreadsheets; basic approval workflow exists; a small set of recurring entries is templated",
+                        "maturity_3": "Accruals are calculated using ERP data with supporting workpapers stored in a document management system; recurring and reversing entries are automated; journal entry approval is enforced in the system",
+                        "maturity_4": "Automated accrual calculations driven by ERP data rules reduce manual entries significantly; machine learning flags unusual posting patterns for review; prepayments and deferrals are system-managed on a schedule",
+                        "maturity_5": "AI continuously monitors transactions and automatically proposes and posts accruals, prepayments, and deferrals with full audit trail; manual journal entry volume is near-zero with exception-only human review"
+                    }
+                },
+                {
+                    "id": "reconciliation",
+                    "name": "Reconciliation",
+                    "icon": "check-square",
+                    "description": "Bank rec, intercompany, subledger matching",
+                    "order": 3,
+                    "basePrompt": "Ask questions about bank reconciliation, intercompany transactions, and subledger-to-GL matching.",
+                    "benchmarks": {
+                        "maturity_1": "Manual reconciliation using spreadsheets",
+                        "maturity_2": "Basic bank feed integration",
+                        "maturity_3": "Automated matching with manual exception handling",
+                        "maturity_4": "AI-assisted matching with auto-resolution",
+                        "maturity_5": "Continuous real-time reconciliation"
+                    }
+                },
+                {
+                    "id": "period_end_close",
+                    "name": "Period-End Close",
+                    "icon": "calendar",
+                    "description": "Close calendar management, task tracking, soft/hard close, intercompany",
+                    "order": 4,
+                    "basePrompt": "Ask questions about the financial close timeline, how close tasks are assigned and tracked, the use of soft and hard close periods, intercompany transaction reconciliation, and the key bottlenecks that extend the close cycle.",
+                    "benchmarks": {
+                        "maturity_1": "Close activities are coordinated via email and spreadsheet checklists; no formal task ownership; intercompany balances are reconciled manually after month-end; close cycle exceeds 10 working days",
+                        "maturity_2": "A close calendar exists and tasks are assigned to owners; soft close is used to restrict prior-period postings; intercompany matching is partially automated; close cycle is 7-10 working days",
+                        "maturity_3": "Close management tool tracks task completion with automated reminders; soft and hard close periods are enforced in the ERP; intercompany netting and reconciliation is system-supported; close cycle is 4-6 working days",
+                        "maturity_4": "Real-time close dashboard provides visibility of task status and bottlenecks; automated intercompany matching and elimination reduces manual effort; continuous accounting practices push close to 2-3 working days",
+                        "maturity_5": "Virtual close is achieved through continuous accounting automation; AI monitors close progress and reallocates tasks dynamically; intercompany transactions are eliminated in real time; reporting-ready financials are available within 1 working day"
+                    }
+                },
+                {
+                    "id": "financial_reporting",
+                    "name": "Financial Reporting",
+                    "icon": "bar-chart",
+                    "description": "Reports, consolidation, analytics",
+                    "order": 5,
+                    "basePrompt": "Ask questions about reporting tools, consolidation processes, and analytics capabilities.",
+                    "benchmarks": {
+                        "maturity_1": "Spreadsheet-based manual reports",
+                        "maturity_2": "Static ERP reports with manual consolidation",
+                        "maturity_3": "BI tool integration with scheduled reports",
+                        "maturity_4": "Self-service analytics with real-time dashboards",
+                        "maturity_5": "Predictive analytics with AI-generated insights"
+                    }
+                },
+                {
+                    "id": "financial_consolidation",
+                    "name": "Financial Consolidation",
+                    "icon": "layers",
+                    "description": "Group consolidation, intercompany eliminations, currency translation, IFRS/GAAP",
+                    "order": 6,
+                    "basePrompt": "Ask questions about the group consolidation process, the number of legal entities and reporting currencies, how intercompany eliminations are performed, the treatment of foreign currency translation differences, and compliance with IFRS or GAAP consolidation standards.",
+                    "benchmarks": {
+                        "maturity_1": "Consolidation is performed manually in spreadsheets; intercompany eliminations are calculated outside the system; currency translation uses manually updated exchange rates; high risk of error and restatement",
+                        "maturity_2": "A dedicated consolidation module or tool is used but relies on manual data imports from subsidiaries; basic intercompany matching is supported; currency translation is configured but exchange rate maintenance is manual",
+                        "maturity_3": "Automated data collection from subsidiary ERPs feeds the consolidation system; intercompany eliminations are system-generated with reconciliation reports; currency translation differences are automatically calculated and posted",
+                        "maturity_4": "Real-time consolidation engine processes subsidiary data continuously; automated intercompany netting and elimination with exception-based review; IFRS and local GAAP ledgers are maintained in parallel with automated adjustments",
+                        "maturity_5": "AI-powered consolidation platform delivers continuous group reporting with instant drill-down to subsidiary level; automated detection of consolidation errors and IFRS/GAAP differences; scenario modelling supports strategic decision-making in real time"
+                    }
+                },
+                {
+                    "id": "management_reporting",
+                    "name": "Management Reporting",
+                    "icon": "trending-up",
+                    "description": "Board packs, KPI dashboards, variance analysis, management accounts",
+                    "order": 7,
+                    "basePrompt": "Ask questions about how management accounts and board packs are prepared, the tools used for KPI dashboards, the process for variance analysis and commentary, reporting frequency and timeliness, and how reporting is aligned to business decision-making.",
+                    "benchmarks": {
+                        "maturity_1": "Management accounts are produced manually in spreadsheets and distributed as static PDF reports; variance commentary is written ad hoc; board packs take more than 5 days to compile after close",
+                        "maturity_2": "Management accounts are extracted from the ERP into spreadsheet templates; basic KPI tracking is in place; variance analysis is performed manually and commentary is added to email distributions",
+                        "maturity_3": "BI tool is used to produce standardised management accounts and KPI dashboards; variance analysis is supported by pre-built report comparisons; board packs are produced within 2-3 days of close",
+                        "maturity_4": "Self-service dashboards provide real-time visibility of financial and operational KPIs; automated variance narratives highlight key drivers; management accounts are available on the first day after close",
+                        "maturity_5": "AI-generated management reporting delivers narrative insights, predictive variance analysis, and forward-looking KPI forecasts; board packs are auto-assembled with intelligent commentary and available in real time"
+                    }
+                }
+            ]
+        },
+        {
+            "id": "treasury_cash_management",
+            "name": "Treasury & Cash Management",
+            "icon": "briefcase",
+            "description": "Cash management, liquidity planning, and treasury operations",
+            "order": 4,
+            "subAreas": [
+                {
+                    "id": "treasury",
+                    "name": "Treasury",
+                    "icon": "briefcase",
+                    "description": "Cash management, forecasting",
+                    "order": 1,
+                    "basePrompt": "Ask questions about cash management, forecasting, and liquidity planning.",
+                    "benchmarks": {
+                        "maturity_1": "Manual cash tracking with spreadsheets",
+                        "maturity_2": "Basic bank portal integration",
+                        "maturity_3": "Centralized cash visibility with manual forecasting",
+                        "maturity_4": "Automated cash pooling with ML-based forecasting",
+                        "maturity_5": "Real-time global liquidity with AI optimization"
+                    }
+                }
+            ]
+        },
+        {
+            "id": "compliance_controls",
+            "name": "Compliance & Controls",
+            "icon": "shield",
+            "description": "Regulatory compliance, internal controls, audit readiness, and SOX",
+            "order": 5,
+            "subAreas": [
+                {
+                    "id": "compliance_controls",
+                    "name": "Compliance & Controls",
+                    "icon": "shield",
+                    "description": "SOX, audit, segregation of duties",
+                    "order": 1,
+                    "basePrompt": "Ask questions about compliance requirements, audit readiness, and internal controls.",
+                    "benchmarks": {
+                        "maturity_1": "Manual controls with limited documentation",
+                        "maturity_2": "Basic control documentation with periodic testing",
+                        "maturity_3": "Automated control monitoring with exception reports",
+                        "maturity_4": "Continuous control monitoring with real-time alerts",
+                        "maturity_5": "AI-driven risk assessment and automated compliance"
+                    }
+                }
+            ]
+        }
+    ]
+}

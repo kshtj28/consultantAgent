@@ -1,0 +1,9 @@
+ecr_backend_url = "657552582368.dkr.ecr.me-central-1.amazonaws.com/consultant-agent/backend"
+ecr_frontend_url = "657552582368.dkr.ecr.me-central-1.amazonaws.com/consultant-agent/frontend"
+eks_cluster_endpoint = "https://42CA13210A060204B113B823D1558CA3.yl4.me-central-1.eks.amazonaws.com"
+eks_cluster_name = "consultant-agent-staging"
+github_actions_role_arn = "arn:aws:iam::657552582368:role/consultant-agent-github-actions-staging"
+opensearch_endpoint = "https://vpc-consultant-agent-staging-p6m5fnxkd3lwc2l2aucsl33y6m.me-central-1.es.amazonaws.com"
+
+
+aws ssm start-session   --target i-0d7dd6bd37ef22e34  --document-name AWS-StartPortForwardingSessionToRemoteHost   --parameters '{"host":["ollama.consultant-agent-staging.local"],"portNumber":["11434"],"localPortNumber":["11434"]}'

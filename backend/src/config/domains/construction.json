@@ -1,0 +1,269 @@
+{
+    "id": "construction",
+    "name": "Construction & Site Management",
+    "description": "Construction and site management process readiness assessment",
+    "persona": "You are a senior construction consultant with 20+ years of experience in project delivery, contract management, and site operations. You specialize in EPC projects, NEC/FIDIC contracts, and digital transformation in construction.",
+    "broadAreas": [
+        {
+            "id": "project_to_delivery",
+            "name": "Project-to-Delivery",
+            "icon": "hard-hat",
+            "description": "Project management, site operations, workforce, and equipment management",
+            "order": 1,
+            "subAreas": [
+                {
+                    "id": "project_management",
+                    "name": "Project Management",
+                    "icon": "gantt-chart",
+                    "description": "Project planning, scheduling, milestone tracking, EVM",
+                    "order": 1,
+                    "basePrompt": "Ask questions about project planning methodologies, scheduling tools, milestone tracking, earned value management, and how project performance is monitored and reported.",
+                    "benchmarks": {
+                        "maturity_1": "Projects managed with paper-based plans and ad-hoc scheduling; no formal baseline or progress tracking",
+                        "maturity_2": "Basic Gantt charts produced in spreadsheets or simple tools; milestones tracked manually with periodic reporting",
+                        "maturity_3": "Dedicated project management software used for scheduling; baseline vs actual tracked with some earned value metrics",
+                        "maturity_4": "Integrated project controls platform with live EVM dashboards, automated lookaheads, and cross-project visibility",
+                        "maturity_5": "Fully digital project management with AI-driven schedule risk analysis, real-time progress updates from site, and predictive completion forecasting"
+                    }
+                },
+                {
+                    "id": "site_operations",
+                    "name": "Site Operations",
+                    "icon": "hard-hat",
+                    "description": "Daily site management, progress monitoring, QA/QC, handover",
+                    "order": 2,
+                    "basePrompt": "Ask questions about daily site reporting, progress measurement methods, quality assurance and control processes, inspection and test plans, punch list management, and handover procedures.",
+                    "benchmarks": {
+                        "maturity_1": "Site diaries and daily reports completed on paper; QA/QC checks informal and undocumented; handover relies on physical dossiers",
+                        "maturity_2": "Basic digital forms for site reporting; inspection checklists used but stored in spreadsheets; handover documentation manually compiled",
+                        "maturity_3": "Mobile-based site reporting tools deployed; QA/QC integrated with document management; punch lists tracked digitally with owner assignments",
+                        "maturity_4": "Real-time site progress captured via mobile and IoT sensors; QA/QC linked to work packages; handover managed through structured close-out workflows",
+                        "maturity_5": "Drone surveys, BIM model updates, and wearable technology provide continuous site visibility; AI-assisted defect detection; fully digital handover with as-built BIM and O&M manuals"
+                    }
+                },
+                {
+                    "id": "workforce_labour",
+                    "name": "Workforce & Labour",
+                    "icon": "users",
+                    "description": "Resource planning, labour allocation, time & attendance, productivity",
+                    "order": 3,
+                    "basePrompt": "Ask questions about workforce planning, labour allocation processes, time and attendance capture, subcontractor headcount management, and how labour productivity is measured and improved.",
+                    "benchmarks": {
+                        "maturity_1": "Labour allocation decided ad-hoc on site; time and attendance captured on paper timesheets; productivity not formally measured",
+                        "maturity_2": "Weekly labour plans prepared by foremen; basic timesheets processed manually; some productivity tracking via daily output records",
+                        "maturity_3": "Resource-loaded schedules used for labour planning; digital time and attendance system in place; productivity metrics reported weekly",
+                        "maturity_4": "Integrated workforce management platform with real-time attendance, biometric access, and daily productivity dashboards aligned to work packages",
+                        "maturity_5": "AI-driven labour forecasting, wearable-enabled time tracking, and automated productivity benchmarking against industry norms with corrective action workflows"
+                    }
+                },
+                {
+                    "id": "equipment_asset_management",
+                    "name": "Equipment & Asset Management",
+                    "icon": "tool",
+                    "description": "Plant management, utilisation tracking, maintenance scheduling",
+                    "order": 4,
+                    "basePrompt": "Ask questions about how plant and equipment is managed, tracked, and maintained, including utilisation monitoring, maintenance scheduling, hire vs own decisions, and asset lifecycle management.",
+                    "benchmarks": {
+                        "maturity_1": "Plant register maintained on paper or spreadsheets; maintenance scheduled informally; utilisation not tracked",
+                        "maturity_2": "Basic asset register in place; preventive maintenance schedules created but often reactive; hire agreements managed manually",
+                        "maturity_3": "Digital plant management system with maintenance schedules, inspection records, and basic utilisation reporting",
+                        "maturity_4": "Integrated asset management platform with real-time utilisation tracking via telematics, automated maintenance alerts, and cost-per-hour reporting",
+                        "maturity_5": "IoT-connected fleet with predictive maintenance using sensor data, AI-optimised plant allocation across projects, and automated hire/return management"
+                    }
+                }
+            ]
+        },
+        {
+            "id": "procure_to_pay",
+            "name": "Procure-to-Pay",
+            "icon": "shopping-cart",
+            "description": "Procurement, subcontractor management, and payment certification",
+            "order": 2,
+            "subAreas": [
+                {
+                    "id": "procurement_contracts",
+                    "name": "Procurement & Contracts",
+                    "icon": "file-text",
+                    "description": "Tendering, contract award, variations, subcontractor management",
+                    "order": 1,
+                    "basePrompt": "Ask questions about the tendering process, contract types used (NEC, FIDIC, bespoke), contract award workflows, variation and change order management, and subcontractor oversight.",
+                    "benchmarks": {
+                        "maturity_1": "Tendering and contract management handled via paper documents and email; variations tracked in spreadsheets with frequent disputes",
+                        "maturity_2": "Standard contract templates in use; basic variation register maintained; limited visibility of subcontractor commitments",
+                        "maturity_3": "Contract management system in use; variation workflow with approval trails; subcontractor scopes and obligations tracked",
+                        "maturity_4": "Integrated procurement and contract platform linking tenders, awards, variations, and payments; automated alerts for key obligations and expiry dates",
+                        "maturity_5": "End-to-end digital procurement with e-tendering, AI-assisted contract review, real-time variation impact modelling, and automated subcontractor compliance tracking"
+                    }
+                },
+                {
+                    "id": "procurement_sourcing",
+                    "name": "Procurement & Sourcing",
+                    "icon": "search",
+                    "description": "Material and subcontractor sourcing, supplier qualification, RFQ",
+                    "order": 2,
+                    "basePrompt": "Ask questions about how materials and subcontractors are sourced, the supplier qualification process, how RFQs and RFPs are managed, and how procurement decisions are documented and approved.",
+                    "benchmarks": {
+                        "maturity_1": "Sourcing decisions made informally based on personal relationships; no formal qualification process; RFQs issued by email with no tracking",
+                        "maturity_2": "Approved supplier list maintained; basic RFQ templates used; sourcing decisions documented with limited competitive benchmarking",
+                        "maturity_3": "Structured procurement process with formal supplier qualification, competitive tendering, and evaluation scorecards for significant purchases",
+                        "maturity_4": "e-Procurement platform with digital RFQ/RFP, automated bid comparison, and supplier performance integrated into sourcing decisions",
+                        "maturity_5": "Strategic category management with AI-assisted market intelligence, dynamic supplier qualification, and real-time spend analytics driving procurement strategy"
+                    }
+                },
+                {
+                    "id": "purchase_order_management",
+                    "name": "Purchase Order Management",
+                    "icon": "clipboard-list",
+                    "description": "PO creation, approval workflows, goods receipt, change orders",
+                    "order": 3,
+                    "basePrompt": "Ask questions about how purchase orders are created and approved, how goods and materials are received on site, how PO commitments are tracked against project budgets, and how change orders to POs are managed.",
+                    "benchmarks": {
+                        "maturity_1": "POs created manually and approved via email or paper signatures; goods receipt not formally recorded; PO commitments not linked to project budgets",
+                        "maturity_2": "PO templates used with basic approval levels; goods receipt noted on delivery dockets stored in project files; budget tracking done separately in spreadsheets",
+                        "maturity_3": "ERP or project system used for PO creation and approval workflow; goods receipt recorded digitally and matched to PO; committed costs visible in project budget",
+                        "maturity_4": "Fully integrated PO management with mobile goods receipt, automated three-way matching, and real-time budget commitment updates across all projects",
+                        "maturity_5": "AI-driven PO automation with vendor portal integration, predictive materials delivery tracking, and automated accruals for uninvoiced deliveries"
+                    }
+                },
+                {
+                    "id": "subcontractor_vendor_management",
+                    "name": "Subcontractor & Vendor Management",
+                    "icon": "handshake",
+                    "description": "Subcontractor/supplier onboarding, performance, SRM",
+                    "order": 4,
+                    "basePrompt": "Ask questions about the subcontractor and vendor onboarding process, how compliance documents and insurances are managed, how subcontractor performance is measured, and how supplier relationships are strategically managed.",
+                    "benchmarks": {
+                        "maturity_1": "Subcontractors onboarded informally; compliance documents collected ad-hoc and stored in paper files; performance assessed subjectively",
+                        "maturity_2": "Basic onboarding checklist with required documents; performance reviewed informally at project end; limited visibility of expiring insurances or certifications",
+                        "maturity_3": "Vendor management system with digital onboarding, document expiry tracking, and structured performance KPI reviews at key milestones",
+                        "maturity_4": "Integrated SRM platform with automated compliance alerts, real-time performance scorecards, and preferred supplier tier management",
+                        "maturity_5": "Strategic supplier relationship management with predictive risk scoring, collaborative development programmes, and AI-driven supplier segmentation"
+                    }
+                },
+                {
+                    "id": "payment_certification",
+                    "name": "Payment Certification",
+                    "icon": "credit-card",
+                    "description": "Payment certificates, retention management, bank payments",
+                    "order": 5,
+                    "basePrompt": "Ask questions about how subcontractor payment applications are reviewed and certified, the approval workflow for payments, how retention is calculated and managed, and how bank payments are executed and reconciled.",
+                    "benchmarks": {
+                        "maturity_1": "Subcontractor payment applications assessed manually; certificates issued on paper; retention tracked in spreadsheets; bank payments executed via manual banking portal",
+                        "maturity_2": "Standard payment application templates used; certificates raised in project system but approval is email-based; retention register maintained with some automation",
+                        "maturity_3": "Integrated payment certification workflow with digital approval chain; retention calculated automatically on each certificate; payment instructions generated from the system",
+                        "maturity_4": "Fully automated payment certification linked to progress milestones and contract terms; retention release triggered by handover events; straight-through bank payment processing",
+                        "maturity_5": "Smart contract-enabled payment automation with real-time payment status visibility for subcontractors, dynamic cash flow forecasting, and automated retention bond management"
+                    }
+                }
+            ]
+        },
+        {
+            "id": "record_to_report",
+            "name": "Record-to-Report",
+            "icon": "book",
+            "description": "Project cost accounting through financial reporting",
+            "order": 3,
+            "subAreas": [
+                {
+                    "id": "project_cost_accounting",
+                    "name": "Project Cost Accounting",
+                    "icon": "calculator",
+                    "description": "WBS cost tracking, cost codes, budget vs actual, CTC forecasting",
+                    "order": 1,
+                    "basePrompt": "Ask questions about how project costs are coded and tracked against the WBS, how budget vs actual reporting is produced, how cost-to-complete forecasting is done, and how cost data flows between site and finance.",
+                    "benchmarks": {
+                        "maturity_1": "Project costs tracked in spreadsheets with manual cost code allocation; budget vs actual reported monthly from finance with significant lag",
+                        "maturity_2": "Basic WBS established in ERP or project system; cost codes applied to transactions; budget vs actual available but updated infrequently",
+                        "maturity_3": "Integrated project cost accounting with WBS linked to procurement, timesheets, and site costs; monthly CTC reviews with project managers",
+                        "maturity_4": "Real-time project cost dashboards with automated actuals from all cost sources; CTC forecasting integrated into project controls; trend analysis and variance explanations",
+                        "maturity_5": "AI-driven cost forecasting with scenario modelling, automated risk-adjusted CTC, and continuous budget vs actual reconciliation feeding live project profitability reporting"
+                    }
+                },
+                {
+                    "id": "period_end_close",
+                    "name": "Period-End Close",
+                    "icon": "calendar",
+                    "description": "Monthly close, WIP accounting, inter-project cost allocations",
+                    "order": 2,
+                    "basePrompt": "Ask questions about the monthly financial close process, how work in progress is valued and accounted for, how shared costs and overheads are allocated across projects, and the timeline and pain points of the close cycle.",
+                    "benchmarks": {
+                        "maturity_1": "Month-end close takes 10+ working days; WIP calculated manually from project estimates; inter-project allocations based on arbitrary percentages",
+                        "maturity_2": "Close completed in 6-8 working days; WIP calculated from project system but reconciled manually to GL; cost allocations follow a defined methodology",
+                        "maturity_3": "Structured close checklist with assigned owners; WIP accounting semi-automated from project cost data; allocation bases reviewed and updated quarterly",
+                        "maturity_4": "Close completed in 3-4 working days with automated accruals and WIP journals; inter-project allocations calculated and posted automatically; real-time close status tracking",
+                        "maturity_5": "Continuous close capability with near-zero manual journals; AI-generated WIP estimates updated daily; fully automated overhead allocations with real-time GL impact"
+                    }
+                },
+                {
+                    "id": "financial_reporting",
+                    "name": "Financial Reporting",
+                    "icon": "bar-chart",
+                    "description": "Project financial reports, group consolidation, management reporting",
+                    "order": 3,
+                    "basePrompt": "Ask questions about what financial reports are produced, how project-level and group-level financial reporting is structured, what tools are used, how management reporting is compiled, and how quickly reports are available after period end.",
+                    "benchmarks": {
+                        "maturity_1": "Financial reports produced manually in spreadsheets; project and group reporting compiled separately with significant reconciliation effort",
+                        "maturity_2": "Standard ERP reports used; project P&L available within 2 weeks of month end; group consolidation done in spreadsheets",
+                        "maturity_3": "BI tool connected to ERP and project system; project and group reports available within 5 working days; management pack compiled from defined templates",
+                        "maturity_4": "Self-service analytics with live project dashboards; group consolidation automated; management reports published within 2-3 working days of close",
+                        "maturity_5": "Real-time financial reporting across all projects and entities; AI-generated commentary and variance analysis; predictive financial forecasting integrated into management reporting"
+                    }
+                },
+                {
+                    "id": "billing_revenue",
+                    "name": "Billing & Revenue",
+                    "icon": "file-invoice",
+                    "description": "Progress claims, invoice certification, variations, retention management",
+                    "order": 4,
+                    "basePrompt": "Ask questions about how progress claims are prepared and submitted, the certification and approval process, how variations are included in billing, retention management, and revenue recognition practices.",
+                    "benchmarks": {
+                        "maturity_1": "Progress claims prepared manually from site records; certification process paper-based with frequent delays and disputes",
+                        "maturity_2": "Standard claim templates used; basic tracking of certified vs submitted amounts in spreadsheets; retention monitored manually",
+                        "maturity_3": "Project management system used to generate claims linked to milestones and BOQ; variation register integrated with billing; retention tracked by contract",
+                        "maturity_4": "Automated claim preparation from progress data; integrated approval workflow with client; real-time revenue recognition aligned to contract terms",
+                        "maturity_5": "Fully digital billing cycle with smart contract triggers, automated IFRS 15 revenue recognition, and AI-assisted dispute resolution and cash flow optimisation"
+                    }
+                }
+            ]
+        },
+        {
+            "id": "safety_compliance",
+            "name": "Safety & Compliance",
+            "icon": "shield",
+            "description": "Safety management and regulatory compliance",
+            "order": 4,
+            "subAreas": [
+                {
+                    "id": "safety_compliance",
+                    "name": "Safety & Compliance",
+                    "icon": "shield",
+                    "description": "HSEQ management, incident reporting, certifications, regulatory compliance",
+                    "order": 1,
+                    "basePrompt": "Ask questions about the health, safety, environment, and quality management systems, incident and near-miss reporting processes, safety inductions, permit-to-work systems, and how regulatory compliance is maintained.",
+                    "benchmarks": {
+                        "maturity_1": "Safety managed reactively; incident reports completed on paper; permit-to-work issued manually with limited follow-up",
+                        "maturity_2": "Basic safety management plan in place; incident register maintained in spreadsheets; toolbox talks scheduled but inconsistently recorded",
+                        "maturity_3": "Formal HSEQ management system aligned to ISO 45001/14001; digital incident reporting with root cause analysis; permit-to-work managed digitally",
+                        "maturity_4": "Integrated HSEQ platform with leading and lagging indicator dashboards, automated regulatory reporting, and proactive near-miss trend analysis",
+                        "maturity_5": "Predictive safety analytics using AI and IoT sensors; real-time hazard identification via wearables and computer vision; zero-harm culture embedded across the supply chain"
+                    }
+                },
+                {
+                    "id": "compliance_controls",
+                    "name": "Compliance & Controls",
+                    "icon": "check-square",
+                    "description": "Statutory compliance, audit readiness, internal controls",
+                    "order": 2,
+                    "basePrompt": "Ask questions about how statutory compliance obligations are managed, the state of audit readiness, how internal controls are documented and tested, and how control deficiencies are identified and remediated.",
+                    "benchmarks": {
+                        "maturity_1": "Compliance managed reactively; limited control documentation; audit preparation is a significant manual effort each year",
+                        "maturity_2": "Key controls documented in a controls register; annual compliance calendar maintained; audit support compiled manually from multiple systems",
+                        "maturity_3": "Formal internal control framework with periodic testing; automated compliance reporting for key obligations; audit evidence centralised in a document management system",
+                        "maturity_4": "Continuous control monitoring with automated exception alerts; integrated compliance management system tracking all obligations; internal audit aligned to risk-based plan",
+                        "maturity_5": "AI-driven compliance risk assessment; real-time control effectiveness monitoring; fully automated statutory filings; predictive audit readiness scoring"
+                    }
+                }
+            ]
+        }
+    ]
+}

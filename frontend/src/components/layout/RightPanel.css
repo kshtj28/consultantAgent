@@ -1,0 +1,286 @@
+/* ===========================
+   Right Panel - Persistent Sidebar
+   =========================== */
+
+.right-panel {
+  width: 280px;
+  min-width: 280px;
+  height: 100vh;
+  background: #0f1419;
+  border-left: 1px solid #1e293b;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 16px 14px;
+  gap: 20px;
+  color: #e2e8f0;
+  font-family: inherit;
+  scrollbar-width: thin;
+  scrollbar-color: #1e293b transparent;
+}
+
+.right-panel::-webkit-scrollbar {
+  width: 4px;
+}
+
+.right-panel::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.right-panel::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 2px;
+}
+
+/* --- Section --- */
+
+.right-panel__section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.right-panel__section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.right-panel__section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #f1f5f9;
+  margin: 0;
+  letter-spacing: 0.02em;
+}
+
+.right-panel__badge-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.right-panel__risk-badge {
+  background: #ef4444;
+  color: white;
+  font-size: 0.65rem;
+  font-weight: 700;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+}
+
+/* --- Risk Cards --- */
+
+.right-panel__risk-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.risk-card {
+  background: #161b22;
+  border: 1px solid #1e293b;
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.risk-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.risk-card__severity {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+
+.risk-card__severity-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.risk-card__severity--high {
+  background: rgba(239, 68, 68, 0.12);
+  color: #f87171;
+}
+
+.risk-card__severity--high .risk-card__severity-dot {
+  background: #ef4444;
+}
+
+.risk-card__severity--medium {
+  background: rgba(245, 158, 11, 0.12);
+  color: #fbbf24;
+}
+
+.risk-card__severity--medium .risk-card__severity-dot {
+  background: #f59e0b;
+}
+
+.risk-card__timestamp {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  color: #64748b;
+}
+
+.risk-card__title {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: #cbd5e1;
+  margin: 0;
+}
+
+.risk-card__assignee {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.risk-card__avatar-icon {
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+.risk-card__assignee-name {
+  font-weight: 500;
+  color: #94a3b8;
+}
+
+.risk-card__assignee-role {
+  color: #475569;
+}
+
+.risk-card__assignee-role::before {
+  content: '\00b7';
+  margin-right: 4px;
+}
+
+.risk-card__impact {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #f87171;
+}
+
+.risk-card__impact-icon {
+  flex-shrink: 0;
+}
+
+/* --- View All Link --- */
+
+.right-panel__view-all {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background: none;
+  border: 1px solid #1e293b;
+  border-radius: 6px;
+  padding: 8px 0;
+  font-size: 11px;
+  font-weight: 500;
+  color: #60a5fa;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.right-panel__view-all:hover {
+  background: rgba(96, 165, 250, 0.08);
+}
+
+/* --- Heatmap --- */
+
+.heatmap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.heatmap__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.heatmap__label {
+  width: 72px;
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 500;
+  color: #94a3b8;
+}
+
+.heatmap__bar-track {
+  flex: 1;
+  height: 8px;
+  background: #1e293b;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.heatmap__bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.4s ease;
+}
+
+.heatmap__bar-fill--green {
+  background: #22c55e;
+}
+
+.heatmap__bar-fill--amber {
+  background: #f59e0b;
+}
+
+.heatmap__bar-fill--red {
+  background: #ef4444;
+}
+
+.heatmap__percent {
+  width: 32px;
+  text-align: right;
+  font-size: 11px;
+  font-weight: 600;
+  color: #cbd5e1;
+}
+
+.heatmap__overall {
+  font-size: 11px;
+  color: #64748b;
+  margin: 4px 0 0;
+  text-align: center;
+}
+
+.heatmap__overall strong {
+  color: #94a3b8;
+}

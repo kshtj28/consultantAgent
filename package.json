@@ -1,0 +1,29 @@
+{
+    "name": "consultant-agent",
+    "private": true,
+    "version": "1.0.0",
+    "description": "AI-powered consultant agent for gap analysis and process improvement",
+    "scripts": {
+        "dev": "concurrently \"pnpm dev:backend\" \"pnpm dev:frontend\"",
+        "dev:backend": "pnpm --filter consultant-agent-backend dev",
+        "dev:frontend": "pnpm --filter consultant-agent-frontend dev",
+        "build": "pnpm -r build",
+        "lint": "pnpm -r lint",
+        "install:all": "pnpm install",
+        "changeset": "changeset",
+        "version": "changeset version",
+        "test:e2e": "npx playwright test --project=chromium",
+        "test:bdd": "npx bddgen && npx playwright test --project=bdd",
+        "test:bdd:deficiency": "npx bddgen && npx playwright test --project=bdd --grep @deficiency-detection",
+        "test:bdd:admin": "npx bddgen && npx playwright test --project=bdd --grep @admin",
+        "test:bdd:edge": "npx bddgen && npx playwright test --project=bdd --grep @edge-cases",
+        "test:bdd:reports": "npx bddgen && npx playwright test --project=bdd --grep @report-generation",
+        "test:bdd:compare": "npx bddgen && npx playwright test --project=bdd --grep @metrics-comparison"
+    },
+    "devDependencies": {
+        "@changesets/cli": "^2.29.8",
+        "@playwright/test": "^1.58.2",
+        "concurrently": "^8.2.2",
+        "playwright-bdd": "^8.5.0"
+    }
+}

@@ -1,0 +1,100 @@
+.sme-engagement {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.sme-engagement__stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+}
+
+/* Table */
+.sme-table-wrapper {
+    overflow-x: auto;
+}
+
+.sme-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+
+.sme-table th {
+    text-align: left;
+    padding: 0.6rem 0.75rem;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border);
+    font-weight: 600;
+}
+
+.sme-table td {
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+}
+
+.sme-table tbody tr:hover {
+    background: rgba(59, 130, 246, 0.04);
+}
+
+.sme-table__user {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+}
+
+.sme-table__avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--surface-light);
+    border: 1px solid var(--border-light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    flex-shrink: 0;
+}
+
+.sme-table__name {
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+
+.sme-table__role {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+}
+
+.sme-table__muted {
+    color: var(--text-secondary);
+}
+
+.sme-table__engagement {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.sme-table__bar-track {
+    width: 80px;
+    height: 5px;
+    background: var(--surface-light);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.sme-table__bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.4s ease;
+}

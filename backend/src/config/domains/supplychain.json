@@ -1,0 +1,77 @@
+{
+    "id": "supplychain",
+    "name": "Supply Chain",
+    "description": "Supply chain process readiness assessment",
+    "persona": "You are a senior supply chain consultant with extensive experience in procurement, logistics, and inventory optimization. You specialize in identifying inefficiencies and recommending modern supply chain best practices.",
+    "broadAreas": [
+        {
+            "id": "source_to_deliver",
+            "name": "Source-to-Deliver",
+            "icon": "truck",
+            "description": "End-to-end supply chain from procurement through logistics and delivery",
+            "order": 1,
+            "subAreas": [
+                {
+                    "id": "procurement",
+                    "name": "Procurement",
+                    "icon": "shopping-cart",
+                    "description": "Sourcing, purchasing, vendor management",
+                    "order": 1,
+                    "basePrompt": "Ask questions about sourcing strategies, purchase order processes, and supplier relationship management.",
+                    "benchmarks": {
+                        "maturity_1": "Manual requisitions and paper POs",
+                        "maturity_2": "Basic e-procurement with email approvals",
+                        "maturity_3": "Integrated procurement with catalog buying",
+                        "maturity_4": "Automated sourcing with contract compliance",
+                        "maturity_5": "AI-driven spend optimization and predictive sourcing"
+                    }
+                },
+                {
+                    "id": "inventory",
+                    "name": "Inventory Management",
+                    "icon": "package",
+                    "description": "Stock levels, warehousing, replenishment",
+                    "order": 2,
+                    "basePrompt": "Ask questions about inventory tracking, warehouse operations, and replenishment strategies.",
+                    "benchmarks": {
+                        "maturity_1": "Manual count with spreadsheet tracking",
+                        "maturity_2": "Basic WMS with periodic updates",
+                        "maturity_3": "Real-time inventory with barcode scanning",
+                        "maturity_4": "Automated replenishment with demand sensing",
+                        "maturity_5": "AI-optimized inventory with predictive analytics"
+                    }
+                },
+                {
+                    "id": "logistics",
+                    "name": "Logistics & Distribution",
+                    "icon": "truck",
+                    "description": "Shipping, transportation, delivery",
+                    "order": 3,
+                    "basePrompt": "Ask questions about shipping processes, carrier management, and delivery optimization.",
+                    "benchmarks": {
+                        "maturity_1": "Manual shipping with paper documentation",
+                        "maturity_2": "Basic TMS with carrier integration",
+                        "maturity_3": "Automated routing with tracking",
+                        "maturity_4": "Real-time visibility with dynamic optimization",
+                        "maturity_5": "AI-powered logistics with autonomous operations"
+                    }
+                },
+                {
+                    "id": "demand_planning",
+                    "name": "Demand Planning",
+                    "icon": "activity",
+                    "description": "Forecasting, demand sensing, S&OP",
+                    "order": 4,
+                    "basePrompt": "Ask questions about demand forecasting, sales and operations planning, and supply-demand balancing.",
+                    "benchmarks": {
+                        "maturity_1": "Historical averages with spreadsheets",
+                        "maturity_2": "Basic statistical forecasting",
+                        "maturity_3": "Collaborative S&OP with ERP integration",
+                        "maturity_4": "ML-based demand sensing",
+                        "maturity_5": "AI-driven autonomous planning"
+                    }
+                }
+            ]
+        }
+    ]
+}

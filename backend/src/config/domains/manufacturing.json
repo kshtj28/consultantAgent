@@ -1,0 +1,284 @@
+{
+    "id": "manufacturing",
+    "name": "Manufacturing",
+    "description": "Manufacturing operations and process readiness assessment",
+    "persona": "You are a senior manufacturing consultant with 20+ years of experience in lean manufacturing, supply chain optimization, and Industry 4.0 transformation. You specialize in MRP/MES systems, quality management, and operational excellence.",
+    "broadAreas": [
+        {
+            "id": "plan_to_produce",
+            "name": "Plan-to-Produce",
+            "icon": "settings",
+            "description": "Production planning through quality control and inventory management",
+            "order": 1,
+            "subAreas": [
+                {
+                    "id": "production_planning",
+                    "name": "Production Planning",
+                    "icon": "layers",
+                    "description": "MPS, MRP, capacity planning, production scheduling, S&OP",
+                    "order": 1,
+                    "basePrompt": "Ask questions about how production is planned and scheduled, including master production scheduling, MRP runs, capacity planning processes, the S&OP cycle, and how demand signals flow into the production plan.",
+                    "benchmarks": {
+                        "maturity_1": "Production scheduled informally based on experience; no formal MPS or MRP; capacity constraints identified reactively when bottlenecks occur",
+                        "maturity_2": "Basic MRP in ERP used for material requirements; master production schedule maintained in spreadsheets; S&OP meetings held but not linked to a formal planning system",
+                        "maturity_3": "Integrated MPS and MRP with finite capacity planning; structured monthly S&OP cycle; production schedule published and visible to shop floor supervisors",
+                        "maturity_4": "Advanced planning and scheduling tool with real-time capacity and constraint modelling; weekly rolling S&OP with cross-functional consensus; demand-driven replenishment signals",
+                        "maturity_5": "AI-driven production planning with machine learning demand forecasts, autonomous MRP re-planning on supply disruptions, and real-time S&OP powered by live operational data"
+                    }
+                },
+                {
+                    "id": "quality_control",
+                    "name": "Quality Control",
+                    "icon": "check-circle",
+                    "description": "QMS, inspection processes, defect management, CAPA, SPC",
+                    "order": 2,
+                    "basePrompt": "Ask questions about the quality management system, incoming and in-process inspection procedures, how defects are recorded and escalated, the CAPA process, use of statistical process control, and quality certifications held.",
+                    "benchmarks": {
+                        "maturity_1": "Quality inspections carried out informally; defects recorded on paper; no formal CAPA process; reliance on end-of-line inspection to catch defects",
+                        "maturity_2": "Quality management procedures documented; inspection checklists used; defect register maintained in spreadsheets; CAPA process exists but is inconsistently applied",
+                        "maturity_3": "ISO 9001-certified QMS in place; digital quality management system for recording inspections, NCRs, and CAPAs; basic SPC charts used for key processes",
+                        "maturity_4": "Integrated QMS with real-time SPC monitoring and automated out-of-control alerts; CAPA linked to root cause analysis workflows; supplier quality integrated into the system",
+                        "maturity_5": "AI-powered predictive quality with computer vision for defect detection, automated SPC analysis driving process adjustments, and zero-defect strategy underpinned by real-time quality intelligence"
+                    }
+                },
+                {
+                    "id": "inventory_warehouse",
+                    "name": "Inventory & Warehouse",
+                    "icon": "package",
+                    "description": "Stock management, WMS, cycle counting, ABC analysis, FIFO/LIFO",
+                    "order": 3,
+                    "basePrompt": "Ask questions about inventory management practices, warehouse management systems, stock accuracy methods such as cycle counting, inventory valuation methods, how slow-moving and obsolete stock is managed, and the use of ABC analysis.",
+                    "benchmarks": {
+                        "maturity_1": "Inventory managed with paper records or basic spreadsheets; stock counts done annually with significant write-offs; no formal ABC segmentation",
+                        "maturity_2": "ERP stock module in use; periodic cycle counts conducted; FIFO or LIFO applied but not consistently enforced; basic reports on stock levels and value",
+                        "maturity_3": "Warehouse management system with location-level tracking; regular cycle counting programme by ABC category; inventory accuracy above 95%; reorder points defined for key items",
+                        "maturity_4": "Integrated WMS with real-time inventory visibility, automated replenishment triggers, RFID or barcode-driven transactions, and dynamic safety stock calculations",
+                        "maturity_5": "Autonomous warehouse with AI-driven demand-based replenishment, drone or robot-assisted cycle counting, predictive obsolescence management, and real-time inventory accuracy above 99.5%"
+                    }
+                },
+                {
+                    "id": "plant_maintenance",
+                    "name": "Plant Maintenance",
+                    "icon": "tool",
+                    "description": "Preventive/corrective maintenance, CMMS, OEE, spare parts",
+                    "order": 4,
+                    "basePrompt": "Ask questions about the maintenance strategy for production equipment, how preventive and corrective maintenance is planned and executed, the use of a CMMS, how OEE is tracked and improved, and how spare parts are managed.",
+                    "benchmarks": {
+                        "maturity_1": "Maintenance is predominantly reactive; breakdowns recorded informally; no CMMS in use; OEE not measured; spare parts managed by individual technicians",
+                        "maturity_2": "Basic preventive maintenance schedule exists; work orders raised manually or in a simple system; OEE measured on key lines but calculated monthly from production logs",
+                        "maturity_3": "CMMS in use with planned maintenance work orders, downtime recording, and spare parts catalogue; OEE tracked weekly with availability, performance, and quality breakdowns",
+                        "maturity_4": "Integrated CMMS with automated PM scheduling, real-time OEE dashboards, spare parts min/max management, and maintenance KPIs linked to production planning",
+                        "maturity_5": "Predictive maintenance using IoT sensors and ML models to anticipate failures; autonomous work order generation; OEE optimisation driven by AI analysis of production and maintenance data"
+                    }
+                },
+                {
+                    "id": "sales_operations",
+                    "name": "Sales & Operations",
+                    "icon": "trending-up",
+                    "description": "Order management, demand planning, customer service levels",
+                    "order": 5,
+                    "basePrompt": "Ask questions about how customer orders are received and processed, demand planning and forecasting processes, how customer service levels and on-time delivery are tracked, and how sales demand is communicated to operations.",
+                    "benchmarks": {
+                        "maturity_1": "Orders received by email or phone and entered manually; demand forecasting not formalised; customer service levels not systematically tracked",
+                        "maturity_2": "Order management handled in ERP; basic demand forecast produced from historical sales; on-time delivery tracked but reported retrospectively",
+                        "maturity_3": "Integrated order management with CRM and ERP; structured demand planning process with statistical forecasts; OTIF and fill rate KPIs reported monthly",
+                        "maturity_4": "Advanced demand planning tool with collaborative forecasting; customer portal for order visibility; real-time OTIF dashboards driving operational priorities",
+                        "maturity_5": "AI-powered demand sensing integrating market signals, customer data, and external factors; autonomous order promising with real-time ATP; predictive customer service level management"
+                    }
+                }
+            ]
+        },
+        {
+            "id": "procure_to_pay",
+            "name": "Procure-to-Pay",
+            "icon": "shopping-cart",
+            "description": "Strategic sourcing through supplier management and payment processing",
+            "order": 2,
+            "subAreas": [
+                {
+                    "id": "strategic_sourcing",
+                    "name": "Strategic Sourcing",
+                    "icon": "search",
+                    "description": "Category management, supplier selection, RFQ/RFP, contract negotiation",
+                    "order": 1,
+                    "basePrompt": "Ask questions about how spend categories are managed, the supplier selection and evaluation process, how RFQs and RFPs are conducted, negotiation strategies, and how sourcing decisions are governed and documented.",
+                    "benchmarks": {
+                        "maturity_1": "Purchasing decisions made on an ad-hoc basis; no category management; RFQs issued informally by email; limited negotiation beyond price",
+                        "maturity_2": "Spend categories defined; approved vendor list maintained; standard RFQ process used for significant purchases; basic total cost of ownership considered in sourcing decisions",
+                        "maturity_3": "Category management programme in place with category strategies; formal RFQ/RFP process with structured evaluation criteria; contracts negotiated and stored centrally",
+                        "maturity_4": "e-Sourcing platform with digital RFQ/RFP, reverse auctions, automated bid analysis, and category spend analytics driving strategic sourcing decisions",
+                        "maturity_5": "AI-enhanced category management with market intelligence, dynamic should-cost modelling, predictive supplier risk, and automated sourcing strategy recommendations"
+                    }
+                },
+                {
+                    "id": "purchase_order_management",
+                    "name": "Purchase Order Management",
+                    "icon": "clipboard-list",
+                    "description": "PO creation, approval, goods receipt, invoice verification",
+                    "order": 2,
+                    "basePrompt": "Ask questions about how purchase orders are created and approved, the PO approval matrix, how goods receipt is recorded, how POs link to inventory and financial systems, and how PO changes and cancellations are managed.",
+                    "benchmarks": {
+                        "maturity_1": "POs created manually and approved via paper or email; goods receipt not formally recorded in a system; no link between POs and inventory or finance",
+                        "maturity_2": "POs raised in ERP with basic approval workflow; goods receipt entered manually; committed spend visible in ERP but reconciliation done in spreadsheets",
+                        "maturity_3": "Integrated PO management with defined approval matrix, automated workflow notifications, mobile goods receipt, and real-time budget commitment tracking",
+                        "maturity_4": "Fully digital PO lifecycle with supplier portal for PO acknowledgement and ASN, automated goods receipt matching, and exception-based management of discrepancies",
+                        "maturity_5": "AI-driven PO automation with intelligent approval routing, predictive delivery tracking, automated three-way match, and touchless PO processing for catalogue purchases"
+                    }
+                },
+                {
+                    "id": "supplier_management",
+                    "name": "Supplier Management",
+                    "icon": "users",
+                    "description": "Supplier onboarding, performance KPIs, risk assessment, development",
+                    "order": 3,
+                    "basePrompt": "Ask questions about the supplier onboarding and qualification process, how supplier performance is measured and reviewed, supplier risk assessment practices, and how strategic supplier relationships are managed and developed.",
+                    "benchmarks": {
+                        "maturity_1": "Suppliers onboarded informally with minimal documentation; performance assessed subjectively; no formal risk assessment process; supplier relationships managed individually by buyers",
+                        "maturity_2": "Supplier qualification checklist in use; annual performance reviews conducted for key suppliers; basic risk categories defined; preferred supplier list maintained",
+                        "maturity_3": "Structured supplier management programme with digital onboarding, quarterly KPI reviews, risk tiering, and documented development plans for strategic suppliers",
+                        "maturity_4": "Integrated SRM platform with real-time performance scorecards, automated risk monitoring, compliance document tracking, and collaborative supplier development programmes",
+                        "maturity_5": "AI-driven supplier intelligence with predictive risk scoring, real-time market and ESG monitoring, automated performance benchmarking, and dynamic supplier segmentation"
+                    }
+                },
+                {
+                    "id": "goods_receipt_invoice_verification",
+                    "name": "Goods Receipt & Invoice Verification",
+                    "icon": "package-check",
+                    "description": "Three-way match, GR/IR, discrepancy resolution",
+                    "order": 4,
+                    "basePrompt": "Ask questions about how goods receipts are recorded and verified against purchase orders, how supplier invoices are matched and verified, the three-way match process, how GR/IR clearing is managed, and how invoice discrepancies are resolved.",
+                    "benchmarks": {
+                        "maturity_1": "Goods receipt recorded on paper delivery notes; invoices matched manually to POs and GRs; GR/IR not formally tracked; discrepancies resolved through informal communication",
+                        "maturity_2": "GR recorded in ERP; basic two-way match performed; GR/IR clearing account reviewed monthly; discrepancy resolution via email with limited tracking",
+                        "maturity_3": "Three-way match (PO, GR, invoice) performed in ERP; GR/IR clearing reviewed weekly; structured discrepancy resolution workflow with defined escalation paths",
+                        "maturity_4": "Automated three-way match with touchless processing for matched invoices; real-time GR/IR dashboard; digital discrepancy management with supplier portal visibility",
+                        "maturity_5": "AI-powered invoice processing with OCR and intelligent matching; predictive discrepancy detection; autonomous GR/IR clearing; supplier self-service resolution portal"
+                    }
+                },
+                {
+                    "id": "payment_processing",
+                    "name": "Payment Processing",
+                    "icon": "credit-card",
+                    "description": "Payment runs, discount capture, bank reconciliation",
+                    "order": 5,
+                    "basePrompt": "Ask questions about how supplier payments are executed, the frequency and process for payment runs, how early payment discounts are identified and captured, the bank reconciliation process, and how payment exceptions are managed.",
+                    "benchmarks": {
+                        "maturity_1": "Payments executed manually via bank portal based on individual invoices; no systematic discount capture; bank reconciliation done manually at month end",
+                        "maturity_2": "Scheduled payment runs in ERP; early payment discounts tracked in spreadsheets but capture rate is low; bank reconciliation done weekly with manual matching",
+                        "maturity_3": "Automated payment run proposals from ERP with approval workflow; dynamic discounting alerts for eligible invoices; bank feed integrated for semi-automated reconciliation",
+                        "maturity_4": "Straight-through payment processing with automated bank file generation; dynamic discounting programme with real-time capture optimisation; automated bank reconciliation with exception management",
+                        "maturity_5": "AI-optimised payment scheduling balancing working capital and discount capture; virtual accounts and payment factory; real-time bank reconciliation with predictive cash flow forecasting"
+                    }
+                }
+            ]
+        },
+        {
+            "id": "record_to_report",
+            "name": "Record-to-Report",
+            "icon": "book",
+            "description": "Cost accounting through month-end close and management reporting",
+            "order": 3,
+            "subAreas": [
+                {
+                    "id": "cost_accounting_wip",
+                    "name": "Cost Accounting & WIP",
+                    "icon": "calculator",
+                    "description": "Standard/actual costing, WIP valuation, variance analysis",
+                    "order": 1,
+                    "basePrompt": "Ask questions about the product costing methodology (standard vs actual costing), how work in progress is valued and tracked, how cost variances are calculated and analysed, and how cost accounting data is used to drive operational decisions.",
+                    "benchmarks": {
+                        "maturity_1": "Product costs estimated informally; WIP valued using simple estimates; variances not formally calculated or analysed; limited connection between cost accounting and operations",
+                        "maturity_2": "Standard costs defined in ERP for key products; WIP calculated at period end; basic purchase price and usage variances reported but not acted upon systematically",
+                        "maturity_3": "Fully defined standard cost system with regular cost rolls; WIP valued accurately by production order; detailed variance analysis (material, labour, overhead) reported monthly",
+                        "maturity_4": "Real-time actual costing with production order cost tracking; WIP updated continuously as production progresses; variance root cause analysis integrated with quality and operations systems",
+                        "maturity_5": "AI-driven cost intelligence with predictive variance detection, dynamic standard cost updates based on market inputs, and real-time profitability analysis at product and customer level"
+                    }
+                },
+                {
+                    "id": "inventory_valuation",
+                    "name": "Inventory Valuation",
+                    "icon": "database",
+                    "description": "Inventory accounting, write-offs, cycle count adjustments",
+                    "order": 2,
+                    "basePrompt": "Ask questions about the inventory valuation method used, how inventory write-offs and provisions are calculated and approved, how cycle count adjustments are processed, and how inventory values are reconciled between the warehouse management system and the general ledger.",
+                    "benchmarks": {
+                        "maturity_1": "Inventory valuation done manually at year end; write-offs identified through physical count only; no regular reconciliation between WMS and GL",
+                        "maturity_2": "Inventory valuation method (FIFO/LIFO/WAC) applied in ERP; write-off process defined but infrequently executed; WMS-to-GL reconciliation done monthly with significant differences",
+                        "maturity_3": "Automated inventory valuation in ERP aligned to accounting policy; slow-moving and obsolete stock review conducted quarterly; WMS-GL reconciliation completed within close cycle",
+                        "maturity_4": "Real-time inventory valuation with layer costing; SLOB provisions calculated automatically based on defined ageing rules; WMS and GL in continuous sync with exception-based review",
+                        "maturity_5": "AI-driven inventory health monitoring with predictive obsolescence and write-off recommendations; automated valuation adjustments; real-time WMS-GL reconciliation with zero period-end surprises"
+                    }
+                },
+                {
+                    "id": "month_end_close",
+                    "name": "Month-End Close",
+                    "icon": "calendar",
+                    "description": "Manufacturing close process, cost allocations, accruals",
+                    "order": 3,
+                    "basePrompt": "Ask questions about the manufacturing month-end close process, the timeline and key activities, how overhead and shared costs are allocated to products and cost centres, how accruals are calculated, and what the main challenges and delays are in the close cycle.",
+                    "benchmarks": {
+                        "maturity_1": "Month-end close takes more than 10 working days; accruals and allocations calculated manually in spreadsheets; significant rework and late adjustments common",
+                        "maturity_2": "Close completed in 6-8 working days; standard overhead allocation rates applied; accruals based on estimates with limited automation; close tasks tracked via email or shared document",
+                        "maturity_3": "Structured close process with task checklist and assigned owners; overhead allocations calculated automatically in ERP; key accruals automated for recurring items; close completed in 4-5 days",
+                        "maturity_4": "Accelerated close in 2-3 working days; automated accruals and allocations with minimal manual intervention; real-time close status dashboard; production order settlements automated at period end",
+                        "maturity_5": "Continuous close with near-real-time financials; fully automated accruals, allocations, and production order settlements; AI-assisted variance commentary; flash results available on day 1"
+                    }
+                },
+                {
+                    "id": "management_reporting",
+                    "name": "Management Reporting",
+                    "icon": "bar-chart",
+                    "description": "Production KPIs, cost reports, operational dashboards",
+                    "order": 4,
+                    "basePrompt": "Ask questions about what management reports and dashboards are produced, how production KPIs are tracked and reported, how financial and operational data is combined for management review, the reporting tools and frequency used, and how reports are used to drive decisions.",
+                    "benchmarks": {
+                        "maturity_1": "Management reporting produced manually from spreadsheets; production and financial data kept separately; reports available 2-3 weeks after period end",
+                        "maturity_2": "Standard ERP reports supplemented by spreadsheet-based management pack; basic production KPIs (OEE, scrap rate) reported monthly; limited self-service capability",
+                        "maturity_3": "BI tool connected to ERP and MES providing production and financial KPI dashboards; management pack available within 5 working days of close; drill-down capability for key metrics",
+                        "maturity_4": "Integrated operational and financial dashboards with live data; production, quality, and cost KPIs visible in near real-time; self-service analytics for operational and finance teams",
+                        "maturity_5": "AI-generated management insights with automated anomaly detection, predictive KPI forecasting, and natural language reporting; board-level dashboards updated continuously with no manual intervention"
+                    }
+                },
+                {
+                    "id": "financial_controls",
+                    "name": "Financial Controls",
+                    "icon": "check-square",
+                    "description": "Internal controls, SOX compliance, audit readiness",
+                    "order": 5,
+                    "basePrompt": "Ask questions about the internal control framework, how controls are documented and tested, SOX or equivalent compliance obligations, audit readiness practices, and how control weaknesses are identified and remediated.",
+                    "benchmarks": {
+                        "maturity_1": "Controls are informal and undocumented; audit preparation is a reactive and time-consuming exercise; control weaknesses identified only through external audit",
+                        "maturity_2": "Key controls documented in a process narrative and controls matrix; periodic internal control reviews conducted; audit evidence compiled manually from multiple systems",
+                        "maturity_3": "Formal internal control framework with defined control owners; annual controls testing programme; SOX or equivalent controls automated where possible; audit-ready documentation maintained",
+                        "maturity_4": "Continuous control monitoring with automated exception alerts; integrated GRC platform tracking control design and operating effectiveness; real-time segregation of duties monitoring",
+                        "maturity_5": "AI-driven risk and control intelligence; automated control testing and exception resolution; predictive control failure detection; fully automated SOX compliance reporting with real-time dashboard"
+                    }
+                }
+            ]
+        },
+        {
+            "id": "compliance_ehs",
+            "name": "Compliance & EHS",
+            "icon": "shield",
+            "description": "Regulatory compliance, environmental health, and safety management",
+            "order": 4,
+            "subAreas": [
+                {
+                    "id": "compliance_ehs",
+                    "name": "Compliance & EHS",
+                    "icon": "shield",
+                    "description": "Environmental, health & safety, regulatory compliance, certifications",
+                    "order": 1,
+                    "basePrompt": "Ask questions about environmental, health, and safety management systems, how regulatory compliance obligations are tracked, incident and near-miss reporting processes, certifications held (ISO 14001, ISO 45001), and how EHS performance is monitored and reported.",
+                    "benchmarks": {
+                        "maturity_1": "EHS managed reactively; incidents recorded on paper; limited regulatory compliance tracking; no formal safety management system",
+                        "maturity_2": "Basic EHS procedures documented; incident register maintained in spreadsheets; compliance calendar exists but tracking is manual; safety audits conducted periodically",
+                        "maturity_3": "ISO 45001 and ISO 14001 certified; digital EHS management system for incident reporting, risk assessments, and compliance tracking; regular safety committee reviews",
+                        "maturity_4": "Integrated EHS platform with leading indicator dashboards, automated regulatory reporting, permit-to-work system, and continuous environmental monitoring",
+                        "maturity_5": "AI-driven EHS with predictive incident modelling, real-time environmental compliance monitoring via IoT, wearable-enabled safety alerts, and automated regulatory filings"
+                    }
+                }
+            ]
+        }
+    ]
+}

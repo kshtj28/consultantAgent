@@ -1,0 +1,45 @@
+# Sample Business Process Document for Testing
+
+## Invoice Processing Workflow
+
+### Current State
+
+The finance team currently processes approximately 500 invoices per month using the following manual workflow:
+
+1. **Invoice Receipt**: Invoices arrive via email or physical mail
+2. **Data Entry**: Finance clerk manually enters invoice data into Excel spreadsheet
+3. **Validation**: Manager reviews entries for accuracy
+4. **Approval**: Department head approves invoices over $5,000
+5. **Payment**: Treasury team schedules payment in banking system
+6. **Filing**: Physical copies are scanned and stored
+
+### Pain Points
+
+- Manual data entry takes 15-20 minutes per invoice
+- High error rate (approximately 8% require rework)
+- Approval delays due to manager availability
+- No real-time visibility into invoice status
+- Duplicate payment risk due to manual tracking
+
+### Stakeholders
+
+- **Finance Team**: Primary users of the invoice system
+- **Department Heads**: Approve large invoices
+- **Vendors**: Submit invoices and expect timely payment
+- **Treasury**: Execute payments
+
+### Systems Used
+
+- Microsoft Excel for tracking
+- Outlook for email communication
+- Banking portal for payments
+- SharePoint for document storage
+
+### Metrics
+
+| Metric | Current Value | Target |
+|--------|---------------|--------|
+| Processing Time | 3-5 days | 1 day |
+| Error Rate | 8% | <1% |
+| Approval Cycle | 2-3 days | 4 hours |
+| Late Payments | 12% | 0% |
