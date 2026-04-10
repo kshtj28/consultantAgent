@@ -14,6 +14,60 @@ export interface RTMRequirement {
   acceptanceCriteria: string;
   effortEstimate: string;
   sourceEvidence: string;
+  confidence: number; // 0-100 confidence score
+}
+
+/**
+ * Quality review: run a lightweight LLM pass to clean up the generated RTM.
+ * Checks for duplicates, vague requirements, missing fields, and inconsistencies.
+ * Returns the cleaned array.
+ */
+async function reviewRTMQuality(
+    requirements: RTMRequirement[],
+    modelId?: string,
+): Promise<RTMRequirement[]> {
+    if (requirements.length === 0) return requirements;
+
+    const reviewPrompt = `You are a senior QA analyst reviewing a Requirements Traceability Matrix (RTM).
+
+## INPUT RTM
+${JSON.stringify(requirements, null, 2)}
+
+## YOUR TASK
+Review the RTM above and apply these quality checks:
+
+1. **Duplicates**: If two or more requirements say essentially the same thing, merge them into the best version and keep the higher confidence score.
+2. **Vague requirements**: If a requirement is too vague or generic (e.g., "The system should be fast", "Improve reporting"), either make it specific based on the notes/sourceEvidence, or lower its confidence to below 40.
+3. **Missing fields**: If acceptanceCriteria or sourceEvidence is empty or just "-", attempt to fill it in based on context from the notes field. If you cannot, leave it but lower confidence by 10.
+4. **Format**: Every l3Requirement MUST start with "The system shall " or "The system must ". Fix any that don't.
+5. **Consistency**: Ensure priority and effortEstimate make sense together (e.g., a Critical requirement with S effort is suspicious — verify or adjust).
+6. **Confidence calibration**:
+   - 80-100: Directly stated in interview with clear evidence
+   - 60-79: Strongly implied from interview context
+   - 40-59: Inferred from pain points or gaps mentioned
+   - Below 40: Speculative or weakly supported
+
+Output ONLY the cleaned JSON array. Keep the same schema. Do not add commentary.`;
+
+    const messages: LLMMessage[] = [
+        { role: 'system', content: 'You are a requirements quality reviewer. Output ONLY a valid JSON array — no markdown fences, no explanation. Start with [ and end with ].' },
+        { role: 'user', content: reviewPrompt },
+    ];
+
+    try {
+        const completion = await generateCompletion(modelId || null, messages, { temperature: 0.1, maxTokens: 8000 });
+        let cleaned = completion.content.replace(/```(?:json)?\s*/gi, '').replace(/```\s*/g, '');
+        const jsonMatch = cleaned.match(/\[[\s\S]*\]/);
+        if (jsonMatch) {
+            const reviewed: RTMRequirement[] = JSON.parse(jsonMatch[0]);
+            console.log(`[RTM Quality Review] Input: ${requirements.length} reqs → Output: ${reviewed.length} reqs`);
+            return reviewed;
+        }
+        return JSON.parse(cleaned);
+    } catch (e) {
+        console.warn('[RTM Quality Review] Review pass failed, returning original requirements:', (e as Error).message);
+        return requirements; // graceful fallback — return original if review fails
+    }
 }
 
 export async function generateRTM(sessionId: string, modelId?: string): Promise<RTMRequirement[]> {
@@ -24,7 +78,7 @@ export async function generateRTM(sessionId: string, modelId?: string): Promise<
 
     const domainConfig = getActiveDomainConfig();
     const categoryEntries = Object.entries(session.responses || {}).filter(([, a]) => a.length > 0);
-    
+
     if (categoryEntries.length === 0) {
          throw new Error('No interview data available to build RTM.');
     }
@@ -41,7 +95,7 @@ export async function generateRTM(sessionId: string, modelId?: string): Promise<
 
     const langInstructions = langConfig
         ? `\n## OUTPUT LANGUAGE REQUIREMENT — CRITICAL
-The interview transcript below may be in a non-English language (or mixed). 
+The interview transcript below may be in a non-English language (or mixed).
 Regardless of the input language, you MUST generate the ENTIRE RTM in **${langConfig.name}** (${langConfig.nativeName}).
 - ALL JSON string VALUES (l1, l2, l3Requirement, notes, acceptanceCriteria, sourceEvidence, etc.) MUST be in **${langConfig.name}**.
 - Keep ALL JSON keys exactly as specified in the schema (English keys).
@@ -62,6 +116,15 @@ Extract BOTH:
 1. **Explicit requirements**: Direct requests, stated needs, and specific process changes mentioned
 2. **Implicit requirements**: Process needs inferred from pain points, inefficiencies, manual workarounds, and gaps described
 
+### REQUIREMENT FORMAT — CRITICAL
+Every requirement in the "l3Requirement" field MUST be written in formal requirement language:
+- Start with "The system shall " or "The system must "
+- Be specific, measurable, and testable
+- Include concrete details (thresholds, timeframes, roles, modules) where the interview provides them
+- Example GOOD: "The system shall automatically route purchase orders exceeding $10,000 to the regional controller for approval within the AP module"
+- Example BAD: "Improve the approval process" (too vague)
+- Example BAD: "Invoice matching automation" (not a proper requirement sentence)
+
 ### CLASSIFICATION
 For each requirement, classify it as one of:
 - **Functional**: Business process requirements (e.g., "automated invoice matching")
@@ -71,6 +134,14 @@ For each requirement, classify it as one of:
 - **Reporting**: Dashboard, report, analytics, and BI requirements
 - **Compliance**: Regulatory, audit, and control requirements
 
+### CONFIDENCE SCORING
+For each requirement, assign a confidence score (0-100) based on how well it is supported by the interview evidence:
+- **80-100**: Directly and explicitly stated by the interviewee
+- **60-79**: Strongly implied from the interview context
+- **40-59**: Inferred from pain points, gaps, or workarounds described
+- **20-39**: Speculative — loosely connected to interview content
+Avoid scores below 20 — if you cannot connect it to the transcript, do not include it.
+
 ### OUTPUT SCHEMA
 For each requirement, provide ALL of the following fields:
 
@@ -78,9 +149,10 @@ For each requirement, provide ALL of the following fields:
 |-------|-------------|
 | l1 | High-level process area (e.g., "Procure-to-Pay", "Order-to-Cash", "Record-to-Report", "Treasury & Cash Management", "Compliance & Controls") |
 | l2 | Sub-process area (e.g., "Invoice Processing", "PO Management", "Bank Reconciliation") |
-| l3Requirement | The specific requirement in clear, testable business terms. Must be detailed enough for a developer to implement. (e.g., "The system must automatically route invoices above $10,000 to the regional controller for approval within the AP module") |
+| l3Requirement | The specific requirement starting with "The system shall " or "The system must ". Must be detailed enough for a developer to implement. |
 | l3Category | Standard | Custom | Configuration | Integration |
 | priority | Critical | High | Medium | Low |
+| confidence | Number 0-100 indicating how well this requirement is supported by interview evidence |
 | notes | Context, rationale, or constraints extracted from the interview transcript |
 | requirementType | Functional | Non-Functional | Integration | Configuration | Reporting | Compliance |
 | acceptanceCriteria | How to verify this requirement is met (e.g., "Invoice is auto-routed within 5 seconds of receipt; routing rule is configurable by threshold amount") |
@@ -100,9 +172,10 @@ Output ONLY valid JSON — an array of requirement objects:
   {
     "l1": "Procure-to-Pay",
     "l2": "Invoice Processing",
-    "l3Requirement": "The system must support automated 3-way matching (PO, goods receipt, invoice) with configurable tolerance thresholds and exception routing for mismatches",
+    "l3Requirement": "The system shall support automated 3-way matching (PO, goods receipt, invoice) with configurable tolerance thresholds and exception routing for mismatches",
     "l3Category": "Standard",
     "priority": "Critical",
+    "confidence": 92,
     "notes": "Currently manual matching causes 3-day delays per interview response",
     "requirementType": "Functional",
     "acceptanceCriteria": "Auto-match rate exceeds 80%; mismatches are routed to AP clerk within 1 hour; tolerance thresholds are configurable per vendor category",
@@ -118,16 +191,32 @@ Output ONLY valid JSON — an array of requirement objects:
 
     const completion = await generateCompletion(modelId || null, messages, { temperature: 0.2, maxTokens: 8000 });
 
+    let requirements: RTMRequirement[];
     try {
         // Strip markdown code fences if present
         let cleaned = completion.content.replace(/```(?:json)?\s*/gi, '').replace(/```\s*/g, '');
         const jsonMatch = cleaned.match(/\[[\s\S]*\]/);
         if (jsonMatch) {
-            return JSON.parse(jsonMatch[0]);
+            requirements = JSON.parse(jsonMatch[0]);
+        } else {
+            requirements = JSON.parse(cleaned);
         }
-        return JSON.parse(cleaned);
     } catch (e) {
         console.error('RTM parse error. Raw LLM output (first 500 chars):', completion.content.substring(0, 500));
         throw new Error('Failed to parse LLM RTM generation output');
     }
+
+    // Ensure confidence field exists on all entries (default 50 if LLM omitted it)
+    requirements = requirements.map(r => ({
+        ...r,
+        confidence: typeof r.confidence === 'number' ? r.confidence : 50,
+    }));
+
+    console.log(`[RTM] Generated ${requirements.length} requirements. Running quality review...`);
+
+    // Quality review pass
+    const reviewed = await reviewRTMQuality(requirements, modelId);
+
+    console.log(`[RTM] Quality review complete. Final count: ${reviewed.length} requirements.`);
+    return reviewed;
 }

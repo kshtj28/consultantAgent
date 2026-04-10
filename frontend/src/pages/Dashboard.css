@@ -4,6 +4,171 @@
     gap: 1.25rem;
 }
 
+/* ── Executive Health Banner ── */
+.dashboard__exec-banner {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    padding: 0.75rem 1.5rem;
+    overflow-x: auto;
+}
+
+.dashboard__exec-banner-left {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-shrink: 0;
+}
+
+.dashboard__exec-banner-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.dashboard__exec-banner-status {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.dashboard__exec-banner-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.dashboard__exec-banner-divider {
+    width: 1px;
+    height: 32px;
+    background: var(--border);
+    margin: 0 1.25rem;
+    flex-shrink: 0;
+}
+
+.dashboard__exec-banner-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.15rem;
+    flex-shrink: 0;
+    min-width: 60px;
+}
+
+.dashboard__exec-banner-stat-value {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.2;
+}
+
+.dashboard__exec-banner-stat-label {
+    font-size: 0.6rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+}
+
+/* ── Top Critical Issues ── */
+.dashboard__critical-section {
+    margin-top: 0.5rem;
+    border-top: 1px solid var(--border);
+    padding-top: 1rem;
+}
+
+.dashboard__critical-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.6rem;
+}
+
+.dashboard__critical-title {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.dashboard__critical-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.dashboard__critical-item {
+    display: grid;
+    grid-template-columns: 160px 1fr 60px;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    transition: background 0.15s;
+    border-bottom: 1px solid var(--border);
+}
+
+.dashboard__critical-item:last-child {
+    border-bottom: none;
+}
+
+.dashboard__critical-item:hover {
+    background: rgba(239, 68, 68, 0.05);
+}
+
+.dashboard__critical-area {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.dashboard__critical-gap {
+    font-size: 0.8rem;
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dashboard__critical-badge {
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 0.2rem 0.5rem;
+    border-radius: 9999px;
+    text-align: center;
+    justify-self: end;
+}
+
+.dashboard__critical-badge--high {
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    color: #fca5a5;
+}
+
 /* ── KPI Row ── */
 .dashboard__kpi-row {
     display: grid;
@@ -302,8 +467,43 @@
     transition: border-color 0.2s;
 }
 
+.dashboard__gap-area-card--clickable {
+    cursor: pointer;
+}
+
+.dashboard__gap-area-card--clickable:hover {
+    border-color: var(--primary);
+    background: var(--surface-hover, rgba(59, 130, 246, 0.06));
+}
+
+.dashboard__gap-area-card--clickable:hover .dashboard__gap-area-count {
+    color: var(--primary);
+}
+
 .dashboard__gap-area-card:hover {
     border-color: var(--primary);
+}
+
+/* ── View Reports Link ── */
+.dashboard__view-reports-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--primary);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.375rem;
+    transition: background 0.15s, color 0.15s;
+    text-decoration: none;
+    letter-spacing: 0.01em;
+}
+
+.dashboard__view-reports-link:hover {
+    background: rgba(59, 130, 246, 0.1);
 }
 
 .dashboard__gap-area-header {

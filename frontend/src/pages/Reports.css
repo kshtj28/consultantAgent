@@ -4,6 +4,65 @@
     gap: 1.25rem;
 }
 
+/* ── Area Filter Pills ── */
+.reports__area-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.reports__area-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.35rem 0.9rem;
+    border-radius: 9999px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-secondary);
+    transition: border-color 0.15s, background 0.15s, color 0.15s;
+    white-space: nowrap;
+}
+
+.reports__area-pill:hover {
+    border-color: var(--primary);
+    color: var(--text);
+}
+
+.reports__area-pill--active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+    font-weight: 600;
+}
+
+.reports__area-pill--active:hover {
+    background: var(--primary);
+    color: #fff;
+}
+
+.reports__area-pill-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(239, 68, 68, 0.85);
+    color: #fff;
+    font-size: 0.6rem;
+    font-weight: 700;
+    border-radius: 9999px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+}
+
+.reports__area-pill--active .reports__area-pill-badge {
+    background: rgba(255, 255, 255, 0.3);
+}
+
 
 .reports__btn {
     display: inline-flex;

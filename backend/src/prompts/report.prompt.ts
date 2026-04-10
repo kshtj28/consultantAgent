@@ -56,7 +56,11 @@ Return JSON:
 }`;
 }
 
-export function buildGapReportPrompt(answerContext: string, identifiedGaps: string, painPoints: string): string {
+export function buildGapReportPrompt(answerContext: string, identifiedGaps: string, painPoints: string, erpPath?: string): string {
+  const erpContext = erpPath
+    ? `\nERP Migration Path: ${erpPath}\nAll gaps must be assessed against this specific migration. Reference ${erpPath}-specific capabilities, standard processes, and best practices when assigning the Standard/Framework field. Gaps that represent deviations from the TARGET system (${erpPath.split('→').pop()?.trim() || erpPath}) should be flagged as priority items.`
+    : '';
+
   return `You are a senior management consultant at a Big 4 firm producing a gap analysis report for a client's finance transformation engagement.
 
 ## INTERVIEW DATA
@@ -64,7 +68,7 @@ ${answerContext}
 
 ## ADDITIONAL CONTEXT
 Previously Identified Gaps: ${identifiedGaps || 'None explicitly flagged'}
-Pain Points: ${painPoints || 'None explicitly flagged'}
+Pain Points: ${painPoints || 'None explicitly flagged'}${erpContext}
 
 ## YOUR TASK
 Generate a comprehensive, consultant-grade gap analysis. This report will be used by the client's leadership to prioritise transformation investments.

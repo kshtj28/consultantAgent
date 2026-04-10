@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
-import { AlertTriangle, BarChart3 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { AlertTriangle, BarChart3, ArrowRight } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import SectionCard from '../components/shared/SectionCard';
 import StatusBadge from '../components/shared/StatusBadge';
@@ -69,11 +70,15 @@ const SEVERITY_COLORS: Record<string, string> = {
 
 export default function Dashboard() {
     const { t } = useLanguage();
+    const navigate = useNavigate();
     const [sessions, setSessions] = useState<SessionSummary[]>([]);
     const [stats, setStats] = useState<DashboardStats | null>(null);
     const [cumulativeGaps, setCumulativeGaps] = useState<CumulativeGapData | null>(null);
     const [loading, setLoading] = useState(true);
     const esRef = useRef<EventSource | null>(null);
+
+    const goToReports = (severity?: string, areaId?: string) =>
+        navigate('/reports', { state: { scrollToGaps: true, severity, areaId } });
 
     useEffect(() => {
         Promise.all([fetchSessions(), fetchDashboardStats(), fetchCumulativeGaps()])
@@ -141,8 +146,64 @@ export default function Dashboard() {
         );
     }
 
+    const highImpactGaps = (cumulativeGaps?.gaps ?? [])
+        .filter((g: any) => (g.impact || '').toLowerCase() === 'high')
+        .slice(0, 5);
+
+    const healthColor = stats?.gapSeverity === 'Critical' ? '#ef4444'
+        : stats?.gapSeverity === 'High Risk' ? '#f97316'
+        : stats?.gapSeverity === 'Medium Risk' ? '#f59e0b'
+        : '#10b981';
+
     return (
         <div className="dashboard">
+            {/* Executive Health Banner */}
+            {(stats || cumulativeGaps) && (
+                <div className="dashboard__exec-banner">
+                    <div className="dashboard__exec-banner-left">
+                        <span className="dashboard__exec-banner-label">ENTERPRISE PROCESS HEALTH</span>
+                        <span className="dashboard__exec-banner-status" style={{ color: healthColor }}>
+                            <span className="dashboard__exec-banner-dot" style={{ background: healthColor }} />
+                            {stats?.gapSeverity ?? 'Assessing'}
+                        </span>
+                    </div>
+                    <div className="dashboard__exec-banner-divider" />
+                    <div className="dashboard__exec-banner-stat">
+                        <span className="dashboard__exec-banner-stat-value">{cumulativeGaps?.totalGaps ?? 0}</span>
+                        <span className="dashboard__exec-banner-stat-label">Total Gaps</span>
+                    </div>
+                    <div className="dashboard__exec-banner-divider" />
+                    <div className="dashboard__exec-banner-stat">
+                        <span className="dashboard__exec-banner-stat-value" style={{ color: '#ef4444' }}>
+                            {cumulativeGaps?.gapsBySeverity?.high ?? 0}
+                        </span>
+                        <span className="dashboard__exec-banner-stat-label">High Impact</span>
+                    </div>
+                    <div className="dashboard__exec-banner-divider" />
+                    <div className="dashboard__exec-banner-stat">
+                        <span className="dashboard__exec-banner-stat-value">{cumulativeGaps?.broadAreas.length ?? 0}</span>
+                        <span className="dashboard__exec-banner-stat-label">Process Areas</span>
+                    </div>
+                    <div className="dashboard__exec-banner-divider" />
+                    <div className="dashboard__exec-banner-stat">
+                        <span className="dashboard__exec-banner-stat-value">{stats?.discoveryPct ?? 0}%</span>
+                        <span className="dashboard__exec-banner-stat-label">Discovery Complete</span>
+                    </div>
+                    <div className="dashboard__exec-banner-divider" />
+                    <div className="dashboard__exec-banner-stat">
+                        <span className="dashboard__exec-banner-stat-value">{stats?.automationPct ?? 0}%</span>
+                        <span className="dashboard__exec-banner-stat-label">Automated</span>
+                    </div>
+                    <div className="dashboard__exec-banner-divider" />
+                    <div className="dashboard__exec-banner-stat">
+                        <span className="dashboard__exec-banner-stat-value" style={{ fontSize: '0.8rem' }}>
+                            {new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </span>
+                        <span className="dashboard__exec-banner-stat-label">As of Today</span>
+                    </div>
+                </div>
+            )}
+
             {/* KPI Row */}
             <div className="dashboard__kpi-row">
                 <div className="dashboard__kpi-card">
@@ -192,9 +253,9 @@ export default function Dashboard() {
             <SectionCard
                 title={t('dash.cumulativeGapOverview')}
                 headerRight={
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                        {cumulativeGaps?.totalGaps ?? 0} {t('dash.totalGapsAcross')}
-                    </span>
+                    <button className="dashboard__view-reports-link" onClick={() => goToReports()}>
+                        {t('dash.viewFullReport')} <ArrowRight size={14} />
+                    </button>
                 }
             >
                 {!cumulativeGaps || cumulativeGaps.broadAreas.length === 0 ? (
@@ -206,7 +267,15 @@ export default function Dashboard() {
                         {/* Broad Area Gap Cards */}
                         <div className="dashboard__gap-cards">
                             {cumulativeGaps.broadAreas.map(area => (
-                                <div key={area.id} className="dashboard__gap-area-card">
+                                <div
+                                    key={area.id}
+                                    className="dashboard__gap-area-card dashboard__gap-area-card--clickable"
+                                    onClick={() => goToReports(undefined, area.id)}
+                                    role="button"
+                                    tabIndex={0}
+                                    onKeyDown={e => e.key === 'Enter' && goToReports(undefined, area.id)}
+                                    title={t('dash.viewReportsForArea')}
+                                >
                                     <div className="dashboard__gap-area-header">
                                         <BarChart3 size={16} />
                                         <span className="dashboard__gap-area-name">{(() => { const k = `area.${area.id}.label`; const v = t(k); return v !== k ? v : area.name; })()}</span>
@@ -215,17 +284,26 @@ export default function Dashboard() {
                                     <span className="dashboard__gap-area-label">{t('dash.gapsIdentified')}</span>
                                     <div className="dashboard__gap-area-breakdown">
                                         {area.criticalCount > 0 && (
-                                            <span className="dashboard__gap-severity dashboard__gap-severity--high">
+                                            <span
+                                                className="dashboard__gap-severity dashboard__gap-severity--high"
+                                                onClick={e => { e.stopPropagation(); goToReports('high'); }}
+                                            >
                                                 <AlertTriangle size={10} /> {area.criticalCount} {t('dash.high')}
                                             </span>
                                         )}
                                         {area.highCount > 0 && (
-                                            <span className="dashboard__gap-severity dashboard__gap-severity--medium">
+                                            <span
+                                                className="dashboard__gap-severity dashboard__gap-severity--medium"
+                                                onClick={e => { e.stopPropagation(); goToReports('medium'); }}
+                                            >
                                                 {area.highCount} {t('dash.medium')}
                                             </span>
                                         )}
                                         {area.lowCount > 0 && (
-                                            <span className="dashboard__gap-severity dashboard__gap-severity--low">
+                                            <span
+                                                className="dashboard__gap-severity dashboard__gap-severity--low"
+                                                onClick={e => { e.stopPropagation(); goToReports('low'); }}
+                                            >
                                                 {area.lowCount} {t('dash.low')}
                                             </span>
                                         )}
@@ -252,6 +330,8 @@ export default function Dashboard() {
                                                     dataKey="value"
                                                     paddingAngle={3}
                                                     label={({ name, value }) => `${name}: ${value}`}
+                                                    onClick={(entry) => goToReports((entry as any).originalName?.toLowerCase())}
+                                                    style={{ cursor: 'pointer' }}
                                                 >
                                                     {severityData.map(entry => (
                                                         <Cell key={entry.name} fill={SEVERITY_COLORS[entry.originalName.toLowerCase()] || '#6b7280'} />
@@ -284,33 +364,46 @@ export default function Dashboard() {
                                 </div>
                             )}
                         </div>
+
+                        {/* Top Critical Issues */}
+                        {highImpactGaps.length > 0 && (
+                            <div className="dashboard__critical-section">
+                                <div className="dashboard__critical-header">
+                                    <span className="dashboard__critical-title">
+                                        <AlertTriangle size={14} style={{ color: '#ef4444' }} />
+                                        Top Critical Issues Requiring Action
+                                    </span>
+                                    <button className="dashboard__view-reports-link" onClick={() => goToReports('high')}>
+                                        View All Critical <ArrowRight size={14} />
+                                    </button>
+                                </div>
+                                <div className="dashboard__critical-list">
+                                    {highImpactGaps.map((gap: any, idx: number) => (
+                                        <div
+                                            key={gap.id || idx}
+                                            className="dashboard__critical-item"
+                                            onClick={() => goToReports('high', cumulativeGaps?.broadAreas.find(a => a.name === (gap.broadAreaName || gap.area))?.id)}
+                                            role="button"
+                                            tabIndex={0}
+                                            onKeyDown={e => e.key === 'Enter' && goToReports('high')}
+                                        >
+                                            <span className="dashboard__critical-area">
+                                                {gap.broadAreaName || gap.area || '—'}
+                                            </span>
+                                            <span className="dashboard__critical-gap">
+                                                {gap.gap || gap.description || '—'}
+                                            </span>
+                                            <span className="dashboard__critical-badge dashboard__critical-badge--high">
+                                                High
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
             </SectionCard>
-
-            {/* Summary Statistics */}
-            <div className="dashboard__summary-row">
-                <div className="dashboard__summary-card">
-                    <span className="dashboard__summary-label">{t('gap.totalGaps')}</span>
-                    <span className="dashboard__summary-value">
-                        {cumulativeGaps?.totalGaps ?? 0}
-                    </span>
-                </div>
-                <div className="dashboard__summary-card">
-                    <span className="dashboard__summary-label">{t('dash.areasAssessed')}</span>
-                    <span className="dashboard__summary-value">
-                        {cumulativeGaps?.broadAreas.length ?? 0}
-                    </span>
-                </div>
-                <div className="dashboard__summary-card">
-                    <span className="dashboard__summary-label">{t('dash.automationOpportunity')}</span>
-                    <span className={`dashboard__summary-value ${
-                        stats?.processFlow?.automationOpportunity === 'High' ? 'dashboard__summary-value--high' : ''
-                    }`}>
-                        {stats?.processFlow?.automationOpportunity ?? '—'}
-                    </span>
-                </div>
-            </div>
 
             {/* Recent sessions */}
             {sessions.length > 0 && (

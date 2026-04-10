@@ -67,7 +67,11 @@ export function GapKnowledgeGraph({ nodes, edges }: Props) {
     useEffect(() => {
         if (!svgRef.current || !containerRef.current) return;
 
-        const width = containerRef.current.clientWidth || 800;
+        // Defer one animation frame so the DOM has finished layout after tab switch
+        const rafId = requestAnimationFrame(() => {
+        if (!svgRef.current || !containerRef.current) return;
+
+        const width = containerRef.current.offsetWidth || 800;
         const height = 520;
 
         const svg = d3.select(svgRef.current);
@@ -240,6 +244,9 @@ export function GapKnowledgeGraph({ nodes, edges }: Props) {
             simulation.stop();
             tooltip.remove();
         };
+        }); // end rAF
+
+        return () => cancelAnimationFrame(rafId);
     }, [nodes, edges]);
 
     return (

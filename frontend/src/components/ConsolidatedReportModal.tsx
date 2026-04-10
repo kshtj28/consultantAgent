@@ -236,19 +236,30 @@ export function ConsolidatedReportModal({
                     {/* Executive Summary */}
                     {activeTab === 'executive' && (
                         <>
-                            {report.overallScore !== undefined ? (
+                            {/* Score ring — only for readiness reports that return overallScore */}
+                            {report.overallScore !== undefined && (
                                 <div className="crm__score-row">
                                     <ScoreRing score={report.overallScore} />
                                     <div className="crm__score-info">
-                                        <span className="crm__maturity-badge">{report.overallMaturity}</span>
-                                        <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.7 }}>
-                                            {report.executiveSummary}
-                                        </p>
+                                        {report.overallMaturity && (
+                                            <span className="crm__maturity-badge">{report.overallMaturity}</span>
+                                        )}
                                     </div>
                                 </div>
-                            ) : (
-                                <div className="crm__empty">No readiness score data available.</div>
                             )}
+
+                            {/* Executive summary text — shown for all report types */}
+                            {report.executiveSummary ? (
+                                <div className="crm__card">
+                                    <h4 className="crm__card-title">Executive Summary</h4>
+                                    <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.8 }}>
+                                        {report.executiveSummary}
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="crm__empty">No executive summary available.</div>
+                            )}
+
                             {(report.keyFindings?.length ?? 0) > 0 && (
                                 <div className="crm__card">
                                     <h4 className="crm__card-title">Key Findings</h4>
@@ -273,6 +284,8 @@ export function ConsolidatedReportModal({
                                     <MaturityRadarChart data={radarData} />
                                 </div>
                             )}
+
+                            {/* Full area scores (readiness reports) */}
                             {(report.areaScores?.length ?? 0) > 0 ? report.areaScores!.map(area => (
                                 <div key={area.areaName} className="crm__area">
                                     <div className="crm__area-header">
@@ -316,7 +329,34 @@ export function ConsolidatedReportModal({
                                         </div>
                                     )}
                                 </div>
-                            )) : (
+
+                            /* Fallback for gap analysis reports — use maturityRadar data */
+                            )) : radarData.length > 0 ? radarData.map(area => {
+                                const current = area.current ?? 0;
+                                const target = area.target ?? 80;
+                                const maturity = current >= 80 ? 'Optimized' : current >= 60 ? 'Managed' : current >= 40 ? 'Defined' : current >= 20 ? 'Developing' : 'Initial';
+                                const maturityColor = current >= 60 ? '#10b981' : current >= 40 ? '#f59e0b' : '#ef4444';
+                                return (
+                                    <div key={area.area} className="crm__area">
+                                        <div className="crm__area-header">
+                                            <span className="crm__area-name">{area.area}</span>
+                                            <span className="crm__area-score">{current}/100</span>
+                                            <span className="crm__maturity-badge" style={{ fontSize: '0.7rem', padding: '2px 8px', color: maturityColor, borderColor: maturityColor }}>
+                                                {maturity}
+                                            </span>
+                                        </div>
+                                        <div className="crm__area-bar-bg">
+                                            <div className="crm__area-bar-fill" style={{ width: `${current}%` }} />
+                                        </div>
+                                        <div className="crm__tag-row" style={{ marginTop: '0.5rem' }}>
+                                            <span className="crm__tag crm__tag--primary">Target</span>
+                                            <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                                                {target}/100 — close the {target - current} point gap through transformation initiatives
+                                            </span>
+                                        </div>
+                                    </div>
+                                );
+                            }) : (
                                 <div className="crm__empty">No area assessment data available.</div>
                             )}
                         </>

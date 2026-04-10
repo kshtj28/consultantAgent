@@ -508,6 +508,8 @@ export const translations: Record<string, Record<string, string>> = {
         'dash.gapsByProcessArea': 'Gaps by Process Area',
         'dash.highImpact': 'High Impact',
         'dash.areasAssessed': 'Process Areas Assessed',
+        'dash.viewFullReport': 'View Full Report',
+        'dash.viewReportsForArea': 'Click to view reports for this area',
 
         // Reports - additional
         'reports.thisMonth': 'This Month',

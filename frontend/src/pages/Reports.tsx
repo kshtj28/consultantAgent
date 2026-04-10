@@ -1,4 +1,5 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import GpuWarmupOverlay from '../components/shared/GpuWarmupOverlay';
 import { useGpuWarmup } from '../hooks/useGpuWarmup';
 import {
@@ -66,6 +67,8 @@ function relativeTime(iso: string): string {
 
 export default function Reports() {
     const { t } = useLanguage();
+    const location = useLocation();
+    const gapSectionRef = useRef<HTMLDivElement>(null);
 
     const [reports, setReports] = useState<ReportRecord[]>([]);
     const [stats, setStats] = useState<ReportStats | null>(null);
@@ -73,6 +76,10 @@ export default function Reports() {
     const [generatingReports, setGeneratingReports] = useState<Map<string, any>>(new Map());
     const [bannerDismissed, setBannerDismissed] = useState(false);
     const [cumulativeGaps, setCumulativeGaps] = useState<CumulativeGapData | null>(null);
+
+    const [activeAreaId, setActiveAreaId] = useState<string | null>(
+        (location.state as any)?.areaId ?? null
+    );
 
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
     const [previewReport, setPreviewReport] = useState<{ data: any; name: string; type: string; reportId: string } | null>(null);
@@ -108,7 +115,14 @@ export default function Reports() {
             .then(([, , gapData]) => {
                 setCumulativeGaps(gapData);
             })
-            .finally(() => setLoading(false));
+            .finally(() => {
+                setLoading(false);
+                if ((location.state as any)?.scrollToGaps) {
+                    setTimeout(() => {
+                        gapSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }, 150);
+                }
+            });
     }, [loadReports, loadStats]);
 
     // SSE subscription for real-time report status updates
@@ -208,6 +222,7 @@ export default function Reports() {
                 'Category': r.l3Category,
                 'Requirement Type': r.requirementType || '',
                 'Priority': r.priority,
+                'Confidence (%)': typeof r.confidence === 'number' ? r.confidence : '',
                 'Effort Estimate': r.effortEstimate || '',
                 'Acceptance Criteria': r.acceptanceCriteria || '',
                 'Source Evidence': r.sourceEvidence || '',
@@ -235,34 +250,60 @@ export default function Reports() {
         { icon: <Database size={18} />, label: t('reports.storageUsed'), value: stats?.storageUsed ?? '0 MB' },
     ];
 
-    // Prepare cumulative chart data
+    // Active area object
+    const activeArea = activeAreaId
+        ? cumulativeGaps?.broadAreas.find(a => a.id === activeAreaId) ?? null
+        : null;
+
+    // Filtered gaps for gap register
+    const filteredGaps = cumulativeGaps
+        ? (activeArea
+            ? cumulativeGaps.gaps.filter((g: any) =>
+                (g.broadAreaName || g.area || '') === activeArea.name)
+            : cumulativeGaps.gaps)
+        : [];
+
+    // Prepare cumulative chart data (filtered by area if active)
     const severityData = cumulativeGaps
-        ? Object.entries(cumulativeGaps.gapsBySeverity).map(([name, value]) => {
-            const key = `severity.${name.toLowerCase()}`;
-            const translated = t(key);
-            return {
-                name: translated !== key ? translated : (name.charAt(0).toUpperCase() + name.slice(1)),
-                value,
-                _key: name.toLowerCase(),
-            };
-        })
+        ? (() => {
+            const bySeverity: Record<string, number> = {};
+            if (activeArea) {
+                filteredGaps.forEach((g: any) => {
+                    const k = (g.impact || '').toLowerCase();
+                    if (k) bySeverity[k] = (bySeverity[k] || 0) + 1;
+                });
+            } else {
+                Object.assign(bySeverity, cumulativeGaps.gapsBySeverity);
+            }
+            return Object.entries(bySeverity).map(([name, value]) => {
+                const key = `severity.${name.toLowerCase()}`;
+                const translated = t(key);
+                return {
+                    name: translated !== key ? translated : (name.charAt(0).toUpperCase() + name.slice(1)),
+                    value,
+                    _key: name.toLowerCase(),
+                };
+            });
+        })()
         : [];
 
     const areaBarData = cumulativeGaps
-        ? cumulativeGaps.broadAreas.map(a => {
-            const key = `area.${(a as any).id || a.name.toLowerCase().replace(/[^a-z]+/g, '_')}.label`;
-            const translated = t(key);
-            return {
-                name: translated !== key ? translated : a.name,
-                gaps: a.gapCount,
-                critical: a.criticalCount,
-            };
-        })
+        ? (activeArea
+            ? [activeArea].map(a => {
+                const key = `area.${a.id || a.name.toLowerCase().replace(/[^a-z]+/g, '_')}.label`;
+                const translated = t(key);
+                return { name: translated !== key ? translated : a.name, gaps: a.gapCount, critical: a.criticalCount };
+            })
+            : cumulativeGaps.broadAreas.map(a => {
+                const key = `area.${(a as any).id || a.name.toLowerCase().replace(/[^a-z]+/g, '_')}.label`;
+                const translated = t(key);
+                return { name: translated !== key ? translated : a.name, gaps: a.gapCount, critical: a.criticalCount };
+            }))
         : [];
 
-    const totalGaps = cumulativeGaps?.totalGaps ?? 0;
-    const highImpactGaps = cumulativeGaps?.gapsBySeverity?.high ?? 0;
-    const mediumImpactGaps = cumulativeGaps?.gapsBySeverity?.medium ?? 0;
+    const totalGaps = activeArea ? activeArea.gapCount : (cumulativeGaps?.totalGaps ?? 0);
+    const highImpactGaps = activeArea ? activeArea.criticalCount : (cumulativeGaps?.gapsBySeverity?.high ?? 0);
+    const mediumImpactGaps = activeArea ? activeArea.mediumCount : (cumulativeGaps?.gapsBySeverity?.medium ?? 0);
 
     return (
         <div className="reports">
@@ -284,9 +325,34 @@ export default function Reports() {
                 </div>
             )}
 
+            {/* Area Filter Pills */}
+            {!loading && cumulativeGaps && cumulativeGaps.broadAreas.length > 0 && (
+                <div className="reports__area-filters">
+                    <button
+                        className={`reports__area-pill ${!activeAreaId ? 'reports__area-pill--active' : ''}`}
+                        onClick={() => setActiveAreaId(null)}
+                    >
+                        All Areas
+                    </button>
+                    {cumulativeGaps.broadAreas.map(area => (
+                        <button
+                            key={area.id}
+                            className={`reports__area-pill ${activeAreaId === area.id ? 'reports__area-pill--active' : ''}`}
+                            onClick={() => setActiveAreaId(area.id === activeAreaId ? null : area.id)}
+                        >
+                            {(() => { const k = `area.${area.id}.label`; const v = t(k); return v !== k ? v : area.name; })()}
+                            {area.criticalCount > 0 && (
+                                <span className="reports__area-pill-badge">{area.criticalCount}</span>
+                            )}
+                        </button>
+                    ))}
+                </div>
+            )}
+
             {/* Cumulative Gap Summary */}
             {!loading && cumulativeGaps && cumulativeGaps.totalGaps > 0 && (
-                <SectionCard title={t('reports.cumulativeGapAnalysis')}>
+                <div ref={gapSectionRef}>
+                <SectionCard title={activeArea ? `${activeArea.name} — Gap Analysis` : t('reports.cumulativeGapAnalysis')}>
                     {/* Summary KPI row */}
                     <div className="reports__gap-kpis">
                         <div className="reports__gap-kpi">
@@ -355,7 +421,7 @@ export default function Reports() {
                     </div>
 
                     {/* Gap Register Table */}
-                    {cumulativeGaps.gaps.length > 0 && (
+                    {filteredGaps.length > 0 && (
                         <div className="reports__gap-register">
                             <h4 className="reports__gap-chart-title" style={{ marginTop: '0.75rem' }}>{t('reports.gapRegister')}</h4>
                             <div className="reports-table-wrapper">
@@ -371,7 +437,7 @@ export default function Reports() {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {cumulativeGaps.gaps.slice(0, 25).map((gap: any, idx: number) => (
+                                        {filteredGaps.slice(0, 25).map((gap: any, idx: number) => (
                                             <tr key={gap.id || idx} className="reports__row">
                                                 <td className="reports__cell" style={{ fontFamily: 'monospace', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
                                                     {gap.id || `GAP-${idx + 1}`}
@@ -401,14 +467,15 @@ export default function Reports() {
                                     </tbody>
                                 </table>
                             </div>
-                            {cumulativeGaps.gaps.length > 25 && (
+                            {filteredGaps.length > 25 && (
                                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', textAlign: 'center', padding: '0.5rem' }}>
-                                    {t('reports.showingGaps').replace('{0}', String(cumulativeGaps.gaps.length))}
+                                    {t('reports.showingGaps').replace('{0}', String(filteredGaps.length))}
                                 </p>
                             )}
                         </div>
                     )}
                 </SectionCard>
+                </div>
             )}
 
             {/* Reports Table */}

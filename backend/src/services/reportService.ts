@@ -3,6 +3,7 @@ import { getSubArea } from './domainService';
 import { generateCompletion } from './llmService';
 import { buildReadinessReportPrompt, buildGapReportPrompt } from '../prompts/report.prompt';
 import { getLanguageInstructions } from './languageService';
+import { getProjectContext } from './settingsService';
 
 // Readiness Report Types
 export interface ReadinessScore {
@@ -224,10 +225,14 @@ export async function generateGapReport(sessionId: string, modelId?: string): Pr
     const answerContext = buildAnswerContext(session);
     const languageInstructions = getLanguageInstructions(session.language ?? 'en');
 
+    // Include ERP migration path so gaps are benchmarked against the correct target system
+    const projectCtx = await getProjectContext();
+
     const prompt = `${languageInstructions}\n\n${buildGapReportPrompt(
         answerContext,
         session.conversationContext.identifiedGaps.join(', '),
-        session.conversationContext.painPoints.join(', ')
+        session.conversationContext.painPoints.join(', '),
+        projectCtx.erpPath || ''
     )}`;
 
     const response = await generateCompletion(modelId || null, [
