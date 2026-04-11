@@ -25,7 +25,7 @@ import {
     BroadAreaInfo,
     BroadAreaProgressInfo,
     type SessionSummary, type GeneratedQuestion,
-    type RiskItem, type DashboardStats,
+    type DashboardStats,
 } from '../services/api';
 import { useLanguage } from '../i18n/LanguageContext';
 import './ProcessAnalysis.css';
@@ -40,7 +40,6 @@ export default function ProcessAnalysis() {
     // Overview state
     const [sessions, setSessions] = useState<SessionSummary[]>([]);
     const [broadAreas, setBroadAreas] = useState<BroadAreaInfo[]>([]);
-    const [risks, setRisks] = useState<RiskItem[]>([]);
     const [totalRisks, setTotalRisks] = useState(0);
     const [_loading, setLoading] = useState(true);
     const [metrics, setMetrics] = useState<DashboardStats | null>(null);
@@ -67,7 +66,6 @@ export default function ProcessAnalysis() {
             .then(([sessRes, areaRes, riskRes, dashStats]) => {
                 setSessions(sessRes.sessions?.filter((s) => s.type === 'readiness' || s.type === 'interview') || []);
                 setBroadAreas(areaRes.broadAreas || []);
-                setRisks(riskRes.risks || []);
                 setTotalRisks(riskRes.totalRisks || 0);
                 setMetrics(dashStats);
             })
@@ -645,9 +643,8 @@ export default function ProcessAnalysis() {
                 <SectionCard title={t('pa.myAssessmentDetails')}>
                     {readinessSessions.map((s) => {
                         const pct = s.progress.total ? Math.round((s.progress.completed / s.progress.total) * 100) : 0;
-                        const sessionRisks = risks.filter((r) => r.sessionId === s.id);
-                        const critCount = sessionRisks.filter((r) => r.severity === 'HIGH RISK' || r.severity === 'MEDIUM RISK').length;
-                        const riskScore = Math.round(pct * 0.3 + critCount * 12 + 20);
+                        const critCount = s.highGapCount || 0;
+                        const riskScore = s.riskScore || 0;
                         return (
                             <div key={s.id} className="assessment-detail">
                                 <div className="assessment-detail__header">

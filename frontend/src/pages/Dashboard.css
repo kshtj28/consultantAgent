@@ -117,7 +117,7 @@
 
 .dashboard__critical-item {
     display: grid;
-    grid-template-columns: 160px 1fr 60px;
+    grid-template-columns: 160px 1fr 60px auto;
     align-items: center;
     gap: 1rem;
     padding: 0.5rem 0.75rem;
@@ -167,6 +167,21 @@
     background: rgba(239, 68, 68, 0.15);
     border: 1px solid rgba(239, 68, 68, 0.4);
     color: #fca5a5;
+}
+
+.dashboard__critical-action {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.75rem;
+    color: #60a5fa;
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.dashboard__critical-item:hover .dashboard__critical-action {
+    opacity: 1;
 }
 
 /* ── Hero Row: Readiness Score + KPIs ── */
@@ -647,26 +662,6 @@
     border-color: rgba(16, 185, 129, 0.4);
     color: #6ee7b7;
     box-shadow: 0 0 10px rgba(16, 185, 129, 0.1);
-}
-
-.dashboard__gap-charts {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
-}
-
-.dashboard__gap-chart-card {
-    background: var(--surface-light);
-    border: 1px solid var(--border);
-    border-radius: 0.75rem;
-    padding: 1rem;
-}
-
-.dashboard__gap-chart-title {
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: var(--text);
-    margin-bottom: 0.5rem;
 }
 
 /* ── Recent Sessions ── */

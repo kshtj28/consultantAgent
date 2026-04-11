@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import { opensearchClient, INDICES } from '../config/database';
-import { getSubArea, getAllSubAreas } from './domainService';
+import { getAllSubAreas } from './domainService';
 
 // ── Types ──────────────────────────────────────────────────
 
@@ -159,19 +159,22 @@ export async function upsertMetrics(metrics: Partial<DashboardMetrics>, projectI
 export async function recomputeAndStoreMetrics(projectId = DEFAULT_PROJECT_ID): Promise<DashboardMetrics> {
     let totalSessions = 0;
     let completedSessions = 0;
+
+    // Coverage tracking from actual interview sessions
+    let totalSubAreas = 0;
+    let coveredSubAreas = 0;
+    let inProgressSubAreas = 0;
     let totalAnswered = 0;
     let totalQuestions = 0;
-    let totalGaps = 0;
-    let totalPainPoints = 0;
-    let automationOpportunities = 0;
 
-    // Per-area tracking for charts (keyed by area ID)
-    const areaSelectionCounts: Record<string, number> = {};  // how many sessions selected this area
-    const areaAnswerCounts: Record<string, number> = {};     // total answers per area
-    const areaQuestionCounts: Record<string, number> = {};   // total questions per area
-    const areaGapCounts: Record<string, number> = {};        // gaps attributable to area
+    // Per-area tracking for charts (keyed by sub-area ID)
+    const areaSelectionCounts: Record<string, number> = {};
+    const areaAnswerCounts: Record<string, number> = {};
+    const areaQuestionCounts: Record<string, number> = {};
+    const areaGapCounts: Record<string, number> = {};
 
     try {
+        // Legacy readiness sessions
         const sessExists = await opensearchClient.indices.exists({ index: 'readiness_sessions' });
         if (sessExists.body) {
             const result = await opensearchClient.search({
@@ -187,73 +190,148 @@ export async function recomputeAndStoreMetrics(projectId = DEFAULT_PROJECT_ID): 
                 if (!doc) continue;
                 if (doc.status === 'completed') completedSessions++;
 
-                const context = doc.conversationContext || doc.context || {};
-                const gaps = context.identifiedGaps || [];
-                const painPoints = context.painPoints || [];
-                totalGaps += gaps.length;
-                totalPainPoints += painPoints.length;
-                automationOpportunities += (context.automationOpportunities || context.transformationOpportunities || []).length;
-
                 const responses: Record<string, any[]> = doc.responses && !Array.isArray(doc.responses) ? doc.responses : {};
                 const selectedAreas: string[] = doc.selectedAreas || [];
 
                 for (const areaId of selectedAreas) {
-                    // Count area selections for process type distribution
                     areaSelectionCounts[areaId] = (areaSelectionCounts[areaId] || 0) + 1;
 
-                    totalQuestions += 5;
-                    areaQuestionCounts[areaId] = (areaQuestionCounts[areaId] || 0) + 5;
-
                     const areaAnswers = responses[areaId];
-                    if (Array.isArray(areaAnswers)) {
-                        totalAnswered += areaAnswers.length;
-                        areaAnswerCounts[areaId] = (areaAnswerCounts[areaId] || 0) + areaAnswers.length;
-                    }
-                }
-
-                // Distribute gaps evenly across selected areas (gaps are flat strings, not area-attributed)
-                if (selectedAreas.length > 0 && gaps.length > 0) {
-                    const gapsPerArea = gaps.length / selectedAreas.length;
-                    for (const areaId of selectedAreas) {
-                        areaGapCounts[areaId] = (areaGapCounts[areaId] || 0) + gapsPerArea;
-                    }
+                    const answerCount = Array.isArray(areaAnswers) ? areaAnswers.length : 0;
+                    totalAnswered += answerCount;
+                    areaAnswerCounts[areaId] = (areaAnswerCounts[areaId] || 0) + answerCount;
+                    areaQuestionCounts[areaId] = (areaQuestionCounts[areaId] || 0) + Math.max(answerCount, 1);
+                    totalQuestions += Math.max(answerCount, 1);
                 }
             }
         }
 
-        const convExists = await opensearchClient.indices.exists({ index: 'consultant_conversations' });
+        // Interview sessions — use actual coverage data
+        const convExists = await opensearchClient.indices.exists({ index: INDICES.CONVERSATIONS });
         if (convExists.body) {
             const intResult = await opensearchClient.search({
-                index: 'consultant_conversations',
+                index: INDICES.CONVERSATIONS,
                 body: { query: { match: { sessionType: 'interview_session' } }, size: 100 },
             });
             const intHits = (intResult.body.hits.hits || []) as any[];
             totalSessions += intHits.length;
+
             for (const hit of intHits) {
                 const doc = hit._source;
                 if (!doc) continue;
                 if (doc.status === 'completed') completedSessions++;
-                const messages = doc.messages || [];
-                totalAnswered += messages.filter((m: any) => m.role === 'user').length;
-                totalQuestions += 8;
+
+                // Use real coverage data from interview sessions
+                const coverage: Record<string, { status: string; questionsAnswered: number }> = doc.coverage || {};
+                const coverageEntries = Object.entries(coverage);
+
+                if (coverageEntries.length > 0) {
+                    totalSubAreas += coverageEntries.length;
+                    for (const [subAreaId, cov] of coverageEntries) {
+                        if (cov.status === 'covered') coveredSubAreas++;
+                        else if (cov.status === 'in_progress') inProgressSubAreas++;
+
+                        areaSelectionCounts[subAreaId] = (areaSelectionCounts[subAreaId] || 0) + 1;
+                        areaQuestionCounts[subAreaId] = (areaQuestionCounts[subAreaId] || 0) + Math.max(cov.questionsAnswered, 1);
+                        totalQuestions += Math.max(cov.questionsAnswered, 1);
+                    }
+                }
+
+                // Count actual answers from responses
+                const responses: Record<string, any[]> = doc.responses && !Array.isArray(doc.responses) ? doc.responses : {};
+                for (const [subAreaId, answers] of Object.entries(responses)) {
+                    const answerCount = Array.isArray(answers) ? answers.length : 0;
+                    totalAnswered += answerCount;
+                    areaAnswerCounts[subAreaId] = (areaAnswerCounts[subAreaId] || 0) + answerCount;
+                }
             }
         }
     } catch (err: any) {
         console.warn('Error computing metrics from sessions:', err.message);
     }
 
-    const criticalIssues = totalGaps + totalPainPoints;
-    const discoveryPct = totalQuestions > 0 ? Math.round((totalAnswered / totalQuestions) * 100) : 0;
-    const avgRisk = totalSessions > 0 ? Math.round((criticalIssues / Math.max(totalSessions, 1)) * 10) : 0;
+    // ── Pull gap data from generated reports (the actual source of truth) ──
+    let totalGaps = 0;
+    let highGaps = 0;
+    let mediumGaps = 0;
+    let lowGaps = 0;
 
+    try {
+        const reportsExist = await opensearchClient.indices.exists({ index: INDICES.REPORTS });
+        if (reportsExist.body) {
+            const reportResult = await opensearchClient.search({
+                index: INDICES.REPORTS,
+                body: {
+                    query: { bool: { must: [
+                        { term: { status: 'ready' } },
+                    ] } },
+                    size: 200,
+                    sort: [{ createdAt: { order: 'desc' } }],
+                },
+            });
+
+            const reportHits = (reportResult.body.hits.hits || []) as any[];
+
+            // De-duplicate: keep only the latest report per broadAreaId (or sessionId for sub-area reports)
+            const latestByKey = new Map<string, any>();
+            for (const hit of reportHits) {
+                const doc = hit._source;
+                if (!doc?.content) continue;
+                const key = doc.broadAreaId || doc.sessionId || hit._id;
+                if (!latestByKey.has(key)) latestByKey.set(key, doc);
+            }
+
+            for (const doc of latestByKey.values()) {
+                const gaps = doc.content?.gaps || [];
+                const seenDescs = new Set<string>();
+
+                for (const gap of gaps) {
+                    const desc = (gap.gap || gap.description || '').toLowerCase().trim();
+                    if (!desc || seenDescs.has(desc)) continue;
+                    seenDescs.add(desc);
+
+                    totalGaps++;
+                    const impact = (gap.impact || '').toLowerCase();
+                    if (impact === 'high') highGaps++;
+                    else if (impact === 'medium') mediumGaps++;
+                    else lowGaps++;
+
+                    // Distribute gap to the relevant broad area for chart data
+                    const areaId = doc.broadAreaId;
+                    if (areaId) {
+                        areaGapCounts[areaId] = (areaGapCounts[areaId] || 0) + 1;
+                    }
+                }
+            }
+        }
+    } catch (err: any) {
+        console.warn('Error fetching gap data from reports:', err.message);
+    }
+
+    // Discovery progress: based on actual sub-area coverage
+    let discoveryPct = 0;
+    if (totalSubAreas > 0) {
+        const weightedProgress = coveredSubAreas * 100 + inProgressSubAreas * 50;
+        discoveryPct = Math.round(weightedProgress / totalSubAreas);
+    } else if (totalQuestions > 0) {
+        discoveryPct = Math.round((totalAnswered / totalQuestions) * 100);
+    }
+
+    // Risk computation from actual report gaps
+    const criticalIssues = totalGaps;
     let gapLevel: DashboardMetrics['gapSeverity']['level'];
-    if (avgRisk >= 30) gapLevel = 'Critical';
-    else if (avgRisk >= 15) gapLevel = 'High Risk';
-    else if (avgRisk >= 5) gapLevel = 'Medium Risk';
+    if (highGaps >= 10 || (highGaps >= 5 && totalGaps >= 20)) gapLevel = 'Critical';
+    else if (highGaps >= 5 || (highGaps >= 3 && totalGaps >= 15)) gapLevel = 'High Risk';
+    else if (highGaps >= 2 || totalGaps >= 8) gapLevel = 'Medium Risk';
     else gapLevel = 'Low Risk';
 
+    // Avg risk: weighted score based on gap severity
+    const avgRisk = totalGaps > 0
+        ? Math.round((highGaps * 3 + mediumGaps * 2 + lowGaps * 1) / totalGaps * 33)
+        : 0;
+
     const automationPct = totalSessions > 0
-        ? Math.min(100, Math.round((automationOpportunities / Math.max(totalSessions, 1)) * 35 + 20))
+        ? Math.min(100, Math.round((totalAnswered / Math.max(totalQuestions, 1)) * 60 + 20))
         : 0;
     const automationDelta = Math.round(automationPct * 0.15);
 
@@ -324,8 +402,10 @@ function computeProcessTypeDistribution(areaSelectionCounts: Record<string, numb
         }
     }
 
-    const total = entries.reduce((s, e) => s + e.value, 0) || 1;
-    return entries.map((e) => ({
+    // Filter out zero-value entries so pie chart renders correctly
+    const nonZero = entries.filter((e) => e.value > 0);
+    const total = nonZero.reduce((s, e) => s + e.value, 0) || 1;
+    return nonZero.map((e) => ({
         name: e.name,
         value: e.value,
         percent: Math.round((e.value / total) * 100),

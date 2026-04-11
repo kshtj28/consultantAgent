@@ -61,6 +61,9 @@ export interface SessionSummary {
     currentCategory?: string;
     progress: { completed: number; total: number };
     title: string;
+    gapCount?: number;
+    highGapCount?: number;
+    riskScore?: number;
 }
 
 export async function fetchSessions() {

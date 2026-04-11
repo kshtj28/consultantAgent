@@ -7,15 +7,10 @@ import { opensearchClient, INDICES } from '../config/database';
 
 const router = Router();
 
-// GET /api/dashboard/stats — read stored metrics (recompute if none exist)
+// GET /api/dashboard/stats — always recompute from live data
 router.get('/stats', async (_req: Request, res: Response) => {
     try {
-        let metrics = await getMetrics();
-
-        // If no stored metrics yet, compute from session data and store
-        if (!metrics) {
-            metrics = await recomputeAndStoreMetrics();
-        }
+        const metrics = await recomputeAndStoreMetrics();
 
         // Return in the shape the frontend expects
         res.json({

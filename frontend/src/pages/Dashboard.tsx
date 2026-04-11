@@ -1,7 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, BarChart3, ArrowRight, TrendingUp, Zap, DollarSign, Target } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import SectionCard from '../components/shared/SectionCard';
 import StatusBadge from '../components/shared/StatusBadge';
 import { SkeletonStatCards, SkeletonChart } from '../components/shared/Skeleton';
@@ -94,11 +93,6 @@ function CircularProgress({ pct, color }: { pct: number; color: string }) {
     );
 }
 
-const SEVERITY_COLORS: Record<string, string> = {
-    high: '#ef4444',
-    medium: '#f59e0b',
-    low: '#10b981',
-};
 
 export default function Dashboard() {
     const { t } = useLanguage();
@@ -150,31 +144,6 @@ export default function Dashboard() {
         : '#10b981';
 
     const gaugeColor = healthColor;
-
-    // Prepare chart data from cumulative gaps
-    const severityData = cumulativeGaps
-        ? Object.entries(cumulativeGaps.gapsBySeverity).map(([name, value]) => {
-            const key = `severity.${name.toLowerCase()}`;
-            const translated = t(key);
-            return {
-                originalName: name,
-                name: translated !== key ? translated : (name.charAt(0).toUpperCase() + name.slice(1)),
-                value,
-            };
-        })
-        : [];
-
-    const areaBarData = cumulativeGaps
-        ? cumulativeGaps.broadAreas.map(a => {
-            const key = `area.${(a as any).id || a.name.toLowerCase().replace(/[^a-z]+/g, '_')}.label`;
-            const translated = t(key);
-            return {
-                name: translated !== key ? translated : a.name,
-                gaps: a.gapCount,
-                critical: a.criticalCount,
-            };
-        })
-        : [];
 
     if (loading) {
         return (
@@ -439,59 +408,6 @@ export default function Dashboard() {
                             ))}
                         </div>
 
-                        {/* Charts Row */}
-                        <div className="dashboard__gap-charts">
-                            {/* Gaps by Severity Pie */}
-                            {severityData.length > 0 && (
-                                <div className="dashboard__gap-chart-card">
-                                    <h4 className="dashboard__gap-chart-title">{t('dash.gapsByImpact')}</h4>
-                                    <div dir="ltr" style={{ width: '100%', height: '240px' }}>
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <PieChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
-                                                <Pie
-                                                    data={severityData}
-                                                    cx="50%"
-                                                    cy="50%"
-                                                    innerRadius={35}
-                                                    outerRadius={65}
-                                                    dataKey="value"
-                                                    paddingAngle={3}
-                                                    label={({ name, value }) => `${name}: ${value}`}
-                                                    onClick={(entry) => goToReports((entry as any).originalName?.toLowerCase())}
-                                                    style={{ cursor: 'pointer' }}
-                                                >
-                                                    {severityData.map(entry => (
-                                                        <Cell key={entry.name} fill={SEVERITY_COLORS[entry.originalName.toLowerCase()] || '#6b7280'} />
-                                                    ))}
-                                                </Pie>
-                                                <Tooltip />
-                                            </PieChart>
-                                        </ResponsiveContainer>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Gaps by Area Bar */}
-                            {areaBarData.length > 0 && (
-                                <div className="dashboard__gap-chart-card">
-                                    <h4 className="dashboard__gap-chart-title">{t('dash.gapsByProcessArea')}</h4>
-                                    <div dir="ltr" style={{ width: '100%', height: '200px' }}>
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <BarChart data={areaBarData} layout="vertical" margin={{ left: 10, right: 10 }}>
-                                                <XAxis type="number" tick={{ fill: '#94a3b8', fontSize: 11 }} />
-                                                <YAxis type="category" dataKey="name" tick={{ fill: '#94a3b8', fontSize: 11 }} width={120} />
-                                                <Tooltip
-                                                    contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', color: '#f8fafc' }}
-                                                />
-                                                <Bar dataKey="gaps" fill="#3b82f6" radius={[0, 4, 4, 0]} name={t('gap.totalGaps')} />
-                                                <Bar dataKey="critical" fill="#ef4444" radius={[0, 4, 4, 0]} name={t('dash.highImpact')} />
-                                            </BarChart>
-                                        </ResponsiveContainer>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-
                         {/* Top Critical Issues */}
                         {highImpactGaps.length > 0 && (
                             <div className="dashboard__critical-section">
@@ -505,26 +421,32 @@ export default function Dashboard() {
                                     </button>
                                 </div>
                                 <div className="dashboard__critical-list">
-                                    {highImpactGaps.map((gap: any, idx: number) => (
-                                        <div
-                                            key={gap.id || idx}
-                                            className="dashboard__critical-item"
-                                            onClick={() => goToReports('high', cumulativeGaps?.broadAreas.find(a => a.name === (gap.broadAreaName || gap.area))?.id)}
-                                            role="button"
-                                            tabIndex={0}
-                                            onKeyDown={e => e.key === 'Enter' && goToReports('high')}
-                                        >
-                                            <span className="dashboard__critical-area">
-                                                {gap.broadAreaName || gap.area || '—'}
-                                            </span>
-                                            <span className="dashboard__critical-gap">
-                                                {gap.gap || gap.description || '—'}
-                                            </span>
-                                            <span className="dashboard__critical-badge dashboard__critical-badge--high">
-                                                High
-                                            </span>
-                                        </div>
-                                    ))}
+                                    {highImpactGaps.map((gap: any, idx: number) => {
+                                        const areaId = cumulativeGaps?.broadAreas.find(a => a.name === (gap.broadAreaName || gap.area))?.id;
+                                        return (
+                                            <div
+                                                key={gap.id || idx}
+                                                className="dashboard__critical-item"
+                                                onClick={() => goToReports('high', areaId)}
+                                                role="button"
+                                                tabIndex={0}
+                                                onKeyDown={e => e.key === 'Enter' && goToReports('high', areaId)}
+                                            >
+                                                <span className="dashboard__critical-area">
+                                                    {gap.broadAreaName || gap.area || '—'}
+                                                </span>
+                                                <span className="dashboard__critical-gap">
+                                                    {gap.gap || gap.description || '—'}
+                                                </span>
+                                                <span className="dashboard__critical-badge dashboard__critical-badge--high">
+                                                    High
+                                                </span>
+                                                <span className="dashboard__critical-action">
+                                                    View in Report <ArrowRight size={12} />
+                                                </span>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         )}

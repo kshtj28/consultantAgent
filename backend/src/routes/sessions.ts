@@ -15,12 +15,51 @@ interface SessionSummary {
         total: number;
     };
     title: string;
+    gapCount?: number;
+    highGapCount?: number;
+    riskScore?: number;
 }
 
 // GET /api/sessions/all — list all interview and readiness sessions
 router.get('/sessions/all', async (req: Request, res: Response) => {
     try {
         const sessions: SessionSummary[] = [];
+
+        // Pre-fetch report gap data keyed by sessionId for per-session metrics
+        const sessionGapData = new Map<string, { total: number; high: number; medium: number }>();
+        try {
+            const reportsExist = await opensearchClient.indices.exists({ index: INDICES.REPORTS });
+            if (reportsExist.body) {
+                const reportResult = await opensearchClient.search({
+                    index: INDICES.REPORTS,
+                    body: {
+                        query: { term: { status: 'ready' } },
+                        size: 500,
+                        _source: ['sessionId', 'content.gaps'],
+                    },
+                });
+                const reportHits = (reportResult.body?.hits?.hits || []) as any[];
+                for (const hit of reportHits) {
+                    const doc = hit._source;
+                    if (!doc?.sessionId) continue;
+                    const gaps = doc.content?.gaps || [];
+                    const existing = sessionGapData.get(doc.sessionId) || { total: 0, high: 0, medium: 0 };
+                    const seenDescs = new Set<string>();
+                    for (const gap of gaps) {
+                        const desc = (gap.gap || gap.description || '').toLowerCase().trim();
+                        if (!desc || seenDescs.has(desc)) continue;
+                        seenDescs.add(desc);
+                        existing.total++;
+                        const impact = (gap.impact || '').toLowerCase();
+                        if (impact === 'high') existing.high++;
+                        else if (impact === 'medium') existing.medium++;
+                    }
+                    sessionGapData.set(doc.sessionId, existing);
+                }
+            }
+        } catch {
+            // Reports may not exist yet
+        }
 
         // --- Interview sessions (stored in consultant_conversations, tagged with sessionType) ---
         try {
@@ -40,29 +79,39 @@ router.get('/sessions/all', async (req: Request, res: Response) => {
                 const doc = hit._source;
                 if (!doc) continue;
 
-                // Calculate progress from responses
-                // responses is { [categoryId]: InterviewAnswer[] }, not an array
-                const responses: Record<string, any[]> =
-                    doc.responses && !Array.isArray(doc.responses) ? doc.responses : {};
-                const depthThresholds: Record<string, number> = { quick: 3, standard: 5, deep: 8 };
-                const threshold = depthThresholds[doc.depth] ?? 5;
-                const totalCategories = 8;
-                const completedCategories = Object.values(responses).filter(
-                    (answers) => Array.isArray(answers) && answers.length >= threshold
+                // Calculate progress from actual coverage data
+                const coverage: Record<string, { status: string; questionsAnswered: number }> =
+                    doc.coverage && typeof doc.coverage === 'object' ? doc.coverage : {};
+                const coverageEntries = Object.values(coverage);
+                const totalAreas = coverageEntries.length || 1;
+                const completedAreas = coverageEntries.filter(
+                    (c) => c.status === 'covered'
                 ).length;
 
+                const sid = doc.sessionId || hit._id.replace('interview_', '');
+                const gapInfo = sessionGapData.get(sid);
+                const gapCount = gapInfo?.total || 0;
+                const highGapCount = gapInfo?.high || 0;
+                // Risk score: weighted gap severity, scaled to 0-100
+                const riskScore = gapCount > 0
+                    ? Math.min(100, Math.round((highGapCount * 3 + (gapInfo?.medium || 0) * 2 + (gapCount - highGapCount - (gapInfo?.medium || 0))) / gapCount * 33))
+                    : 0;
+
                 sessions.push({
-                    id: doc.sessionId || hit._id.replace('interview_', ''),
+                    id: sid,
                     type: 'interview',
                     status: doc.status || 'in_progress',
                     startedAt: doc.createdAt || doc.startedAt || new Date().toISOString(),
                     lastActivityAt: doc.updatedAt || doc.lastActivityAt || new Date().toISOString(),
                     currentCategory: doc.currentCategory,
                     progress: {
-                        completed: completedCategories,
-                        total: totalCategories,
+                        completed: completedAreas,
+                        total: totalAreas,
                     },
                     title: `Finance Interview — ${new Date(doc.createdAt || Date.now()).toLocaleDateString('en-US')}`,
+                    gapCount,
+                    highGapCount,
+                    riskScore,
                 });
             }
         } catch (err) {
@@ -98,8 +147,16 @@ router.get('/sessions/all', async (req: Request, res: Response) => {
                         key => Array.isArray(responses[key]) && responses[key].length > 0
                     ).length;
 
+                    const rSid = doc.sessionId || hit._id;
+                    const rGapInfo = sessionGapData.get(rSid);
+                    const rGapCount = rGapInfo?.total || 0;
+                    const rHighGapCount = rGapInfo?.high || 0;
+                    const rRiskScore = rGapCount > 0
+                        ? Math.min(100, Math.round((rHighGapCount * 3 + (rGapInfo?.medium || 0) * 2 + (rGapCount - rHighGapCount - (rGapInfo?.medium || 0))) / rGapCount * 33))
+                        : 0;
+
                     sessions.push({
-                        id: doc.sessionId || hit._id,
+                        id: rSid,
                         type: 'readiness',
                         status: doc.status || 'in_progress',
                         startedAt: doc.createdAt || new Date().toISOString(),
@@ -110,6 +167,9 @@ router.get('/sessions/all', async (req: Request, res: Response) => {
                             total: selectedAreas.length || 7,
                         },
                         title: `Readiness Assessment — ${new Date(doc.createdAt || Date.now()).toLocaleDateString('en-US')}`,
+                        gapCount: rGapCount,
+                        highGapCount: rHighGapCount,
+                        riskScore: rRiskScore,
                     });
                 }
             }
