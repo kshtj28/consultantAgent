@@ -112,55 +112,59 @@
 .dashboard__critical-list {
     display: flex;
     flex-direction: column;
-    gap: 0;
+    gap: 0.5rem;
 }
 
-.dashboard__critical-item {
-    display: grid;
-    grid-template-columns: 160px 1fr 60px auto;
+.dashboard__critical-item-card {
+    background: var(--surface-light, #1e293b);
+    border: 1px solid var(--border);
+    border-left: 3px solid #ef4444;
+    border-radius: 0.5rem;
+    padding: 0.75rem 1rem;
+    transition: border-color 0.15s;
+}
+
+.dashboard__critical-item-card:hover {
+    border-left-color: #f87171;
+}
+
+.dashboard__critical-item-top {
+    display: flex;
     align-items: center;
-    gap: 1rem;
-    padding: 0.5rem 0.75rem;
-    border-radius: 0.375rem;
-    cursor: pointer;
-    transition: background 0.15s;
-    border-bottom: 1px solid var(--border);
-}
-
-.dashboard__critical-item:last-child {
-    border-bottom: none;
-}
-
-.dashboard__critical-item:hover {
-    background: rgba(239, 68, 68, 0.05);
+    gap: 0.75rem;
 }
 
 .dashboard__critical-area {
-    font-size: 0.7rem;
+    font-size: 0.65rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.04em;
     color: var(--text-secondary);
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    flex-shrink: 0;
 }
 
 .dashboard__critical-gap {
     font-size: 0.8rem;
     color: var(--text);
+    flex: 1;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
+.dashboard__critical-badges {
+    display: flex;
+    gap: 0.35rem;
+    flex-shrink: 0;
+}
+
 .dashboard__critical-badge {
-    font-size: 0.65rem;
+    font-size: 0.6rem;
     font-weight: 700;
-    padding: 0.2rem 0.5rem;
+    padding: 0.15rem 0.45rem;
     border-radius: 9999px;
-    text-align: center;
-    justify-self: end;
+    white-space: nowrap;
 }
 
 .dashboard__critical-badge--high {
@@ -169,19 +173,47 @@
     color: #fca5a5;
 }
 
-.dashboard__critical-action {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-    font-size: 0.75rem;
-    color: #60a5fa;
-    white-space: nowrap;
-    opacity: 0;
-    transition: opacity 0.15s;
+.dashboard__critical-badge--effort-high {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.25);
+    color: #fca5a5;
 }
 
-.dashboard__critical-item:hover .dashboard__critical-action {
-    opacity: 1;
+.dashboard__critical-badge--effort-medium {
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.25);
+    color: #fbbf24;
+}
+
+.dashboard__critical-badge--effort-low {
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.25);
+    color: #6ee7b7;
+}
+
+.dashboard__critical-mitigation {
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 0.5rem;
+    align-items: baseline;
+}
+
+.dashboard__critical-mitigation-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: #60a5fa;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.dashboard__critical-mitigation-text {
+    font-size: 0.78rem;
+    color: #cbd5e1;
+    line-height: 1.4;
 }
 
 /* ── Hero Row: Readiness Score + KPIs ── */

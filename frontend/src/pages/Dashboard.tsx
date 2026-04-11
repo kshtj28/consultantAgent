@@ -408,7 +408,7 @@ export default function Dashboard() {
                             ))}
                         </div>
 
-                        {/* Top Critical Issues */}
+                        {/* Top Critical Issues with Mitigation Actions */}
                         {highImpactGaps.length > 0 && (
                             <div className="dashboard__critical-section">
                                 <div className="dashboard__critical-header">
@@ -417,36 +417,36 @@ export default function Dashboard() {
                                         Top Critical Issues Requiring Action
                                     </span>
                                     <button className="dashboard__view-reports-link" onClick={() => goToReports('high')}>
-                                        View All Critical <ArrowRight size={14} />
+                                        View All ({(cumulativeGaps?.gaps ?? []).filter((g: any) => (g.impact || '').toLowerCase() === 'high').length}) in Gap Register <ArrowRight size={14} />
                                     </button>
                                 </div>
                                 <div className="dashboard__critical-list">
-                                    {highImpactGaps.map((gap: any, idx: number) => {
-                                        const areaId = cumulativeGaps?.broadAreas.find(a => a.name === (gap.broadAreaName || gap.area))?.id;
-                                        return (
-                                            <div
-                                                key={gap.id || idx}
-                                                className="dashboard__critical-item"
-                                                onClick={() => goToReports('high', areaId)}
-                                                role="button"
-                                                tabIndex={0}
-                                                onKeyDown={e => e.key === 'Enter' && goToReports('high', areaId)}
-                                            >
+                                    {highImpactGaps.map((gap: any, idx: number) => (
+                                        <div key={gap.id || idx} className="dashboard__critical-item-card">
+                                            <div className="dashboard__critical-item-top">
                                                 <span className="dashboard__critical-area">
                                                     {gap.broadAreaName || gap.area || '—'}
                                                 </span>
                                                 <span className="dashboard__critical-gap">
                                                     {gap.gap || gap.description || '—'}
                                                 </span>
-                                                <span className="dashboard__critical-badge dashboard__critical-badge--high">
-                                                    High
-                                                </span>
-                                                <span className="dashboard__critical-action">
-                                                    View in Report <ArrowRight size={12} />
-                                                </span>
+                                                <div className="dashboard__critical-badges">
+                                                    <span className="dashboard__critical-badge dashboard__critical-badge--high">High</span>
+                                                    {gap.effort && (
+                                                        <span className={`dashboard__critical-badge dashboard__critical-badge--effort-${gap.effort.toLowerCase()}`}>
+                                                            {gap.effort} Effort
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
-                                        );
-                                    })}
+                                            {gap.targetState && (
+                                                <div className="dashboard__critical-mitigation">
+                                                    <span className="dashboard__critical-mitigation-label">Required Action:</span>
+                                                    <span className="dashboard__critical-mitigation-text">{gap.targetState}</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
                         )}
