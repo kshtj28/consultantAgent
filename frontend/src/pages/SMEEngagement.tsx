@@ -114,10 +114,10 @@ export default function SMEEngagement() {
                                         <td>
                                             <div className="sme-table__user">
                                                 <span className="sme-table__avatar">
-                                                    {getInitials(user.username)}
+                                                    {getInitials(user.username || '')}
                                                 </span>
                                                 <div>
-                                                    <div className="sme-table__name">{user.username}</div>
+                                                    <div className="sme-table__name">{user.username || 'Unknown'}</div>
                                                     <div className="sme-table__role">{getRoleLabel(user.role || '')}</div>
                                                 </div>
                                             </div>

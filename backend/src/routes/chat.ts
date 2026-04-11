@@ -16,6 +16,7 @@ import { generateGapAnalysis, generateProjectPlan, identifyAutomationOpportuniti
 import { getLanguageInstructions, isValidLanguage } from '../services/languageService';
 import { LLMWarmingUpError } from '../services/llmService';
 import { triggerGpuWarmup, scheduleScaleDown, isGpuScalingEnabled } from '../services/gpuScalingService';
+import { buildAssessmentContext, buildAssessmentSystemPrompt } from '../services/assessmentChatService';
 
 const router = Router();
 
@@ -346,6 +347,87 @@ router.post('/analyze/automation', async (req: Request, res: Response) => {
             return res.status(503).json({ error: error.message, code: 'LLM_WARMING_UP' });
         }
         res.status(500).json({ error: error.message });
+    }
+});
+
+// ── Assessment Chat — data-grounded Q&A over assessment results ──
+
+router.post('/assessment/stream', async (req: Request, res: Response) => {
+    try {
+        const { message, conversationId, model: requestedModel, language } = req.body;
+
+        if (!message) {
+            return res.status(400).json({ error: 'Message is required' });
+        }
+
+        const modelConfig = await getEffectiveModel(requestedModel);
+        if (!modelConfig) {
+            return res.status(400).json({ error: 'Invalid or no model configured' });
+        }
+
+        // SSE headers
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+
+        // Manage conversation
+        let activeConversationId = conversationId;
+        if (!activeConversationId) {
+            const username = (req as any).user?.username || 'unknown';
+            activeConversationId = await createConversation('assessment-chat', username);
+        }
+
+        await addMessage(activeConversationId, 'user', message);
+        const recentMessages = await getRecentMessages(activeConversationId, 10);
+
+        // Build grounded context from all assessment data
+        const assessmentCtx = await buildAssessmentContext(message);
+        const systemPrompt = buildAssessmentSystemPrompt(assessmentCtx);
+
+        // Signal context loaded (so frontend can show "Analyzing...")
+        res.write(`data: ${JSON.stringify({ status: 'context_loaded' })}\n\n`);
+
+        const langInstructions = getLanguageInstructions(isValidLanguage(language) ? language : 'en');
+        const llmMessages: LLMMessage[] = [
+            { role: 'system', content: `${systemPrompt}\n\n${langInstructions}` },
+        ];
+
+        // Add conversation history (without the latest message we just added)
+        const formattedHistory = formatMessagesForLLM(recentMessages.slice(0, -1));
+        llmMessages.push(...formattedHistory.map((m: any) => ({
+            role: m.role as 'user' | 'assistant',
+            content: m.content,
+        })));
+
+        llmMessages.push({ role: 'user', content: message });
+
+        // Stream
+        let fullResponse = '';
+        for await (const chunk of streamCompletion(modelConfig.id, llmMessages)) {
+            if (chunk.error) {
+                res.write(`data: ${JSON.stringify({ error: chunk.error })}\n\n`);
+                break;
+            }
+            if (chunk.content) {
+                fullResponse += chunk.content;
+                res.write(`data: ${JSON.stringify({ content: chunk.content })}\n\n`);
+            }
+            if (chunk.done) {
+                await addMessage(activeConversationId, 'assistant', fullResponse);
+                res.write(`data: ${JSON.stringify({ done: true, conversationId: activeConversationId })}\n\n`);
+            }
+        }
+
+        res.end();
+    } catch (error: any) {
+        console.error('Error in assessment chat:', error);
+        if (error instanceof LLMWarmingUpError) {
+            await ensureGpuWarm();
+            res.write(`data: ${JSON.stringify({ error: error.message, code: 'LLM_WARMING_UP' })}\n\n`);
+        } else {
+            res.write(`data: ${JSON.stringify({ error: error.message })}\n\n`);
+        }
+        res.end();
     }
 });
 

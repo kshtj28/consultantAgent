@@ -1,17 +1,31 @@
 import { Router, Request, Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
-import { fetchSMEEngagement } from '../services/smeEngagementService';
+import { fetchSMEEngagement, computeSMEEngagement } from '../services/smeEngagementService';
 import { addSMESSEClient } from '../services/reportSseService';
 
 const router = Router();
 
 router.get('/', async (req: Request, res: Response) => {
   try {
-    const entries = await fetchSMEEngagement();
+    let entries = await fetchSMEEngagement();
+    // Auto-compute if no stored engagement data exists
+    if (entries.length === 0) {
+      entries = await computeSMEEngagement();
+    }
     return res.json({ users: entries });
   } catch (err: any) {
     console.error('Fetch SME engagement error:', err);
     return res.status(500).json({ error: 'Failed to fetch SME engagement' });
+  }
+});
+
+router.post('/compute', async (req: Request, res: Response) => {
+  try {
+    const entries = await computeSMEEngagement();
+    return res.json({ users: entries });
+  } catch (err: any) {
+    console.error('Compute SME engagement error:', err);
+    return res.status(500).json({ error: 'Failed to compute SME engagement' });
   }
 });
 

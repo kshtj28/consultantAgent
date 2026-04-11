@@ -17,7 +17,7 @@ export async function computeInsights(sessionId: string, modelId?: string): Prom
   // 1. Compute trend data from historical sessions
   const sessionsRes = await opensearchClient.search({
     index: INDICES.CONVERSATIONS,
-    body: { query: { bool: { must: [{ match: { sessionType: 'interview' } }] } }, size: 1000 },
+    body: { query: { bool: { must: [{ match: { sessionType: 'interview_session' } }] } }, size: 1000 },
   });
   const sessions = sessionsRes.body.hits.hits.map((h: any) => h._source);
 
@@ -89,11 +89,19 @@ ${reportSummary}`;
 }
 
 export async function fetchInsights(sessionId?: string): Promise<InsightsData | null> {
-  const query = sessionId ? { match: { sessionId } } : { match_all: {} };
-  const res = await opensearchClient.search({
-    index: INDICES.INSIGHTS,
-    body: { query, size: 1, sort: [{ computedAt: 'desc' }] },
-  });
-  const hit = res.body.hits.hits[0];
-  return hit ? hit._source : null;
+  try {
+    const exists = await opensearchClient.indices.exists({ index: INDICES.INSIGHTS });
+    if (!exists.body) return null;
+
+    const query = sessionId ? { match: { sessionId } } : { match_all: {} };
+    const res = await opensearchClient.search({
+      index: INDICES.INSIGHTS,
+      body: { query, size: 1, sort: [{ computedAt: { order: 'desc', unmapped_type: 'date' } }] },
+    });
+    const hit = res.body.hits.hits[0];
+    return hit ? hit._source : null;
+  } catch (err: any) {
+    console.warn('Error fetching insights:', err.message);
+    return null;
+  }
 }

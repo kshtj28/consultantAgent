@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
-import { fetchInsights } from '../services/insightsService';
+import { fetchInsights, computeInsights } from '../services/insightsService';
 import { addInsightsSSEClient } from '../services/reportSseService';
 
 const router = Router();
@@ -13,6 +13,17 @@ router.get('/', async (req: Request, res: Response) => {
   } catch (err: any) {
     console.error('Fetch insights error:', err);
     return res.status(500).json({ error: 'Failed to fetch insights' });
+  }
+});
+
+router.post('/compute', async (req: Request, res: Response) => {
+  try {
+    const { sessionId } = req.body;
+    const insights = await computeInsights(sessionId || 'global');
+    return res.json({ insights });
+  } catch (err: any) {
+    console.error('Compute insights error:', err);
+    return res.status(500).json({ error: 'Failed to compute insights' });
   }
 });
 

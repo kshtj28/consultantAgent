@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import Sidebar from './Sidebar';
 import TopBar from './TopBar';
 import RightPanel from './RightPanel';
+import AssessmentChat from '../AssessmentChat';
 import { getActiveDomain, fetchProjectSettings } from '../../services/api';
 import './AppLayout.css';
 
@@ -42,6 +43,7 @@ const AppLayout: React.FC = () => {
         </main>
       </div>
       {showRightPanel && <RightPanel />}
+      <AssessmentChat />
     </div>
   );
 };

@@ -607,11 +607,13 @@ export default function ProcessAnalysis() {
             <div className="process-analysis__charts">
                 <SectionCard title={t('pa.processTypeDistribution')}>
                     <div className="process-analysis__chart-container">
-                        <div dir="ltr" style={{ width: '100%', height: '280px' }}>
+                        <div dir="ltr" style={{ width: '100%', height: '320px' }}>
                         <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                                <Pie data={pieData} cx="40%" cy="50%" innerRadius={50} outerRadius={75} paddingAngle={2} dataKey="value"
-                                    label={({ name, percent }) => `${name}: ${percent}%`}>
+                            <PieChart margin={{ top: 20, right: 40, bottom: 20, left: 40 }}>
+                                <Pie data={pieData} cx="50%" cy="50%" innerRadius={40} outerRadius={65} paddingAngle={2} dataKey="value"
+                                    label={({ name, percent }) => `${name}: ${((percent || 0) * 100).toFixed(0)}%`}
+                                    labelLine={{ strokeWidth: 1 }}
+                                >
                                     {pieData.map((_, i) => (<Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />))}
                                 </Pie>
                                 <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8 }} itemStyle={{ color: '#f8fafc' }} />

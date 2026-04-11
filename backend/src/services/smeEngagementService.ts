@@ -23,7 +23,7 @@ export async function computeSMEEngagement(): Promise<SMEEngagementEntry[]> {
 
   const sessionsRes = await opensearchClient.search({
     index: INDICES.CONVERSATIONS,
-    body: { query: { bool: { must: [{ match: { sessionType: 'interview' } }] } }, size: 1000 },
+    body: { query: { bool: { must: [{ match: { sessionType: 'interview_session' } }] } }, size: 1000 },
   });
   const sessions = sessionsRes.body.hits.hits.map((h: any) => h._source);
 
@@ -86,6 +86,8 @@ export async function computeSMEEngagement(): Promise<SMEEngagementEntry[]> {
     users: entries.map(e => ({
       userId: e.userId,
       username: e.username,
+      role: e.role,
+      department: e.department,
       engagementScore: e.engagementScore,
       participationRate: e.participationRate,
       responseCount: e.responseCount,
@@ -97,9 +99,17 @@ export async function computeSMEEngagement(): Promise<SMEEngagementEntry[]> {
 }
 
 export async function fetchSMEEngagement(): Promise<SMEEngagementEntry[]> {
-  const res = await opensearchClient.search({
-    index: INDICES.SME_ENGAGEMENT,
-    body: { query: { match_all: {} }, size: 500, sort: [{ engagementScore: 'desc' }] },
-  });
-  return res.body.hits.hits.map((h: any) => h._source);
+  try {
+    const exists = await opensearchClient.indices.exists({ index: INDICES.SME_ENGAGEMENT });
+    if (!exists.body) return [];
+
+    const res = await opensearchClient.search({
+      index: INDICES.SME_ENGAGEMENT,
+      body: { query: { match_all: {} }, size: 500, sort: [{ engagementScore: { order: 'desc', unmapped_type: 'float' } }] },
+    });
+    return res.body.hits.hits.map((h: any) => h._source);
+  } catch (err: any) {
+    console.warn('Error fetching SME engagement:', err.message);
+    return [];
+  }
 }

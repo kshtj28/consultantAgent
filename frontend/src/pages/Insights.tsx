@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { ComposedChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { TrendingUp, Zap, DollarSign, Loader, Target } from 'lucide-react';
+import { TrendingUp, Zap, DollarSign, Loader, Target, RefreshCw } from 'lucide-react';
 import SectionCard from '../components/shared/SectionCard';
 import StatusBadge from '../components/shared/StatusBadge';
-import { fetchSessions, fetchInsightsData, subscribeToInsightsStream, type SessionSummary } from '../services/api';
+import { fetchSessions, fetchInsightsData, computeInsightsData, subscribeToInsightsStream, type SessionSummary } from '../services/api';
 import { useLanguage } from '../i18n/LanguageContext';
 import './Insights.css';
 
@@ -43,6 +43,7 @@ export default function Insights() {
     const [actions, setActions] = useState<ActionCard[]>(defaultActions);
     const [insights, setInsights] = useState<any>(null);
     const [expandedAction, setExpandedAction] = useState<string | null>(null);
+    const [computing, setComputing] = useState(false);
 
     useEffect(() => {
         // Load sessions for chart fallback
@@ -103,7 +104,30 @@ export default function Insights() {
 
     const trendData = insights?.trendData || buildTrendDataFromSessions(sessions);
 
-    const hasTrends = trendData.length > 1;
+    const hasTrends = trendData.length >= 1;
+
+    const handleCompute = async () => {
+        setComputing(true);
+        try {
+            const data = await computeInsightsData();
+            if (data.insights) {
+                setInsights(data.insights);
+                const aiActions = (data.insights.recommendedActions || []).map((a: any) => ({
+                    icon: Target,
+                    title: a.title,
+                    description: a.description,
+                    impact: a.impact || 'Medium',
+                    effort: a.effort || 'Medium',
+                    source: 'ai' as const,
+                }));
+                setActions(aiActions.length > 0 ? aiActions : defaultActions);
+            }
+        } catch (err) {
+            console.error('Failed to compute insights:', err);
+        } finally {
+            setComputing(false);
+        }
+    };
     const completedCount = sessions.filter((s) => s.status === 'completed').length;
     const improving = completedCount > 0;
 
@@ -116,6 +140,14 @@ export default function Insights() {
                         {t('insights.subtitle')}
                     </p>
                 </div>
+                <button
+                    className="insights__compute-btn"
+                    onClick={handleCompute}
+                    disabled={computing}
+                >
+                    {computing ? <Loader size={16} className="spin" /> : <RefreshCw size={16} />}
+                    {computing ? 'Analyzing...' : 'Generate AI Insights'}
+                </button>
             </div>
 
             {/* Performance Trends chart */}
@@ -159,10 +191,76 @@ export default function Insights() {
                 </div>
             </SectionCard>
 
+            {/* Gap Analysis */}
+            {insights?.gapAnalysis && insights.gapAnalysis.length > 0 && (
+                <>
+                    <h3 className="insights__section-label">Top Gaps Identified</h3>
+                    <SectionCard title="">
+                        <div className="insights__gap-table-wrapper">
+                            <table className="insights__gap-table">
+                                <thead>
+                                    <tr>
+                                        <th>Area</th>
+                                        <th>Gap</th>
+                                        <th>Severity</th>
+                                        <th>Est. Impact</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {insights.gapAnalysis.map((g: any, i: number) => (
+                                        <tr key={i}>
+                                            <td>{g.area}</td>
+                                            <td>{g.gap}</td>
+                                            <td><StatusBadge label={g.severity} /></td>
+                                            <td className="insights__impact-cell">{g.impact}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </SectionCard>
+                </>
+            )}
+
+            {/* Automation Opportunities */}
+            {insights?.automationOpportunities && insights.automationOpportunities.length > 0 && (
+                <>
+                    <h3 className="insights__section-label">Automation Opportunities</h3>
+                    <SectionCard title="">
+                        <div className="insights__gap-table-wrapper">
+                            <table className="insights__gap-table">
+                                <thead>
+                                    <tr>
+                                        <th>Process</th>
+                                        <th>Est. Savings</th>
+                                        <th>Effort</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {insights.automationOpportunities.map((a: any, i: number) => (
+                                        <tr key={i}>
+                                            <td>{a.process}</td>
+                                            <td className="insights__impact-cell">{a.savings}</td>
+                                            <td><StatusBadge label={a.effort} /></td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </SectionCard>
+                </>
+            )}
+
             {/* Recommended Actions */}
             <h3 className="insights__section-label">
                 {t('insights.recommendedActions')}
             </h3>
+            {!insights && !loading && (
+                <div className="insights__empty-state">
+                    <Target size={32} />
+                    <p>No AI insights generated yet. Click "Generate AI Insights" to analyze your assessment data.</p>
+                </div>
+            )}
             <div className="insights__actions">
                 {actions.map((action) => {
                     const isExpanded = expandedAction === action.title;

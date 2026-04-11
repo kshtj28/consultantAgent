@@ -793,6 +793,14 @@ export async function fetchInsightsData(sessionId?: string): Promise<{ insights:
     });
 }
 
+export async function computeInsightsData(sessionId?: string): Promise<{ insights: any }> {
+    return request(`${API_BASE}/insights/compute`, {
+        method: 'POST',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: sessionId || 'global' }),
+    });
+}
+
 // SSE subscriptions
 export function subscribeToReportStream(
     onEvent: (event: any) => void,
