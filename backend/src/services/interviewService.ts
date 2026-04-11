@@ -399,9 +399,11 @@ export async function generateNextInterviewQuestion(
 
     // Fetch project context (ERP path, client, industry) for tailored questions
     const projectCtx = await getProjectContext();
+    const erpPath = projectCtx.erpPath || '';
+    const targetSystem = erpPath ? (erpPath.split('→').pop()?.trim() ?? erpPath) : '';
     const projectContextBlock = [
         projectCtx.clientName && `Client: ${projectCtx.clientName}`,
-        projectCtx.erpPath && `ERP Migration Path: ${projectCtx.erpPath}`,
+        erpPath && `ERP Migration Path: ${erpPath}`,
         projectCtx.industry && `Industry: ${projectCtx.industry}`,
     ].filter(Boolean).join('\n');
 
@@ -429,7 +431,17 @@ ${languageInstructions}
 Broad Area: ${broadAreaName}
 Focus Sub-Area: ${subArea.name} — ${subArea.description}
 Domain Persona: ${domainConfig.persona}
-${projectContextBlock ? `\n## PROJECT CONTEXT\n${projectContextBlock}\nTailor your questions to this specific migration context, referencing relevant ERP modules, industry regulations, and client-specific considerations where appropriate.\n` : ''}
+${projectContextBlock ? `\n## PROJECT CONTEXT\n${projectContextBlock}${targetSystem ? `
+
+## MANDATORY ERP MIGRATION FOCUS — ${targetSystem}
+This assessment is for a migration to **${targetSystem}**. You MUST incorporate this into EVERY question you generate:
+1. **Reference ${targetSystem} capabilities directly** — ask whether the client's current process aligns with ${targetSystem} standard workflows, modules, or out-of-the-box functionality
+2. **Probe for migration-specific gaps** — ask about data readiness for ${targetSystem}, custom vs standard processes, integrations that need rearchitecting for ${targetSystem}, and change management readiness
+3. **Use ${targetSystem} terminology** — reference specific ${targetSystem} modules, transaction codes, or features relevant to "${subArea.name}" (e.g., for SAP S/4HANA: mention FSCM, SAP Fiori, Universal Journal; for D365 F&O: mention Dynamics modules, Power Platform; for Oracle Cloud: mention Oracle modules, OTBI)
+4. **Assess fit-to-standard** — ask whether current processes can be handled by ${targetSystem} standard configuration or will require customisation
+5. **Identify migration blockers** — probe for legacy customisations, bolt-on systems, manual workarounds, or data quality issues that would complicate the ${targetSystem} migration
+Do NOT ask generic questions that ignore the migration context. Every question should help assess readiness for ${targetSystem} specifically.` : `\nTailor your questions to this specific context where appropriate.`}
+` : ''}
 
 ## CONSTRAINTS
 IMPORTANT: Stay focused ONLY on "${subArea.name}" topics within the "${broadAreaName}" broad area. Do NOT ask about other sub-areas.

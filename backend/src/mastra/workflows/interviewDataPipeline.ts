@@ -8,6 +8,8 @@ import { computeInsights } from '../../services/insightsService';
 import { broadcastReportStatus } from '../../services/reportSseService';
 import { getBroadArea, getSubAreasForBroadArea } from '../../services/domainService';
 import { generateCompletion } from '../../services/llmService';
+import { getProjectContext } from '../../services/settingsService';
+import { getErpStandardsList } from '../../prompts/report.prompt';
 import { v4 as uuidv4 } from 'uuid';
 
 // --- Core logic functions ---
@@ -20,6 +22,16 @@ async function runAreaReportGeneration(input: {
 }): Promise<{ areaReports: any[]; session: any; userId: string }> {
   const { session, broadAreaIds, userId } = input;
   const areaReports: any[] = [];
+
+  // Fetch ERP migration path from project settings once for all areas
+  const projectCtx = await getProjectContext().catch(() => ({ erpPath: '' }));
+  const erpPath = projectCtx.erpPath || '';
+  const targetSystem = erpPath ? (erpPath.split('→').pop()?.trim() ?? erpPath) : null;
+  const erpStandards = erpPath ? getErpStandardsList(erpPath) : `   - APQC PCF 8.0 for process benchmarks
+   - SAP S/4HANA Best Practice for ERP-specific gaps
+   - COBIT 2019 for IT governance gaps
+   - IFRS/GAAP for financial reporting gaps
+   - ISO 27001 for security/compliance gaps`;
 
   for (const broadAreaId of broadAreaIds) {
     try {
@@ -58,15 +70,19 @@ async function runAreaReportGeneration(input: {
             `  Level 5 (Optimized): ${subArea.benchmarks.maturity_5}\n`
           : '';
 
+        const erpLine = targetSystem
+          ? `\nERP Migration Target: ${targetSystem}. Assess gaps and target states against ${targetSystem} capabilities and standard processes.\n`
+          : '';
+
         const prompt = `You are a senior management consultant analysing discovery interview data for the "${subArea.name}" sub-area within "${broadArea.name}".
 
 ## INTERVIEW DATA
 ${qaText}
-
+${erpLine}
 ${benchmarkContext}
 
 ## YOUR TASK
-Analyse the interview data above and produce a structured assessment digest. Be specific — reference actual answers, tools, and processes mentioned. Do NOT be generic.
+Analyse the interview data above and produce a structured assessment digest. Be specific — reference actual answers, tools, and processes mentioned. Do NOT be generic.${targetSystem ? ` Where relevant, frame the "targetState" against ${targetSystem} standard processes and capabilities.` : ''}
 
 Return ONLY valid JSON in this exact schema:
 {
@@ -126,11 +142,15 @@ Return ONLY valid JSON in this exact schema:
         return `### Sub-area: ${s.subAreaName}\nMaturity Level: ${s.maturityLevel || 'Unknown'}/5 — ${s.maturityJustification || ''}\nFindings: ${s.keyFindings?.join('; ') || 'None'}\nGaps: ${gapsText}\nPain Points: ${painPointsText}\n${kpiText ? `KPI Data: ${kpiText}` : ''}\n${autoText ? `Automation: ${autoText}` : ''}\n${s.complianceGaps?.length ? `Compliance: ${s.complianceGaps.join('; ')}` : ''}`;
       }).join('\n\n');
 
+      const erpReduceContext = erpPath
+        ? `\n## ERP MIGRATION CONTEXT\nThis client is migrating: ${erpPath}. All gaps MUST be benchmarked against ${targetSystem} standard capabilities. Use ${targetSystem}-specific standards in the "standard" field — do NOT reference SAP unless the target is SAP. Prioritise gaps that represent deviations from ${targetSystem} out-of-the-box processes.\n`
+        : '';
+
       const reducePrompt = `You are a senior management consultant producing a comprehensive gap analysis report for the "${broadArea.name}" area of a client engagement.
 
 ## SUB-AREA ASSESSMENT DIGESTS
 ${digestText}
-
+${erpReduceContext}
 ## YOUR TASK
 Synthesize the sub-area digests above into a single, consultant-grade gap analysis report for "${broadArea.name}".
 
@@ -143,7 +163,8 @@ Synthesize the sub-area digests above into a single, consultant-grade gap analys
    - Impact: high/medium/low with quantified estimate where possible (e.g., "saves ~40 hours/month", "reduces close by 2 days")
    - Effort: high/medium/low
    - Fit: gap (major gap), partial (some alignment), or fit (already meets standard)
-   - Standard: the best practice being compared against (e.g., "SAP S/4HANA Best Practice", "APQC PCF 8.0", "COBIT 2019", "IFRS 15", "ISO 27001")
+   - Standard: the best practice being compared against — use ONLY these standards:
+${erpStandards}
    - impactScore: 1-10 numeric score for charting
    - effortScore: 1-10 numeric score for charting
 3. **Quick Wins**: Subset of gaps where impact is high and effort is low — these are the first things to implement
@@ -158,7 +179,7 @@ Return ONLY valid JSON:
 {
   "executiveSummary": "...",
   "gaps": [
-    { "id": "gap-1", "category": "process", "area": "${broadArea.name}", "currentState": "...", "targetState": "...", "gap": "...", "impact": "high", "effort": "medium", "fit": "gap", "standard": "SAP Best Practice", "priority": 9, "impactScore": 8, "effortScore": 5 }
+    { "id": "gap-1", "category": "process", "area": "${broadArea.name}", "currentState": "...", "targetState": "...", "gap": "...", "impact": "high", "effort": "medium", "fit": "gap", "standard": "${targetSystem ? targetSystem + ' Best Practice' : 'APQC PCF 8.0'}", "priority": 9, "impactScore": 8, "effortScore": 5 }
   ],
   "quickWins": ["gap-1", "gap-3"],
   "roadmap": [
@@ -173,7 +194,7 @@ Return ONLY valid JSON:
 }`;
 
       const reduceResponse = await generateCompletion([
-        { role: 'system', content: 'You are a senior management consultant at a Big 4 firm specialising in ERP transformations and process optimisation. Produce precise, evidence-based, consultant-grade gap analysis reports with quantified impacts and industry framework references. Return valid JSON only — no markdown, no explanation.' },
+        { role: 'system', content: `You are a senior management consultant at a Big 4 firm specialising in ERP transformations and process optimisation${erpPath ? ` with deep expertise in ${targetSystem} implementations` : ''}. Produce precise, evidence-based, consultant-grade gap analysis reports with quantified impacts and industry framework references. Return valid JSON only — no markdown, no explanation.` },
         { role: 'user', content: reducePrompt },
       ], { temperature: 0.3 });
 

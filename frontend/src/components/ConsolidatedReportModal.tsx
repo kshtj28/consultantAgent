@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
-    X, Download, BarChart3, TrendingUp, Table2, Zap, Shield, Network, AlertTriangle,
+    X, Download, BarChart3, TrendingUp, Table2, Zap, Shield, Network, AlertTriangle, RefreshCw, Settings,
 } from 'lucide-react';
 import { MaturityRadarChart } from './charts/MaturityRadarChart';
 import { GapKnowledgeGraph, type KGNode, type KGEdge } from './charts/GapKnowledgeGraph';
+import { regenerateReport, fetchModels, fetchProjectSettings, type ModelConfig } from '../services/api';
 import './ConsolidatedReportModal.css';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -52,8 +53,10 @@ export interface ConsolidatedReportModalProps {
     report: ReportData;
     reportName: string;
     reportType: string;
+    reportId?: string;
     onClose: () => void;
     onDownloadPDF: () => void;
+    onRegenerate?: () => void;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -137,12 +140,53 @@ function buildSyntheticGraph(gaps: GapItem[]): { nodes: KGNode[]; edges: KGEdge[
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
+const ERP_PATH_OPTIONS = [
+    { value: '', label: 'No change (keep current)' },
+    { value: 'SAP ECC → S/4HANA', label: 'SAP ECC → S/4HANA' },
+    { value: 'Dynamics GP/NAV/AX → D365 F&O', label: 'Dynamics GP/NAV/AX → D365 F&O' },
+    { value: 'Oracle EBS → Oracle Cloud', label: 'Oracle EBS → Oracle Cloud' },
+    { value: 'Generic', label: 'Generic' },
+];
+
 export function ConsolidatedReportModal({
-    report, reportName, reportType, onClose, onDownloadPDF,
+    report, reportName, reportType, reportId, onClose, onDownloadPDF, onRegenerate,
 }: ConsolidatedReportModalProps) {
     const [activeTab, setActiveTab] = useState<TabId>('executive');
     const [sortCol, setSortCol] = useState<'impact' | 'effort' | 'area' | 'category' | 'fit' | null>(null);
     const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+    const [showRegenPanel, setShowRegenPanel] = useState(false);
+    const [regenErpPath, setRegenErpPath] = useState('');
+    const [regenModelId, setRegenModelId] = useState('');
+    const [models, setModels] = useState<ModelConfig[]>([]);
+    const [currentErpPath, setCurrentErpPath] = useState('');
+    const [regenerating, setRegenerating] = useState(false);
+
+    useEffect(() => {
+        if (showRegenPanel) {
+            fetchModels().then(res => setModels(res.models || [])).catch(() => {});
+            fetchProjectSettings().then(res => {
+                setCurrentErpPath(res.erpPath || '');
+            }).catch(() => {});
+        }
+    }, [showRegenPanel]);
+
+    const handleRegenerate = async () => {
+        if (!reportId) return;
+        setRegenerating(true);
+        try {
+            const overrides: { erpPath?: string; modelId?: string } = {};
+            if (regenErpPath) overrides.erpPath = regenErpPath;
+            if (regenModelId) overrides.modelId = regenModelId;
+            await regenerateReport(reportId, overrides);
+            setShowRegenPanel(false);
+            onRegenerate?.();
+            onClose();
+        } catch (err) {
+            console.error('Regeneration failed:', err);
+        } finally {
+            setRegenerating(false);
+        }
+    };
 
     const TABS: { id: TabId; label: string; Icon: typeof BarChart3 }[] = [
         { id: 'executive', label: 'Executive Summary', Icon: BarChart3 },
@@ -208,6 +252,15 @@ export function ConsolidatedReportModal({
                         )}
                     </div>
                     <div className="crm__header-actions">
+                        {reportId && (
+                            <button
+                                className="crm__btn"
+                                onClick={() => setShowRegenPanel(p => !p)}
+                                title="Regenerate report with different settings"
+                            >
+                                <Settings size={14} /> Regenerate
+                            </button>
+                        )}
                         <button className="crm__btn" onClick={onDownloadPDF}>
                             <Download size={14} /> Export PDF
                         </button>
@@ -216,6 +269,64 @@ export function ConsolidatedReportModal({
                         </button>
                     </div>
                 </div>
+
+                {/* ── Regeneration Settings Panel ── */}
+                {showRegenPanel && (
+                    <div className="crm__regen-panel">
+                        <div className="crm__regen-header">
+                            <RefreshCw size={14} />
+                            <span>Regenerate Report with Different Settings</span>
+                        </div>
+                        {currentErpPath && (
+                            <p className="crm__regen-current">
+                                Current ERP Path: <strong>{currentErpPath}</strong>
+                            </p>
+                        )}
+                        <div className="crm__regen-fields">
+                            <label className="crm__regen-field">
+                                <span className="crm__regen-label">ERP Migration Path</span>
+                                <select
+                                    className="crm__regen-select"
+                                    value={regenErpPath}
+                                    onChange={e => setRegenErpPath(e.target.value)}
+                                >
+                                    {ERP_PATH_OPTIONS.map(opt => (
+                                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                    ))}
+                                </select>
+                            </label>
+                            <label className="crm__regen-field">
+                                <span className="crm__regen-label">AI Model</span>
+                                <select
+                                    className="crm__regen-select"
+                                    value={regenModelId}
+                                    onChange={e => setRegenModelId(e.target.value)}
+                                >
+                                    <option value="">No change (keep current)</option>
+                                    {models.map(m => (
+                                        <option key={m.id} value={m.id}>{m.displayName}</option>
+                                    ))}
+                                </select>
+                            </label>
+                        </div>
+                        <div className="crm__regen-actions">
+                            <button
+                                className="crm__btn crm__btn--regen"
+                                onClick={handleRegenerate}
+                                disabled={regenerating || (!regenErpPath && !regenModelId)}
+                            >
+                                {regenerating ? (
+                                    <><RefreshCw size={14} className="crm__spin" /> Regenerating...</>
+                                ) : (
+                                    <><RefreshCw size={14} /> Regenerate Report</>
+                                )}
+                            </button>
+                            <button className="crm__btn" onClick={() => setShowRegenPanel(false)}>
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                )}
 
                 {/* ── Tabs ── */}
                 <div className="crm__tabs">
@@ -391,16 +502,16 @@ export function ConsolidatedReportModal({
                                                     <th className="crm__th" onClick={() => handleSort('fit')}>Fit <SortIcon col="fit" /></th>
                                                     <th className="crm__th" onClick={() => handleSort('effort')}>Size <SortIcon col="effort" /></th>
                                                     <th className="crm__th" style={{ minWidth: 220 }}>Description</th>
-                                                    <th className="crm__th" style={{ minWidth: 160 }}>SAP Standard</th>
+                                                    <th className="crm__th" style={{ minWidth: 160 }}>ERP Standard</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 {sortedGaps.map((g, idx) => {
                                                     const size = SIZE_MAP[g.effort] ?? 'M';
                                                     const sap = g.standard || (
-                                                        g.fit === 'gap'     ? `SAP S/4HANA ${g.area}` :
-                                                        g.fit === 'partial' ? `SAP BPC ${g.area}`     :
-                                                        `SAP Standard ${g.area}`
+                                                        g.fit === 'gap'     ? 'Industry Best Practice' :
+                                                        g.fit === 'partial' ? 'Partial Alignment'      :
+                                                        'Meets Standard'
                                                     );
                                                     return (
                                                         <tr key={g.id ?? idx}

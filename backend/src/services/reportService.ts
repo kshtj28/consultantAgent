@@ -155,11 +155,15 @@ export async function generateReadinessReport(sessionId: string, modelId?: strin
     const answerContext = buildAnswerContext(session);
     const languageInstructions = getLanguageInstructions(session.language ?? 'en');
 
+    // Include ERP migration path so readiness is assessed against the correct target system
+    const projectCtx = await getProjectContext();
+
     const prompt = `${languageInstructions}\n\n${buildReadinessReportPrompt(
         answerContext,
         session.conversationContext.identifiedGaps.join(', '),
         session.conversationContext.painPoints.join(', '),
-        session.conversationContext.transformationOpportunities.join(', ')
+        session.conversationContext.transformationOpportunities.join(', '),
+        projectCtx.erpPath || ''
     )}`;
 
     const response = await generateCompletion(modelId || null, [

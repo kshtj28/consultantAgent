@@ -1,17 +1,49 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, BarChart3, ArrowRight } from 'lucide-react';
+import { AlertTriangle, BarChart3, ArrowRight, TrendingUp, Zap, DollarSign, Target } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import SectionCard from '../components/shared/SectionCard';
 import StatusBadge from '../components/shared/StatusBadge';
 import { SkeletonStatCards, SkeletonChart } from '../components/shared/Skeleton';
 import {
-    fetchSessions, fetchDashboardStats, fetchCumulativeGaps,
+    fetchSessions, fetchDashboardStats, fetchCumulativeGaps, fetchExecutiveSummary,
     subscribeToDashboardStream,
-    type SessionSummary, type DashboardStats, type CumulativeGapData,
+    type SessionSummary, type DashboardStats, type CumulativeGapData, type ExecutiveSummary,
 } from '../services/api';
 import { useLanguage } from '../i18n/LanguageContext';
 import './Dashboard.css';
+
+/* ── Overall Readiness Score Ring ── */
+function ReadinessRing({ score }: { score: number }) {
+    const r = 54;
+    const circumference = 2 * Math.PI * r;
+    const offset = circumference * (1 - score / 100);
+    const color = score >= 70 ? '#10b981' : score >= 40 ? '#f59e0b' : '#ef4444';
+    const label = score >= 70 ? 'Ready' : score >= 40 ? 'Partial' : 'Not Ready';
+
+    return (
+        <div className="dashboard__readiness-ring">
+            <svg viewBox="0 0 130 130" width="130" height="130">
+                <circle cx="65" cy="65" r={r} fill="none" stroke="#1e293b" strokeWidth="10" />
+                <circle
+                    cx="65" cy="65" r={r} fill="none" stroke={color} strokeWidth="10"
+                    strokeLinecap="round"
+                    strokeDasharray={`${circumference}`}
+                    strokeDashoffset={offset}
+                    transform="rotate(-90 65 65)"
+                    className="circular-fill"
+                />
+                <text x="65" y="58" textAnchor="middle" fill="#f8fafc" fontSize="28" fontWeight="700">
+                    {score}
+                </text>
+                <text x="65" y="78" textAnchor="middle" fill="#94a3b8" fontSize="11" fontWeight="500">
+                    / 100
+                </text>
+            </svg>
+            <span className="dashboard__readiness-label" style={{ color }}>{label}</span>
+        </div>
+    );
+}
 
 /* ── SVG Gauge (half-circle speedometer) ── */
 function GaugeChart({ value, max, label, color }: { value: number; max: number; label: string; color: string }) {
@@ -74,6 +106,7 @@ export default function Dashboard() {
     const [sessions, setSessions] = useState<SessionSummary[]>([]);
     const [stats, setStats] = useState<DashboardStats | null>(null);
     const [cumulativeGaps, setCumulativeGaps] = useState<CumulativeGapData | null>(null);
+    const [execSummary, setExecSummary] = useState<ExecutiveSummary | null>(null);
     const [loading, setLoading] = useState(true);
     const esRef = useRef<EventSource | null>(null);
 
@@ -81,11 +114,12 @@ export default function Dashboard() {
         navigate('/reports', { state: { scrollToGaps: true, severity, areaId } });
 
     useEffect(() => {
-        Promise.all([fetchSessions(), fetchDashboardStats(), fetchCumulativeGaps()])
-            .then(([sessRes, dashStats, gapData]) => {
+        Promise.all([fetchSessions(), fetchDashboardStats(), fetchCumulativeGaps(), fetchExecutiveSummary()])
+            .then(([sessRes, dashStats, gapData, execData]) => {
                 setSessions(sessRes.sessions || []);
                 setStats(dashStats);
                 setCumulativeGaps(gapData);
+                setExecSummary(execData);
             })
             .catch(() => {})
             .finally(() => setLoading(false));
@@ -93,6 +127,8 @@ export default function Dashboard() {
         const es = subscribeToDashboardStream(
             (updatedStats) => {
                 setStats(updatedStats);
+                // Refresh executive summary when stats update
+                fetchExecutiveSummary().then(setExecSummary).catch(() => {});
             },
             () => {},
         );
@@ -103,13 +139,17 @@ export default function Dashboard() {
         };
     }, []);
 
-    const gaugeColor = stats?.gapSeverity === 'Critical' ? '#ef4444'
-        : stats?.gapSeverity === 'High Risk' ? '#f59e0b'
-        : stats?.gapSeverity === 'Medium Risk' ? '#f59e0b'
-        : '#10b981';
-
     const trendArrow = (trend: string | undefined) =>
         trend === 'up' ? '\u2191' : trend === 'down' ? '\u2193' : '';
+
+    // Use risk level from executive summary (gap-based) instead of metrics service (formula-based)
+    const riskLevel = execSummary?.riskLevel ?? stats?.gapSeverity ?? 'Assessing';
+    const healthColor = riskLevel === 'Critical' ? '#ef4444'
+        : riskLevel === 'High Risk' ? '#f97316'
+        : riskLevel === 'Medium Risk' ? '#f59e0b'
+        : '#10b981';
+
+    const gaugeColor = healthColor;
 
     // Prepare chart data from cumulative gaps
     const severityData = cumulativeGaps
@@ -150,21 +190,16 @@ export default function Dashboard() {
         .filter((g: any) => (g.impact || '').toLowerCase() === 'high')
         .slice(0, 5);
 
-    const healthColor = stats?.gapSeverity === 'Critical' ? '#ef4444'
-        : stats?.gapSeverity === 'High Risk' ? '#f97316'
-        : stats?.gapSeverity === 'Medium Risk' ? '#f59e0b'
-        : '#10b981';
-
     return (
         <div className="dashboard">
-            {/* Executive Health Banner */}
+            {/* ── Executive Health Banner ── */}
             {(stats || cumulativeGaps) && (
                 <div className="dashboard__exec-banner">
                     <div className="dashboard__exec-banner-left">
                         <span className="dashboard__exec-banner-label">ENTERPRISE PROCESS HEALTH</span>
                         <span className="dashboard__exec-banner-status" style={{ color: healthColor }}>
                             <span className="dashboard__exec-banner-dot" style={{ background: healthColor }} />
-                            {stats?.gapSeverity ?? 'Assessing'}
+                            {riskLevel}
                         </span>
                     </div>
                     <div className="dashboard__exec-banner-divider" />
@@ -175,7 +210,7 @@ export default function Dashboard() {
                     <div className="dashboard__exec-banner-divider" />
                     <div className="dashboard__exec-banner-stat">
                         <span className="dashboard__exec-banner-stat-value" style={{ color: '#ef4444' }}>
-                            {cumulativeGaps?.gapsBySeverity?.high ?? 0}
+                            {execSummary?.highGaps ?? cumulativeGaps?.gapsBySeverity?.high ?? 0}
                         </span>
                         <span className="dashboard__exec-banner-stat-label">High Impact</span>
                     </div>
@@ -194,6 +229,17 @@ export default function Dashboard() {
                         <span className="dashboard__exec-banner-stat-value">{stats?.automationPct ?? 0}%</span>
                         <span className="dashboard__exec-banner-stat-label">Automated</span>
                     </div>
+                    {execSummary?.erpPath && (
+                        <>
+                            <div className="dashboard__exec-banner-divider" />
+                            <div className="dashboard__exec-banner-stat">
+                                <span className="dashboard__exec-banner-stat-value" style={{ fontSize: '0.75rem' }}>
+                                    {execSummary.erpPath}
+                                </span>
+                                <span className="dashboard__exec-banner-stat-label">Migration Path</span>
+                            </div>
+                        </>
+                    )}
                     <div className="dashboard__exec-banner-divider" />
                     <div className="dashboard__exec-banner-stat">
                         <span className="dashboard__exec-banner-stat-value" style={{ fontSize: '0.8rem' }}>
@@ -204,52 +250,133 @@ export default function Dashboard() {
                 </div>
             )}
 
-            {/* KPI Row */}
-            <div className="dashboard__kpi-row">
-                <div className="dashboard__kpi-card">
-                    <span className="dashboard__kpi-label">{t('dash.gapSeverity')}</span>
-                    <div className="dashboard__kpi-visual">
-                        <GaugeChart value={stats?.avgRisk || 0} max={stats?.maxRisk || 100} label={stats?.gapSeverity || 'Low Risk'} color={gaugeColor} />
-                    </div>
-                    <span className="dashboard__kpi-subtitle">{t('dash.avgRisk')} {stats?.avgRisk ?? 0}</span>
-                </div>
-
-                <div className="dashboard__kpi-card">
-                    <span className="dashboard__kpi-label">{t('dash.criticalIssues')}</span>
-                    <div className="dashboard__kpi-visual dashboard__kpi-visual--center">
-                        <span className={`dashboard__kpi-trend ${stats?.criticalIssuesTrend === 'up' ? 'dashboard__kpi-trend--up' : 'dashboard__kpi-trend--down'}`}>
-                            {trendArrow(stats?.criticalIssuesTrend)}
+            {/* ── Readiness Score + KPI Row ── */}
+            <div className="dashboard__hero-row">
+                {/* Overall Readiness Score — the big number a CXO looks for */}
+                {execSummary && (
+                    <div className="dashboard__readiness-card">
+                        <span className="dashboard__readiness-title">
+                            <Target size={16} /> Overall Readiness
                         </span>
-                        <span className="dashboard__kpi-big-value">{stats?.criticalIssues ?? 0}</span>
+                        <ReadinessRing score={execSummary.readinessScore} />
+                        <div className="dashboard__readiness-breakdown">
+                            <div className="dashboard__readiness-stat">
+                                <span className="dashboard__readiness-stat-val" style={{ color: '#ef4444' }}>{execSummary.highGaps}</span>
+                                <span className="dashboard__readiness-stat-lbl">Critical</span>
+                            </div>
+                            <div className="dashboard__readiness-stat">
+                                <span className="dashboard__readiness-stat-val" style={{ color: '#f59e0b' }}>{execSummary.mediumGaps}</span>
+                                <span className="dashboard__readiness-stat-lbl">Medium</span>
+                            </div>
+                            <div className="dashboard__readiness-stat">
+                                <span className="dashboard__readiness-stat-val" style={{ color: '#10b981' }}>{execSummary.fitCount}</span>
+                                <span className="dashboard__readiness-stat-lbl">Fit</span>
+                            </div>
+                        </div>
                     </div>
-                    <span className="dashboard__kpi-subtitle dashboard__kpi-subtitle--error">{t('dash.requiresAttention')}</span>
-                    <span className="dashboard__kpi-meta">{t('dash.acrossAssessments')}</span>
-                </div>
+                )}
 
-                <div className="dashboard__kpi-card">
-                    <span className="dashboard__kpi-label">{t('dash.automationQuotient')}</span>
-                    <div className="dashboard__kpi-visual dashboard__kpi-visual--center">
-                        <span className={`dashboard__kpi-trend ${stats?.automationTrend === 'up' ? 'dashboard__kpi-trend--up' : 'dashboard__kpi-trend--down'}`}>
-                            {trendArrow(stats?.automationTrend)}
+                {/* KPI Cards */}
+                <div className="dashboard__kpi-grid">
+                    <div className="dashboard__kpi-card">
+                        <span className="dashboard__kpi-label">{t('dash.gapSeverity')}</span>
+                        <div className="dashboard__kpi-visual">
+                            <GaugeChart
+                                value={execSummary?.highGaps ?? stats?.avgRisk ?? 0}
+                                max={Math.max(execSummary?.totalGaps ?? 1, stats?.maxRisk ?? 100)}
+                                label={riskLevel}
+                                color={gaugeColor}
+                            />
+                        </div>
+                        <span className="dashboard__kpi-subtitle">
+                            {execSummary?.highGaps ?? 0} high / {execSummary?.totalGaps ?? 0} total
                         </span>
-                        <span className="dashboard__kpi-big-value">{stats?.automationPct ?? 0}%</span>
                     </div>
-                    <span className="dashboard__kpi-subtitle dashboard__kpi-subtitle--success">
-                        &#8593; {stats?.automationDelta ?? 0}{t('dash.improvementPotential')}
-                    </span>
-                    <span className="dashboard__kpi-meta">{t('dash.currentAutomation')}</span>
-                </div>
 
-                <div className="dashboard__kpi-card">
-                    <span className="dashboard__kpi-label">{t('dash.discoveryProgress')}</span>
-                    <div className="dashboard__kpi-visual dashboard__kpi-visual--center">
-                        <CircularProgress pct={stats?.discoveryPct ?? 0} color="#3b82f6" />
+                    <div className="dashboard__kpi-card">
+                        <span className="dashboard__kpi-label">{t('dash.criticalIssues')}</span>
+                        <div className="dashboard__kpi-visual dashboard__kpi-visual--center">
+                            <span className={`dashboard__kpi-trend ${stats?.criticalIssuesTrend === 'up' ? 'dashboard__kpi-trend--up' : 'dashboard__kpi-trend--down'}`}>
+                                {trendArrow(stats?.criticalIssuesTrend)}
+                            </span>
+                            <span className="dashboard__kpi-big-value">{execSummary?.highGaps ?? stats?.criticalIssues ?? 0}</span>
+                        </div>
+                        <span className="dashboard__kpi-subtitle dashboard__kpi-subtitle--error">{t('dash.requiresAttention')}</span>
                     </div>
-                    <span className="dashboard__kpi-subtitle">{t('dash.estCompletion')} {stats?.estCompletion ?? '—'}</span>
+
+                    <div className="dashboard__kpi-card">
+                        <span className="dashboard__kpi-label">{t('dash.automationQuotient')}</span>
+                        <div className="dashboard__kpi-visual dashboard__kpi-visual--center">
+                            <span className={`dashboard__kpi-trend ${stats?.automationTrend === 'up' ? 'dashboard__kpi-trend--up' : 'dashboard__kpi-trend--down'}`}>
+                                {trendArrow(stats?.automationTrend)}
+                            </span>
+                            <span className="dashboard__kpi-big-value">{stats?.automationPct ?? 0}%</span>
+                        </div>
+                        <span className="dashboard__kpi-subtitle dashboard__kpi-subtitle--success">
+                            &#8593; {stats?.automationDelta ?? 0}{t('dash.improvementPotential')}
+                        </span>
+                    </div>
+
+                    <div className="dashboard__kpi-card">
+                        <span className="dashboard__kpi-label">{t('dash.discoveryProgress')}</span>
+                        <div className="dashboard__kpi-visual dashboard__kpi-visual--center">
+                            <CircularProgress pct={stats?.discoveryPct ?? 0} color="#3b82f6" />
+                        </div>
+                        <span className="dashboard__kpi-subtitle">{t('dash.estCompletion')} {stats?.estCompletion ?? '—'}</span>
+                    </div>
                 </div>
             </div>
 
-            {/* Cumulative Gap Overview by Broad Area */}
+            {/* ── Quick Wins & Recommendations ── */}
+            {execSummary && execSummary.recommendations.length > 0 && (
+                <SectionCard
+                    title="Top Recommendations"
+                    headerRight={
+                        <button className="dashboard__view-reports-link" onClick={() => goToReports()}>
+                            View Full Report <ArrowRight size={14} />
+                        </button>
+                    }
+                >
+                    <div className="dashboard__recommendations">
+                        {execSummary.recommendations.map((rec, idx) => (
+                            <div key={idx} className="dashboard__rec-card">
+                                <div className="dashboard__rec-header">
+                                    <span className="dashboard__rec-number">{idx + 1}</span>
+                                    <span className="dashboard__rec-title">{rec.title}</span>
+                                    <div className="dashboard__rec-badges">
+                                        <span className={`dashboard__rec-badge dashboard__rec-badge--${(rec.impact || 'medium').toLowerCase()}`}>
+                                            <TrendingUp size={10} /> {rec.impact} Impact
+                                        </span>
+                                        <span className={`dashboard__rec-badge dashboard__rec-badge--effort-${(rec.effort || 'medium').toLowerCase()}`}>
+                                            {rec.effort} Effort
+                                        </span>
+                                    </div>
+                                </div>
+                                <p className="dashboard__rec-desc">{rec.description}</p>
+                                {rec.estimatedSavings && (
+                                    <span className="dashboard__rec-savings">
+                                        <DollarSign size={12} /> Est. savings: {rec.estimatedSavings}
+                                    </span>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Estimated Business Impact */}
+                    {execSummary.automationSavings.length > 0 && (
+                        <div className="dashboard__impact-banner">
+                            <Zap size={16} color="#f59e0b" />
+                            <span className="dashboard__impact-text">
+                                <strong>Estimated Savings Opportunity:</strong>{' '}
+                                {execSummary.automationSavings.slice(0, 3).join(' + ')}
+                                {' '}across identified automation opportunities
+                            </span>
+                        </div>
+                    )}
+                </SectionCard>
+            )}
+
+            {/* ── Cumulative Gap Overview by Broad Area ── */}
             <SectionCard
                 title={t('dash.cumulativeGapOverview')}
                 headerRight={
@@ -405,7 +532,7 @@ export default function Dashboard() {
                 )}
             </SectionCard>
 
-            {/* Recent sessions */}
+            {/* ── Recent Sessions ── */}
             {sessions.length > 0 && (
                 <SectionCard title={t('dash.recentSessions')}>
                     <div className="dashboard__sessions">

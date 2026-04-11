@@ -637,8 +637,17 @@ export default function Reports() {
                     report={previewReport.data}
                     reportName={previewReport.name}
                     reportType={t(TYPE_LABEL_KEYS[previewReport.type] || '') || previewReport.type}
+                    reportId={previewReport.reportId}
                     onClose={() => setPreviewReport(null)}
                     onDownloadPDF={() => handleDownload(previewReport.reportId, previewReport.name, previewReport.type)}
+                    onRegenerate={() => {
+                        showToast('Report regeneration started with updated settings...', 'success');
+                        setTimeout(() => {
+                            loadReports();
+                            loadStats();
+                            fetchCumulativeGaps().then(setCumulativeGaps).catch(() => {});
+                        }, 2000);
+                    }}
                 />
             )}
         </div>

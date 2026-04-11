@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { opensearchClient, INDICES } from '../config/database';
 import { AuthRequest } from '../middleware/auth';
-import { addReportSSEClient } from '../services/reportSseService';
+import { addReportSSEClient, broadcastReportStatus } from '../services/reportSseService';
 import { generateRTM } from '../services/rtmService';
 
 const router = Router();
@@ -322,7 +322,7 @@ router.post('/:reportId/retry', async (req: Request, res: Response) => {
         const session = await getInterviewSession(reportDoc.sessionId);
         if (!session) return res.status(404).json({ error: 'Session not found' });
 
-        // Reset status to generating for UI  
+        // Reset status to generating for UI
         const now = new Date().toISOString();
         await opensearchClient.update({
             index: INDICES.REPORTS,
@@ -340,6 +340,110 @@ router.post('/:reportId/retry', async (req: Request, res: Response) => {
         res.json({ success: true, message: 'Report regeneration started' });
     } catch (error: any) {
         console.error('Error retrying report:', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// POST /api/reports/:reportId/regenerate — regenerate a report with optional settings overrides
+router.post('/:reportId/regenerate', async (req: Request, res: Response) => {
+    try {
+        const { reportId } = req.params;
+        const { erpPath, modelId } = req.body || {};
+
+        const indexExists = await opensearchClient.indices.exists({ index: INDICES.REPORTS });
+        if (!indexExists.body) return res.status(404).json({ error: 'Report not found' });
+
+        let reportDoc: any;
+        try {
+            const result = await opensearchClient.get({ index: INDICES.REPORTS, id: reportId });
+            reportDoc = result.body._source;
+        } catch {
+            return res.status(404).json({ error: 'Report not found' });
+        }
+
+        const { getInterviewSession } = await import('../services/interviewService');
+        const session = await getInterviewSession(reportDoc.sessionId);
+        if (!session) return res.status(404).json({ error: 'Session not found' });
+
+        // If erpPath or modelId overrides provided, update project settings before regeneration
+        if (erpPath !== undefined || modelId !== undefined) {
+            const { SETTINGS_DOC_ID, SETTINGS_INDEX } = await import('../services/settingsService');
+            try {
+                const updateDoc: any = {};
+                if (erpPath !== undefined) updateDoc.erpPath = erpPath;
+                if (modelId !== undefined) updateDoc.defaultModel = modelId;
+                await opensearchClient.update({
+                    index: SETTINGS_INDEX,
+                    id: SETTINGS_DOC_ID,
+                    body: { doc: updateDoc },
+                    refresh: 'wait_for',
+                });
+            } catch (err) {
+                console.warn('[regenerate] Could not update settings for regeneration:', err);
+            }
+        }
+
+        // Save previous content and reset status to generating
+        const now = new Date().toISOString();
+        await opensearchClient.update({
+            index: INDICES.REPORTS,
+            id: reportId,
+            body: {
+                doc: {
+                    status: 'generating',
+                    previousContent: reportDoc.status === 'ready' ? reportDoc.content : null,
+                    updatedAt: now,
+                },
+            },
+            refresh: 'wait_for',
+        });
+
+        // Also reset all related session-level reports (readiness, consolidated, strategic) to generating
+        try {
+            const relatedRes = await opensearchClient.search({
+                index: INDICES.REPORTS,
+                body: {
+                    query: {
+                        bool: {
+                            must: [{ match: { sessionId: reportDoc.sessionId } }],
+                            must_not: [{ term: { reportId } }],
+                        },
+                    },
+                    size: 50,
+                },
+            });
+            for (const hit of relatedRes.body.hits.hits) {
+                await opensearchClient.update({
+                    index: INDICES.REPORTS,
+                    id: hit._id,
+                    body: {
+                        doc: {
+                            status: 'generating',
+                            previousContent: hit._source.status === 'ready' ? hit._source.content : null,
+                            updatedAt: now,
+                        },
+                    },
+                });
+            }
+        } catch (err) {
+            console.warn('[regenerate] Could not reset related reports:', err);
+        }
+
+        broadcastReportStatus({
+            reportId, sessionId: reportDoc.sessionId,
+            broadAreaId: reportDoc.broadAreaId, broadAreaName: reportDoc.broadAreaName,
+            type: reportDoc.type, status: 'generating', pendingRegeneration: false, updatedAt: now,
+        });
+
+        // Re-trigger full pipeline
+        const { triggerDataPipeline } = await import('../services/pipelineTriggerService');
+        triggerDataPipeline(session).catch((err: any) =>
+            console.error('Regenerate pipeline failed:', err)
+        );
+
+        res.json({ success: true, message: 'Report regeneration started with updated settings' });
+    } catch (error: any) {
+        console.error('Error regenerating report:', error.message);
         res.status(500).json({ error: error.message });
     }
 });

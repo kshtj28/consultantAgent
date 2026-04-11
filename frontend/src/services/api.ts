@@ -533,6 +533,25 @@ export async function fetchDashboardStats() {
     return request<DashboardStats>(`${API_BASE}/dashboard/stats`);
 }
 
+export interface ExecutiveSummary {
+    readinessScore: number;
+    riskLevel: string;
+    totalGaps: number;
+    highGaps: number;
+    mediumGaps: number;
+    lowGaps: number;
+    fitCount: number;
+    partialCount: number;
+    recommendations: { title: string; description: string; impact: string; effort: string; estimatedSavings?: string }[];
+    automationSavings: string[];
+    erpPath: string;
+    clientName: string;
+}
+
+export async function fetchExecutiveSummary() {
+    return request<ExecutiveSummary>(`${API_BASE}/dashboard/executive-summary`);
+}
+
 export interface CumulativeGapArea {
     id: string;
     name: string;
@@ -680,6 +699,13 @@ export async function deleteReport(reportId: string) {
 export async function retryReport(reportId: string) {
     return request<{ success: boolean; message: string }>(`${API_BASE}/reports/${reportId}/retry`, {
         method: 'POST',
+    });
+}
+
+export async function regenerateReport(reportId: string, overrides?: { erpPath?: string; modelId?: string }) {
+    return request<{ success: boolean; message: string }>(`${API_BASE}/reports/${reportId}/regenerate`, {
+        method: 'POST',
+        body: JSON.stringify(overrides || {}),
     });
 }
 

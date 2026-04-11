@@ -1,6 +1,8 @@
 import { Router, Request, Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import { getMetrics, upsertMetrics, recomputeAndStoreMetrics, addMetricsSSEClient } from '../services/metricsService';
+import { fetchInsights } from '../services/insightsService';
+import { getProjectContext } from '../services/settingsService';
 import { opensearchClient, INDICES } from '../config/database';
 
 const router = Router();
@@ -93,6 +95,113 @@ router.get('/stream', (req: Request, res: Response) => {
     req.on('close', () => {
         clearInterval(keepAlive);
     });
+});
+
+// GET /api/dashboard/executive-summary — high-level CXO data: readiness score, recommendations, impact
+router.get('/executive-summary', async (_req: Request, res: Response) => {
+    try {
+        // 1. Fetch cumulative gap data to compute readiness score
+        let totalGaps = 0;
+        let highGaps = 0;
+        let mediumGaps = 0;
+        let lowGaps = 0;
+        let fitCount = 0;
+        let partialCount = 0;
+
+        const indexExists = await opensearchClient.indices.exists({ index: INDICES.REPORTS });
+        if (indexExists.body) {
+            const result = await opensearchClient.search({
+                index: INDICES.REPORTS,
+                body: {
+                    query: { bool: { must: [
+                        { term: { type: 'broad_area' } },
+                        { term: { status: 'ready' } },
+                    ] } },
+                    size: 200,
+                    sort: [{ createdAt: { order: 'desc' } }],
+                },
+            });
+
+            const hits = (result.body.hits.hits || []) as any[];
+            const latestByArea = new Map<string, any>();
+            for (const hit of hits) {
+                const doc = hit._source;
+                const areaId = doc.broadAreaId || 'unknown';
+                if (!latestByArea.has(areaId)) latestByArea.set(areaId, doc);
+            }
+
+            for (const doc of latestByArea.values()) {
+                const gaps = doc.content?.gaps || [];
+                const seen = new Set<string>();
+                for (const gap of gaps) {
+                    const desc = (gap.gap || '').toLowerCase().trim();
+                    if (seen.has(desc)) continue;
+                    seen.add(desc);
+                    totalGaps++;
+                    const impact = (gap.impact || '').toLowerCase();
+                    if (impact === 'high') highGaps++;
+                    else if (impact === 'medium') mediumGaps++;
+                    else lowGaps++;
+                    const fit = (gap.fit || '').toLowerCase();
+                    if (fit === 'fit') fitCount++;
+                    else if (fit === 'partial') partialCount++;
+                }
+            }
+        }
+
+        // 2. Compute readiness score (0-100)
+        // Formula: start at 100, deduct for gaps weighted by severity
+        // High gaps: -4 each, Medium: -2 each, Low: -0.5 each
+        // Bonus for fit items: +1 each, partial: +0.5 each
+        let readinessScore = 100;
+        readinessScore -= highGaps * 4;
+        readinessScore -= mediumGaps * 2;
+        readinessScore -= lowGaps * 0.5;
+        readinessScore += fitCount * 1;
+        readinessScore += partialCount * 0.5;
+        readinessScore = Math.max(0, Math.min(100, Math.round(readinessScore)));
+
+        // 3. Determine risk level from actual gap counts
+        let riskLevel: string;
+        if (highGaps >= 10 || (highGaps >= 5 && totalGaps >= 20)) riskLevel = 'Critical';
+        else if (highGaps >= 5 || (highGaps >= 3 && totalGaps >= 15)) riskLevel = 'High Risk';
+        else if (highGaps >= 2 || totalGaps >= 8) riskLevel = 'Medium Risk';
+        else riskLevel = 'Low Risk';
+
+        // 4. Fetch recommendations from insights
+        let recommendations: any[] = [];
+        let automationSavings: string[] = [];
+        try {
+            const insights = await fetchInsights();
+            if (insights) {
+                recommendations = (insights.recommendedActions || []).slice(0, 5);
+                automationSavings = (insights.automationOpportunities || []).map((o: any) => o.savings).filter(Boolean);
+            }
+        } catch {
+            // insights may not exist yet
+        }
+
+        // 5. Fetch ERP path for context
+        const projectCtx = await getProjectContext().catch(() => ({ erpPath: '', clientName: '', projectName: '', industry: '' }));
+
+        res.json({
+            readinessScore,
+            riskLevel,
+            totalGaps,
+            highGaps,
+            mediumGaps,
+            lowGaps,
+            fitCount,
+            partialCount,
+            recommendations,
+            automationSavings,
+            erpPath: projectCtx.erpPath || '',
+            clientName: projectCtx.clientName || '',
+        });
+    } catch (err: any) {
+        console.error('Error computing executive summary:', err.message);
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // GET /api/dashboard/cumulative-gaps — aggregate gaps across all ready broad_area reports

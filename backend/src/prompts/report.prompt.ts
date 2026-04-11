@@ -1,4 +1,14 @@
-export function buildReadinessReportPrompt(answerContext: string, identifiedGaps: string, painPoints: string, opportunities: string): string {
+export function buildReadinessReportPrompt(answerContext: string, identifiedGaps: string, painPoints: string, opportunities: string, erpPath?: string): string {
+  const targetSystem = erpPath ? (erpPath.split('→').pop()?.trim() ?? erpPath) : null;
+  const erpStandards = erpPath ? getErpStandardsList(erpPath) : `   - APQC PCF for process benchmarks
+   - SAP Best Practice for ERP-specific gaps
+   - COBIT 2019 for IT governance gaps
+   - IFRS/GAAP for financial reporting gaps`;
+
+  const erpContext = erpPath
+    ? `\nERP Migration Path: ${erpPath}\nIMPORTANT: This client is migrating to ${targetSystem}. Assess readiness specifically for ${targetSystem} adoption — score each area based on how prepared the client is to move to ${targetSystem} standard processes. Reference ${targetSystem}-specific capabilities when describing target state and recommendations.`
+    : '';
+
   return `You are a senior management consultant producing an ERP readiness assessment report for a client.
 
 ## INTERVIEW DATA
@@ -7,7 +17,7 @@ ${answerContext}
 ## ADDITIONAL CONTEXT
 Identified Gaps: ${identifiedGaps || 'None explicitly flagged'}
 Pain Points: ${painPoints || 'None explicitly flagged'}
-Transformation Opportunities: ${opportunities || 'None explicitly flagged'}
+Transformation Opportunities: ${opportunities || 'None explicitly flagged'}${erpContext}
 
 ## YOUR TASK
 Generate a comprehensive readiness assessment. For EACH area covered in the interview data:
@@ -15,8 +25,9 @@ Generate a comprehensive readiness assessment. For EACH area covered in the inte
 1. **Score (0-100)** based on:
    - Automation level (manual=10-30, semi-automated=40-60, fully automated=70-90, AI-driven=90-100)
    - Process efficiency (cycle times, error rates, FTE utilisation)
-   - Best practice alignment (APQC PCF, SAP Best Practice, COBIT, IFRS/GAAP)
-   - Control and compliance maturity
+   - Best practice alignment against these standards:
+${erpStandards}
+   - Control and compliance maturity${targetSystem ? `\n   - Fit-to-standard readiness for ${targetSystem} out-of-the-box processes` : ''}
 
 2. **Strengths (2-3)**: Specific things the organisation does well — reference actual interview answers
 3. **Weaknesses (2-3)**: Specific gaps or inefficiencies — reference actual interview answers
@@ -56,9 +67,59 @@ Return JSON:
 }`;
 }
 
+export function getErpStandardsList(erpPath: string): string {
+  const target = erpPath.split('→').pop()?.trim().toLowerCase() ?? erpPath.toLowerCase();
+
+  if (target.includes('s/4hana') || target.includes('s4hana')) {
+    return `   - SAP S/4HANA Best Practice for ERP-specific gaps (use this as the PRIMARY standard)
+   - SAP Activate Methodology for implementation gaps
+   - APQC PCF (Process Classification Framework) for process benchmarks
+   - COBIT 2019 for IT governance gaps
+   - IFRS/GAAP for financial reporting gaps
+   - ISO 27001 for security/compliance gaps
+   - COSO Framework for internal controls`;
+  }
+  if (target.includes('d365') || target.includes('dynamics 365') || target.includes('dynamics365')) {
+    return `   - Microsoft Dynamics 365 Finance Best Practice for ERP-specific gaps (use this as the PRIMARY standard)
+   - Microsoft Sure Step Methodology for implementation gaps
+   - Microsoft FastTrack for D365 deployment standards
+   - APQC PCF (Process Classification Framework) for process benchmarks
+   - COBIT 2019 for IT governance gaps
+   - IFRS/GAAP for financial reporting gaps
+   - ISO 27001 for security/compliance gaps
+   - COSO Framework for internal controls`;
+  }
+  if (target.includes('oracle') || target.includes('fusion') || target.includes('ebs')) {
+    return `   - Oracle Cloud ERP Best Practice for ERP-specific gaps (use this as the PRIMARY standard)
+   - Oracle Unified Method (OUM) for implementation gaps
+   - APQC PCF (Process Classification Framework) for process benchmarks
+   - COBIT 2019 for IT governance gaps
+   - IFRS/GAAP for financial reporting gaps
+   - ISO 27001 for security/compliance gaps
+   - COSO Framework for internal controls`;
+  }
+  if (target.includes('workday')) {
+    return `   - Workday Finance Best Practice for ERP-specific gaps (use this as the PRIMARY standard)
+   - Workday Deployment Methodology for implementation gaps
+   - APQC PCF (Process Classification Framework) for process benchmarks
+   - COBIT 2019 for IT governance gaps
+   - IFRS/GAAP for financial reporting gaps
+   - ISO 27001 for security/compliance gaps`;
+  }
+  // Generic fallback
+  return `   - APQC PCF (Process Classification Framework) for process benchmarks
+   - ${erpPath} Best Practice for ERP-specific gaps (use this as the PRIMARY standard for ERP gaps)
+   - COBIT 2019 for IT governance gaps
+   - IFRS/GAAP for financial reporting gaps
+   - ISO 27001 for security/compliance gaps
+   - COSO Framework for internal controls`;
+}
+
 export function buildGapReportPrompt(answerContext: string, identifiedGaps: string, painPoints: string, erpPath?: string): string {
+  const targetSystem = erpPath ? (erpPath.split('→').pop()?.trim() ?? erpPath) : null;
+
   const erpContext = erpPath
-    ? `\nERP Migration Path: ${erpPath}\nAll gaps must be assessed against this specific migration. Reference ${erpPath}-specific capabilities, standard processes, and best practices when assigning the Standard/Framework field. Gaps that represent deviations from the TARGET system (${erpPath.split('→').pop()?.trim() || erpPath}) should be flagged as priority items.`
+    ? `\nERP Migration Path: ${erpPath}\nIMPORTANT: This client is migrating to ${targetSystem}. All gap assessments MUST be benchmarked against ${targetSystem} standard capabilities and best practices. In the Standard/Framework field, reference ${targetSystem}-specific standards (not SAP unless ${targetSystem} is SAP). Gaps that represent deviations from ${targetSystem} standard processes should be flagged as high priority.`
     : '';
 
   return `You are a senior management consultant at a Big 4 firm producing a gap analysis report for a client's finance transformation engagement.
@@ -88,12 +149,12 @@ For EACH gap, provide:
 5. **Effort**: high/medium/low
 6. **Fit Assessment**: gap (major gap), partial (some alignment), fit (already meets standard)
 7. **Standard/Framework**: Which best practice standard the gap is measured against:
-   - APQC PCF (Process Classification Framework) for process benchmarks
+${erpPath ? getErpStandardsList(erpPath) : `   - APQC PCF (Process Classification Framework) for process benchmarks
    - SAP S/4HANA Best Practice for ERP-specific gaps
    - COBIT 2019 for IT governance gaps
    - IFRS/GAAP for financial reporting gaps
    - ISO 27001 for security/compliance gaps
-   - COSO Framework for internal controls
+   - COSO Framework for internal controls`}
 8. **Process Area**: Which end-to-end process this gap belongs to (e.g., "Order to Cash", "Procure to Pay", "Record to Report")
 9. **impactScore**: 1-10 numeric (for impact-effort bubble chart)
 10. **effortScore**: 1-10 numeric (for impact-effort bubble chart)

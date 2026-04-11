@@ -12,7 +12,7 @@
 .crm {
     margin: 24px auto;
     width: min(1100px, 96vw);
-    background: var(--bg);
+    background: var(--surface, #111827);
     border: 1px solid var(--border);
     border-radius: 16px;
     display: flex;
@@ -76,6 +76,111 @@
     height: 36px;
     padding: 0;
     justify-content: center;
+}
+
+/* ─── Regeneration Panel ────────────────────────────────── */
+.crm__regen-panel {
+    margin: 0 24px;
+    padding: 16px;
+    background: rgba(99, 102, 241, 0.06);
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    border-radius: 10px;
+}
+
+.crm__regen-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #a5b4fc;
+    margin-bottom: 8px;
+}
+
+.crm__regen-current {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    margin: 0 0 12px;
+}
+
+.crm__regen-fields {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 12px;
+}
+
+.crm__regen-field {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.crm__regen-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.crm__regen-select {
+    background: var(--surface-light, #1e293b);
+    border: 1px solid var(--border, #334155);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 0.8rem;
+    color: var(--text, #f8fafc);
+    cursor: pointer;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 28px;
+}
+
+.crm__regen-select option {
+    background: var(--surface-light, #1e293b);
+    color: var(--text, #f8fafc);
+    padding: 6px 10px;
+}
+
+.crm__regen-select:focus {
+    outline: none;
+    border-color: #6366f1;
+}
+
+.crm__regen-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.crm__btn--regen {
+    background: rgba(99, 102, 241, 0.15);
+    border-color: rgba(99, 102, 241, 0.3);
+    color: #a5b4fc;
+}
+
+.crm__btn--regen:hover:not(:disabled) {
+    background: rgba(99, 102, 241, 0.25);
+    border-color: rgba(99, 102, 241, 0.5);
+    color: #c7d2fe;
+}
+
+.crm__btn--regen:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+@keyframes crm-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.crm__spin {
+    animation: crm-spin 1s linear infinite;
 }
 
 /* ─── Tabs ────────────────────────────────────────────── */
