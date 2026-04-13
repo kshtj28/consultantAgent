@@ -15,9 +15,12 @@ export interface SMEEngagementEvent {
   users: Array<{
     userId: string;
     username: string;
+    role?: string;
+    department?: string;
     engagementScore: number;
     participationRate: number;
     responseCount: number;
+    sessionsTaken?: number;
     lastActive: string;
   }>;
   updatedAt: string;

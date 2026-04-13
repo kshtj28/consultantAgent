@@ -4,6 +4,27 @@ import { generateCompletion } from './llmService';
 import { buildReadinessReportPrompt, buildGapReportPrompt } from '../prompts/report.prompt';
 import { getLanguageInstructions } from './languageService';
 import { getProjectContext } from './settingsService';
+import { searchKnowledgeBase } from './knowledgeBase';
+
+/** Pull relevant KB chunks for the assessed areas and format as a prompt block. */
+async function buildReportKBContext(session: any, limit: number = 6): Promise<string> {
+    try {
+        const areaNames = (session.selectedAreas || [])
+            .map((id: string) => getSubArea(id)?.name)
+            .filter(Boolean)
+            .join(' ');
+        const query = areaNames || 'process maturity gap analysis';
+        const results = await searchKnowledgeBase(query, limit);
+        if (!results || results.length === 0) return '';
+        const blocks = results.map((r, i) =>
+            `[Doc ${i + 1} — ${r.filename}]\n${r.content.trim()}`
+        ).join('\n\n---\n\n');
+        return `\n## UPLOADED CLIENT DOCUMENTS\nGround your analysis in evidence from these client-provided documents. Cite specific systems, processes, or figures when present.\n\n${blocks}\n`;
+    } catch (err) {
+        console.warn('[KB] report retrieval failed:', (err as Error).message);
+        return '';
+    }
+}
 
 // Readiness Report Types
 export interface ReadinessScore {
@@ -158,13 +179,15 @@ export async function generateReadinessReport(sessionId: string, modelId?: strin
     // Include ERP migration path so readiness is assessed against the correct target system
     const projectCtx = await getProjectContext();
 
+    const kbContext = await buildReportKBContext(session);
+
     const prompt = `${languageInstructions}\n\n${buildReadinessReportPrompt(
         answerContext,
         session.conversationContext.identifiedGaps.join(', '),
         session.conversationContext.painPoints.join(', '),
         session.conversationContext.transformationOpportunities.join(', '),
         projectCtx.erpPath || ''
-    )}`;
+    )}${kbContext}`;
 
     const response = await generateCompletion(modelId || null, [
         { role: 'user', content: prompt }
@@ -232,12 +255,14 @@ export async function generateGapReport(sessionId: string, modelId?: string): Pr
     // Include ERP migration path so gaps are benchmarked against the correct target system
     const projectCtx = await getProjectContext();
 
+    const kbContext = await buildReportKBContext(session);
+
     const prompt = `${languageInstructions}\n\n${buildGapReportPrompt(
         answerContext,
         session.conversationContext.identifiedGaps.join(', '),
         session.conversationContext.painPoints.join(', '),
         projectCtx.erpPath || ''
-    )}`;
+    )}${kbContext}`;
 
     const response = await generateCompletion(modelId || null, [
         { role: 'user', content: prompt }

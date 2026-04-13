@@ -16,7 +16,8 @@ interface SMEUser {
     department?: string;
     engagementScore?: number;
     participationRate?: number;
-    responseCount?: number;
+    responseCount?: number;     // total Q&A pairs across sessions
+    sessionsTaken?: number;     // distinct assessment sessions
     lastActive?: string;
 }
 
@@ -55,7 +56,9 @@ export default function SMEEngagement() {
     const participationRate = users.length > 0
         ? Math.round((activeUsers.length / users.length) * 100)
         : 0;
-    const totalResponses = users.reduce((sum, u) => sum + (u.responseCount || 0), 0);
+    // "Responses" stat = total assessment sessions taken (what testers expect),
+    // not Q&A pair count which doubles/inflates the number.
+    const totalResponses = users.reduce((sum, u) => sum + (u.sessionsTaken ?? 0), 0);
     const lowEngagement = users.filter(u => (u.engagementScore || 0) < 40).length;
 
     const stats = [
@@ -137,7 +140,7 @@ export default function SMEEngagement() {
                                                 <span>{Math.round(user.engagementScore || 0)}%</span>
                                             </div>
                                         </td>
-                                        <td>{user.responseCount || 0}</td>
+                                        <td>{user.sessionsTaken ?? 0}</td>
                                         <td className="sme-table__muted">{user.lastActive ? formatRelativeTime(user.lastActive) : '—'}</td>
                                         <td>
                                             <StatusBadge label={(user.engagementScore || 0) > 30 ? t('sme.active') : t('sme.inactive')} />

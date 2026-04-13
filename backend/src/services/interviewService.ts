@@ -18,6 +18,23 @@ import {
 } from './domainService';
 import { getLanguageInstructions, getYesNoOptions, isValidLanguage, LanguageCode } from './languageService';
 import { getProjectContext, getEffectiveModel } from './settingsService';
+import { searchKnowledgeBase } from './knowledgeBase';
+
+/** Retrieve top KB chunks for `query` and format them as a prompt block.
+ *  Returns '' on any failure so callers can safely concat unconditionally. */
+async function buildKnowledgeBaseContext(query: string, limit: number = 4): Promise<string> {
+    try {
+        const results = await searchKnowledgeBase(query, limit);
+        if (!results || results.length === 0) return '';
+        const blocks = results.map((r, i) =>
+            `[Doc ${i + 1} — ${r.filename}]\n${r.content.trim()}`
+        ).join('\n\n---\n\n');
+        return `\n## UPLOADED DOCUMENT CONTEXT (from client knowledge base)\nUse the excerpts below to ground your question in what the client has actually documented. Reference specific systems, processes, or numbers from these docs when relevant.\n\n${blocks}\n`;
+    } catch (err) {
+        console.warn('[KB] retrieval failed:', (err as Error).message);
+        return '';
+    }
+}
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -421,6 +438,10 @@ export async function generateNextInterviewQuestion(
     // Build KPI probing guidance based on broad area
     const kpiGuidance = buildKPIGuidance(broadAreaName, subArea.name);
 
+    // Pull relevant excerpts from uploaded knowledge base documents
+    const kbQuery = `${subArea.name} ${broadAreaName} ${subArea.description ?? ''}`.trim();
+    const kbContext = await buildKnowledgeBaseContext(kbQuery, 4);
+
     const sessionLang = (session.language as LanguageCode) ?? 'en';
 
     const systemPrompt = `You are a senior ${domainConfig.name} process consultant with 20+ years of ERP transformation and process improvement experience. You are conducting a structured discovery interview.
@@ -456,7 +477,7 @@ ${maturityBenchmarks}
 
 ## KEY METRICS & KPIs TO PROBE (when relevant)
 ${kpiGuidance}
-
+${kbContext}
 ## CONVERSATION SO FAR
 Previous Q&A in ${subArea.name}:
 ${previousQA || 'No previous questions yet — start with the fundamentals.'}
