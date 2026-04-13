@@ -1,24 +1,14 @@
 import { useState, useEffect } from 'react';
 import {
-    X, Download, BarChart3, TrendingUp, Table2, Zap, Shield, Network, AlertTriangle, RefreshCw, Settings,
+    X, Download, BarChart3, Table2, Zap, Shield, Network, AlertTriangle, RefreshCw, Settings,
 } from 'lucide-react';
-import { MaturityRadarChart } from './charts/MaturityRadarChart';
 import { GapKnowledgeGraph, type KGNode, type KGEdge } from './charts/GapKnowledgeGraph';
 import { regenerateReport, fetchModels, fetchProjectSettings, type ModelConfig } from '../services/api';
 import './ConsolidatedReportModal.css';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-type TabId = 'executive' | 'areas' | 'gaps' | 'roadmap' | 'risks' | 'knowledge';
-
-interface AreaScore {
-    areaName: string;
-    score: number;
-    maturityLevel: string;
-    strengths: string[];
-    weaknesses: string[];
-    recommendations: string[];
-}
+type TabId = 'executive' | 'gaps' | 'roadmap' | 'risks' | 'knowledge';
 
 interface GapItem {
     id?: string;
@@ -37,7 +27,6 @@ interface ReportData {
     overallScore?: number;
     overallMaturity?: string;
     executiveSummary?: string;
-    areaScores?: AreaScore[];
     keyFindings?: string[];
     priorityRecommendations?: string[];
     gaps?: GapItem[];
@@ -75,6 +64,126 @@ const SIZE_BG:  Record<string, string> = { L: 'rgba(239,68,68,0.15)', M: 'rgba(2
 const SIZE_COLOR: Record<string, string> = { L: '#ef4444', M: '#f59e0b', S: '#10b981' };
 
 const PHASE_COLORS = ['#6366f1', '#f59e0b', '#10b981', '#ec4899'];
+
+// ─── ERP guidance: maps gap → ideal practice, availability, specific module ────
+
+type ErpKey = 'sap' | 'dynamics' | 'oracle' | 'generic';
+
+const ERP_LABEL: Record<ErpKey, string> = {
+    sap: 'SAP S/4HANA',
+    dynamics: 'Dynamics 365 F&O',
+    oracle: 'Oracle Cloud ERP',
+    generic: 'Target ERP',
+};
+
+function detectErp(erpPath: string): ErpKey {
+    const p = (erpPath || '').toLowerCase();
+    if (p.includes('s/4') || p.includes('s4') || p.includes('sap')) return 'sap';
+    if (p.includes('d365') || p.includes('dynamics')) return 'dynamics';
+    if (p.includes('oracle')) return 'oracle';
+    return 'generic';
+}
+
+type ProcessArea = 'r2r' | 'p2p' | 'o2c' | 'h2r' | 'ptp' | 'generic';
+
+function detectProcessArea(reportName: string, gapArea: string): ProcessArea {
+    const n = `${reportName} ${gapArea}`.toLowerCase();
+    if (n.match(/record.to.report|r2r|financial close|general ledger/)) return 'r2r';
+    if (n.match(/procure.to.pay|p2p|procurement|accounts payable/))       return 'p2p';
+    if (n.match(/order.to.cash|o2c|accounts receivable|sales order/))     return 'o2c';
+    if (n.match(/hire.to.retire|h2r|human resources|payroll|talent/))     return 'h2r';
+    if (n.match(/plan.to.produce|production|manufacturing/))              return 'ptp';
+    return 'generic';
+}
+
+// Primary ERP module per (ERP, process area)
+const MODULES: Record<ErpKey, Record<ProcessArea, string>> = {
+    sap: {
+        r2r: 'FI-GL · S/4HANA Finance',
+        p2p: 'MM + SAP Ariba',
+        o2c: 'SD · S/4HANA Sales',
+        h2r: 'SAP SuccessFactors',
+        ptp: 'PP · S/4HANA Manufacturing',
+        generic: 'S/4HANA core',
+    },
+    dynamics: {
+        r2r: 'D365 Finance · General Ledger',
+        p2p: 'D365 Finance · AP + SCM Procurement',
+        o2c: 'D365 Finance · AR + Sales',
+        h2r: 'D365 Human Resources',
+        ptp: 'D365 SCM · Production Control',
+        generic: 'D365 core',
+    },
+    oracle: {
+        r2r: 'Oracle Cloud · General Ledger',
+        p2p: 'Oracle Cloud · Procurement',
+        o2c: 'Oracle Cloud · Order Management',
+        h2r: 'Oracle Cloud HCM',
+        ptp: 'Oracle Cloud · Manufacturing',
+        generic: 'Oracle Cloud ERP',
+    },
+    generic: {
+        r2r: 'Financial Close / GL',
+        p2p: 'Procurement / AP',
+        o2c: 'Order Management / AR',
+        h2r: 'HR / Payroll',
+        ptp: 'Production Planning',
+        generic: 'Core ERP',
+    },
+};
+
+// Keyword refinement for specific module within a process area
+function refineModule(erp: ErpKey, area: ProcessArea, gapText: string): string {
+    const base = MODULES[erp][area];
+    const t = (gapText || '').toLowerCase();
+    if (area === 'r2r') {
+        if (/consolidat/.test(t))          return erp === 'sap' ? 'FI Group Reporting' : erp === 'dynamics' ? 'D365 Consolidations' : base;
+        if (/close|period[- ]end/.test(t)) return erp === 'sap' ? 'SAP Financial Closing Cockpit' : erp === 'dynamics' ? 'D365 Period Close Workspace' : base;
+        if (/reconcil/.test(t))            return erp === 'sap' ? 'SAP ICMR · Ledger Reconciliation' : erp === 'dynamics' ? 'D365 Ledger Settlement' : base;
+        if (/recurring|deferr|prepay|accrual/.test(t)) return erp === 'sap' ? 'FI-GL Recurring Entries' : erp === 'dynamics' ? 'D365 Recurring Journals' : base;
+        if (/journal|posting/.test(t))     return erp === 'sap' ? 'FI-GL Journal Entry (Fiori F0718)' : erp === 'dynamics' ? 'D365 General Journal' : base;
+        if (/segregation|approv/.test(t))  return erp === 'sap' ? 'SAP BTP Workflow + GRC' : erp === 'dynamics' ? 'D365 Workflow + Power Automate' : base;
+    }
+    if (area === 'p2p') {
+        if (/invoice/.test(t))       return erp === 'sap' ? 'SAP Ariba Invoice Mgmt' : erp === 'dynamics' ? 'D365 Vendor Invoice' : base;
+        if (/supplier|vendor/.test(t)) return erp === 'sap' ? 'SAP Ariba Supplier Mgmt' : erp === 'dynamics' ? 'D365 Vendor Collaboration' : base;
+        if (/payment/.test(t))       return erp === 'sap' ? 'SAP S/4HANA Cash Management' : erp === 'dynamics' ? 'D365 Payment Journals' : base;
+    }
+    return base;
+}
+
+// Ideal practice phrased by gap category
+const IDEAL_PRACTICE: Record<string, string> = {
+    process:    'Standardized end-to-end process with automated controls',
+    technology: 'Native ERP automation replacing manual tools / spreadsheets',
+    capability: 'Formal role separation with workflow-based approvals',
+    data:       'Single source of truth with real-time system integration',
+};
+
+function availabilityText(fit: string | undefined, erp: ErpKey): string {
+    const label = ERP_LABEL[erp];
+    if (fit === 'fit')     return `Meets standard · no change needed`;
+    if (fit === 'partial') return `Partially available in ${label}`;
+    return `Available out-of-box in ${label}`;
+}
+
+interface ErpGuidance {
+    idealPractice: string;
+    availability: string;
+    module: string;
+}
+
+function getErpGuidance(gap: GapItem, reportName: string, erpPath: string): ErpGuidance {
+    const erp = detectErp(erpPath);
+    const area = detectProcessArea(reportName, gap.area || '');
+    const module = refineModule(erp, area, `${gap.gap} ${gap.currentState}`);
+    const ideal = IDEAL_PRACTICE[(gap.category || '').toLowerCase()] || 'Industry best practice for this area';
+    return {
+        idealPractice: ideal,
+        availability: availabilityText(gap.fit, erp),
+        module,
+    };
+}
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -161,12 +270,16 @@ export function ConsolidatedReportModal({
     const [currentErpPath, setCurrentErpPath] = useState('');
     const [regenerating, setRegenerating] = useState(false);
 
+    // Load erpPath on mount — needed for Gap Register ERP Solution column
+    useEffect(() => {
+        fetchProjectSettings()
+            .then(res => setCurrentErpPath(res.erpPath || ''))
+            .catch(() => {});
+    }, []);
+
     useEffect(() => {
         if (showRegenPanel) {
             fetchModels().then(res => setModels(res.models || [])).catch(() => {});
-            fetchProjectSettings().then(res => {
-                setCurrentErpPath(res.erpPath || '');
-            }).catch(() => {});
         }
     }, [showRegenPanel]);
 
@@ -190,7 +303,6 @@ export function ConsolidatedReportModal({
 
     const TABS: { id: TabId; label: string; Icon: typeof BarChart3 }[] = [
         { id: 'executive', label: 'Executive Summary', Icon: BarChart3 },
-        { id: 'areas',     label: 'Area Assessments', Icon: TrendingUp },
         { id: 'gaps',      label: 'Gap Register',     Icon: Table2 },
         { id: 'roadmap',   label: 'Roadmap',          Icon: Zap },
         { id: 'risks',     label: 'Risks',            Icon: Shield },
@@ -225,11 +337,6 @@ export function ConsolidatedReportModal({
             {sortCol === col ? (sortDir === 'asc' ? '▲' : '▼') : '⇅'}
         </span>
     );
-
-    // Ensure maturityRadar always has fullMark (MaturityRadarChart requires it)
-    const radarData = (report.chartData?.maturityRadar ?? []).map(d => ({
-        ...d, fullMark: d.fullMark ?? 100,
-    }));
 
     const kgData = report.chartData?.knowledgeGraph
         ?? (gaps.length > 0 ? buildSyntheticGraph(gaps) : null);
@@ -386,93 +493,6 @@ export function ConsolidatedReportModal({
                         </>
                     )}
 
-                    {/* Area Assessments */}
-                    {activeTab === 'areas' && (
-                        <>
-                            {radarData.length > 0 && (
-                                <div className="crm__card">
-                                    <h4 className="crm__card-title">Maturity Radar</h4>
-                                    <MaturityRadarChart data={radarData} />
-                                </div>
-                            )}
-
-                            {/* Full area scores (readiness reports) */}
-                            {(report.areaScores?.length ?? 0) > 0 ? report.areaScores!.map(area => (
-                                <div key={area.areaName} className="crm__area">
-                                    <div className="crm__area-header">
-                                        <span className="crm__area-name">{area.areaName}</span>
-                                        <span className="crm__area-score">{area.score}/100</span>
-                                        <span className="crm__maturity-badge" style={{ fontSize: '0.7rem', padding: '2px 8px' }}>
-                                            {area.maturityLevel}
-                                        </span>
-                                    </div>
-                                    <div className="crm__area-bar-bg">
-                                        <div className="crm__area-bar-fill" style={{ width: `${area.score}%` }} />
-                                    </div>
-                                    {area.strengths?.length > 0 && (
-                                        <div className="crm__tag-row">
-                                            <span className="crm__tag crm__tag--success">Strengths</span>
-                                            {area.strengths.map((s, i) => (
-                                                <span key={i} style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                                                    {s}{i < area.strengths.length - 1 ? ' ·' : ''}
-                                                </span>
-                                            ))}
-                                        </div>
-                                    )}
-                                    {area.weaknesses?.length > 0 && (
-                                        <div className="crm__tag-row">
-                                            <span className="crm__tag crm__tag--error">Weaknesses</span>
-                                            {area.weaknesses.map((w, i) => (
-                                                <span key={i} style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                                                    {w}{i < area.weaknesses.length - 1 ? ' ·' : ''}
-                                                </span>
-                                            ))}
-                                        </div>
-                                    )}
-                                    {area.recommendations?.length > 0 && (
-                                        <div className="crm__tag-row">
-                                            <span className="crm__tag crm__tag--primary">Recommendations</span>
-                                            {area.recommendations.map((r, i) => (
-                                                <span key={i} style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                                                    {r}{i < area.recommendations.length - 1 ? ' ·' : ''}
-                                                </span>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-
-                            /* Fallback for gap analysis reports — use maturityRadar data */
-                            )) : radarData.length > 0 ? radarData.map(area => {
-                                const current = area.current ?? 0;
-                                const target = area.target ?? 80;
-                                const maturity = current >= 80 ? 'Optimized' : current >= 60 ? 'Managed' : current >= 40 ? 'Defined' : current >= 20 ? 'Developing' : 'Initial';
-                                const maturityColor = current >= 60 ? '#10b981' : current >= 40 ? '#f59e0b' : '#ef4444';
-                                return (
-                                    <div key={area.area} className="crm__area">
-                                        <div className="crm__area-header">
-                                            <span className="crm__area-name">{area.area}</span>
-                                            <span className="crm__area-score">{current}/100</span>
-                                            <span className="crm__maturity-badge" style={{ fontSize: '0.7rem', padding: '2px 8px', color: maturityColor, borderColor: maturityColor }}>
-                                                {maturity}
-                                            </span>
-                                        </div>
-                                        <div className="crm__area-bar-bg">
-                                            <div className="crm__area-bar-fill" style={{ width: `${current}%` }} />
-                                        </div>
-                                        <div className="crm__tag-row" style={{ marginTop: '0.5rem' }}>
-                                            <span className="crm__tag crm__tag--primary">Target</span>
-                                            <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                                                {target}/100 — close the {target - current} point gap through transformation initiatives
-                                            </span>
-                                        </div>
-                                    </div>
-                                );
-                            }) : (
-                                <div className="crm__empty">No area assessment data available.</div>
-                            )}
-                        </>
-                    )}
-
                     {/* Gap Register */}
                     {activeTab === 'gaps' && (
                         <>
@@ -503,6 +523,7 @@ export function ConsolidatedReportModal({
                                                     <th className="crm__th" onClick={() => handleSort('effort')}>Size <SortIcon col="effort" /></th>
                                                     <th className="crm__th" style={{ minWidth: 220 }}>Description</th>
                                                     <th className="crm__th" style={{ minWidth: 160 }}>ERP Standard</th>
+                                                    <th className="crm__th" style={{ minWidth: 260 }}>ERP Solution</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -513,6 +534,7 @@ export function ConsolidatedReportModal({
                                                         g.fit === 'partial' ? 'Partial Alignment'      :
                                                         'Meets Standard'
                                                     );
+                                                    const erpGuide = getErpGuidance(g, reportName, currentErpPath);
                                                     return (
                                                         <tr key={g.id ?? idx}
                                                             onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.03)')}
@@ -542,6 +564,20 @@ export function ConsolidatedReportModal({
                                                                 {g.currentState && <div className="crm__td-sub">→ {g.currentState}</div>}
                                                             </td>
                                                             <td className="crm__td crm__sap-standard">{sap}</td>
+                                                            <td className="crm__td crm__erp-solution">
+                                                                <div className="crm__erp-row">
+                                                                    <span className="crm__erp-label">Ideal</span>
+                                                                    <span className="crm__erp-val">{erpGuide.idealPractice}</span>
+                                                                </div>
+                                                                <div className="crm__erp-row">
+                                                                    <span className="crm__erp-label">Available</span>
+                                                                    <span className="crm__erp-val crm__erp-val--availability">{erpGuide.availability}</span>
+                                                                </div>
+                                                                <div className="crm__erp-row">
+                                                                    <span className="crm__erp-label">Module</span>
+                                                                    <span className="crm__erp-val crm__erp-val--module">{erpGuide.module}</span>
+                                                                </div>
+                                                            </td>
                                                         </tr>
                                                     );
                                                 })}

@@ -6,12 +6,16 @@
     background: rgba(0, 0, 0, 0.75);
     backdrop-filter: blur(4px);
     display: flex;
-    align-items: stretch;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    overflow: hidden;
 }
 
 .crm {
-    margin: 24px auto;
-    width: min(1100px, 96vw);
+    width: min(1100px, 100%);
+    height: calc(100vh - 48px);      /* fixed height — guarantees body has bounded space to scroll */
+    max-height: calc(100vh - 48px);
     background: var(--surface, #111827);
     border: 1px solid var(--border);
     border-radius: 16px;
@@ -19,7 +23,6 @@
     flex-direction: column;
     overflow: hidden;
     box-shadow: 0 32px 80px rgba(0, 0, 0, 0.5);
-    max-height: calc(100vh - 48px);
 }
 
 /* ─── Header ──────────────────────────────────────────── */
@@ -220,12 +223,34 @@
 
 /* ─── Body ────────────────────────────────────────────── */
 .crm__body {
-    flex: 1;
+    flex: 1 1 auto;
+    min-height: 0;
+    height: calc(100vh - 200px);   /* explicit height so the body itself is the scroll viewport */
     overflow-y: auto;
+    overflow-x: hidden;
     padding: 24px;
     display: flex;
     flex-direction: column;
     gap: 20px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.3) transparent;
+}
+
+.crm__body::-webkit-scrollbar {
+    width: 10px;
+}
+
+.crm__body::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.crm__body::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.15);
+    border-radius: 5px;
+}
+
+.crm__body::-webkit-scrollbar-thumb:hover {
+    background: rgba(255,255,255,0.25);
 }
 
 /* ─── Executive Tab ───────────────────────────────────── */
@@ -384,7 +409,8 @@
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 10px;
-    overflow: hidden;
+    overflow-x: auto;                /* horizontal scroll inside table only */
+    overflow-y: visible;             /* vertical scroll happens at body level */
 }
 
 .crm__table {
@@ -460,6 +486,47 @@
     font-size: 0.75rem;
     color: #818cf8;
     font-style: italic;
+}
+
+.crm__erp-solution {
+    padding: 8px 10px !important;
+    vertical-align: top;
+}
+
+.crm__erp-row {
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+    font-size: 0.72rem;
+    line-height: 1.4;
+    padding: 2px 0;
+}
+
+.crm__erp-label {
+    flex-shrink: 0;
+    width: 60px;
+    font-size: 0.62rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-secondary);
+    opacity: 0.8;
+}
+
+.crm__erp-val {
+    color: var(--text);
+    white-space: normal;
+    word-break: break-word;
+}
+
+.crm__erp-val--availability {
+    color: #34d399;
+}
+
+.crm__erp-val--module {
+    color: #60a5fa;
+    font-family: 'SF Mono', Menlo, Consolas, monospace;
+    font-size: 0.7rem;
 }
 
 /* ─── Roadmap ─────────────────────────────────────────── */

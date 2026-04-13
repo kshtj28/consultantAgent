@@ -10,6 +10,7 @@ import {
   UserPlus,
   ScrollText,
   BookOpen,
+  Plug,
 } from 'lucide-react';
 import { getInitials, getRoleLabel } from '../../utils/format';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -31,6 +32,7 @@ const Sidebar = ({ user, onLogout }: SidebarProps) => {
     { path: '/sme-engagement', label: t('nav.smeEngagement'), icon: Users },
     { path: '/reports', label: t('nav.reports'), icon: FileText },
     { path: '/knowledge-base', label: t('nav.knowledgeBase'), icon: BookOpen },
+    { path: '/connectors', label: 'Connectors', icon: Plug },
     { path: '/settings', label: t('nav.settings'), icon: Settings },
   ];
 

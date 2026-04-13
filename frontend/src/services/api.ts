@@ -793,6 +793,84 @@ export async function fetchInsightsData(sessionId?: string): Promise<{ insights:
     });
 }
 
+// ─── ERP Connectors ──────────────────────────────────────────
+
+export interface ConnectorSummary {
+    id: string;
+    name: string;
+    vendor: string;
+    version: string;
+    protocol: string;
+    logo: string;
+    status: 'connected' | 'disconnected' | 'error';
+    baseUrl?: string;
+    lastSyncedAt?: string;
+    entityCount: number;
+    totalRows: number;
+}
+
+export interface FieldMapping {
+    native: string;
+    canonical: string;
+    type: string;
+    description?: string;
+}
+
+export interface ConnectorEntity {
+    canonicalName: string;
+    displayName: string;
+    nativeTable: string;
+    description: string;
+    mappings: FieldMapping[];
+    rowCount: number;
+}
+
+export interface ConnectorDetails extends ConnectorSummary {
+    entities: ConnectorEntity[];
+}
+
+export interface DualRow {
+    native: Record<string, any>;
+    canonical: Record<string, any>;
+}
+
+export async function fetchConnectors(): Promise<{ connectors: ConnectorSummary[] }> {
+    return request(`${API_BASE}/connectors`, { headers: authHeaders() });
+}
+
+export async function fetchConnectorDetails(id: string): Promise<{ connector: ConnectorDetails }> {
+    return request(`${API_BASE}/connectors/${id}`, { headers: authHeaders() });
+}
+
+export async function fetchConnectorEntityData(
+    id: string,
+    entityName: string
+): Promise<{ connectorId: string; entity: ConnectorEntity; rows: DualRow[] }> {
+    return request(`${API_BASE}/connectors/${id}/entities/${entityName}`, { headers: authHeaders() });
+}
+
+export async function connectConnector(id: string, baseUrl?: string): Promise<{ connector: ConnectorSummary }> {
+    return request(`${API_BASE}/connectors/${id}/connect`, {
+        method: 'POST',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ baseUrl }),
+    });
+}
+
+export async function disconnectConnector(id: string): Promise<{ connector: ConnectorSummary }> {
+    return request(`${API_BASE}/connectors/${id}/disconnect`, {
+        method: 'POST',
+        headers: authHeaders(),
+    });
+}
+
+export async function syncConnector(id: string): Promise<{ connector: ConnectorSummary }> {
+    return request(`${API_BASE}/connectors/${id}/sync`, {
+        method: 'POST',
+        headers: authHeaders(),
+    });
+}
+
 export async function computeInsightsData(sessionId?: string): Promise<{ insights: any }> {
     return request(`${API_BASE}/insights/compute`, {
         method: 'POST',

@@ -9,6 +9,7 @@ import SMEEngagement from './pages/SMEEngagement';
 import Reports from './pages/Reports';
 import SettingsPage from './pages/SettingsPage';
 import KnowledgeBase from './pages/KnowledgeBase';
+import Connectors from './pages/Connectors';
 import CreateUser from './pages/admin/CreateUser';
 import AuditLogs from './pages/admin/AuditLogs';
 import UserManagement from './pages/admin/UserManagement';
@@ -77,6 +78,7 @@ function AppRoutes() {
                 <Route path="/sme-engagement" element={<SMEEngagement />} />
                 <Route path="/reports" element={<Reports />} />
                 <Route path="/knowledge-base" element={<KnowledgeBase />} />
+                <Route path="/connectors" element={<Connectors />} />
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/admin/users" element={<UserManagement />} />
                 <Route path="/admin/create-user" element={<CreateUser />} />

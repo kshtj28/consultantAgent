@@ -18,6 +18,7 @@ import settingsRoutes from './routes/settings';
 import usersRoutes from './routes/users';
 import smeEngagementRoutes from './routes/smeEngagement';
 import insightsRoutes from './routes/insights';
+import connectorsRoutes from './routes/connectors';
 import { authenticateToken } from './middleware/auth';
 import { auditMiddleware } from './middleware/audit';
 
@@ -95,6 +96,7 @@ app.use('/api/dashboard', authenticateToken, dashboardRoutes);
 app.use('/api/reports', authenticateToken, reportsRouter);
 app.use('/api/sme-engagement', authenticateToken, smeEngagementRoutes);
 app.use('/api/insights', authenticateToken, insightsRoutes);
+app.use('/api/connectors', authenticateToken, connectorsRoutes);
 app.use('/api/settings', authenticateToken, settingsRoutes);
 app.use('/api/users', authenticateToken, usersRoutes);
 
