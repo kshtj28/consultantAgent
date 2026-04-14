@@ -220,6 +220,55 @@ export async function searchKnowledgeBase(
     }
 }
 
+// Search documents scoped to a specific interview session (attachment retrieval)
+// Combines KNN with a metadata.sessionId filter so only that session's attached
+// files are surfaced — used to prime the next-question prompt.
+export async function searchSessionAttachments(
+    sessionId: string,
+    query: string,
+    limit: number = 4
+): Promise<SearchResult[]> {
+    try {
+        const queryEmbedding = await generateEmbedding(query);
+        const response = await opensearchClient.search({
+            index: INDICES.DOCUMENTS,
+            body: {
+                size: limit,
+                query: {
+                    bool: {
+                        must: [{ knn: { embedding: { vector: queryEmbedding, k: limit * 2 } } }],
+                        filter: [{ term: { 'metadata.sessionId': sessionId } }],
+                    },
+                },
+                _source: ['content', 'filename', 'chunkIndex', 'entities', 'metadata'],
+            },
+        });
+        return response.body.hits.hits.map((hit: any) => ({
+            content: hit._source.content,
+            score: hit._score,
+            filename: hit._source.filename,
+            chunkIndex: hit._source.chunkIndex,
+            entities: hit._source.entities || [],
+        }));
+    } catch (err) {
+        console.warn('[KB] session attachment search failed:', (err as Error).message);
+        // In-memory fallback: linear scan
+        const results: SearchResult[] = [];
+        for (const doc of inMemoryDocs.values()) {
+            if ((doc.metadata as any)?.sessionId === sessionId) {
+                results.push({
+                    content: doc.content.slice(0, 1500),
+                    score: 0.7,
+                    filename: doc.filename,
+                    chunkIndex: 0,
+                    entities: [],
+                });
+            }
+        }
+        return results.slice(0, limit);
+    }
+}
+
 // Hybrid search (semantic + keyword)
 export async function hybridSearch(
     query: string,

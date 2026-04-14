@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell,
 } from 'recharts';
-import { Loader, Users } from 'lucide-react';
+import { Loader, Users, Paperclip, X as XIcon } from 'lucide-react';
 import VoiceInputButton from '../components/VoiceInputButton';
 import StatCard from '../components/shared/StatCard';
 import SectionCard from '../components/shared/SectionCard';
@@ -15,6 +15,8 @@ import {
     getInterviewSessionData,
     getNextInterviewQuestion,
     submitInterviewAnswer,
+    uploadAnswerAttachment,
+    type AnswerAttachment,
     switchSubArea,
     completeInterviewSession,
     fetchDashboardStats,
@@ -57,6 +59,10 @@ export default function ProcessAnalysis() {
     const [questionLoading, setQuestionLoading] = useState(false);
     const [submitLoading, setSubmitLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    // Files attached to the current pending answer (cleared after submit).
+    const [pendingAttachments, setPendingAttachments] = useState<AnswerAttachment[]>([]);
+    const [attachUploading, setAttachUploading] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const chatEndRef = useRef<HTMLDivElement>(null);
     const warmup = useGpuWarmup();
 
@@ -240,11 +246,13 @@ export default function ProcessAnalysis() {
                 subAreaId: currentQuestion.areaId || (currentQuestion as any).categoryId || '',
                 aiConfident: (currentQuestion as any).aiConfident,
                 language,
+                attachments: pendingAttachments.length > 0 ? pendingAttachments : undefined,
             });
             // Add Q&A to chat history before moving to next question
             setChatHistory(prev => [...prev, { question: currentQuestion, answer: submittedAnswer }]);
             setProgress(res.progress || []);
             setAnswer('');
+            setPendingAttachments([]);
             if (res.completed) {
                 setCurrentQuestion(null);
                 setStep('complete');
@@ -256,6 +264,27 @@ export default function ProcessAnalysis() {
         } finally {
             setSubmitLoading(false);
         }
+    };
+
+    const handleAttachFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        // reset input so the same file can be re-selected after removal
+        if (e.target) e.target.value = '';
+        if (!file || !sessionId || !currentQuestion) return;
+        try {
+            setAttachUploading(true);
+            setError(null);
+            const att = await uploadAnswerAttachment(sessionId, currentQuestion.id, file);
+            setPendingAttachments(prev => [...prev, att]);
+        } catch (err: any) {
+            setError(err.message || 'Failed to attach file');
+        } finally {
+            setAttachUploading(false);
+        }
+    };
+
+    const removeAttachment = (documentId: string) => {
+        setPendingAttachments(prev => prev.filter(a => a.documentId !== documentId));
     };
 
     const handleSwitchSubArea = async (subAreaId: string) => {
@@ -542,13 +571,65 @@ export default function ProcessAnalysis() {
                                             </div>
                                         )}
 
-                                        <div className="pa-actions" style={{ marginTop: '1rem' }}>
+                                        {/* Attached files for this answer (shown above the actions row) */}
+                                        {pendingAttachments.length > 0 && (
+                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: '0.75rem' }}>
+                                                {pendingAttachments.map(att => (
+                                                    <span
+                                                        key={att.documentId}
+                                                        title={att.excerpt}
+                                                        style={{
+                                                            display: 'inline-flex', alignItems: 'center', gap: 6,
+                                                            padding: '4px 10px', borderRadius: 999,
+                                                            background: 'rgba(99,102,241,0.12)',
+                                                            border: '1px solid rgba(99,102,241,0.3)',
+                                                            color: '#a5b4fc', fontSize: '0.75rem',
+                                                        }}
+                                                    >
+                                                        <Paperclip size={12} /> {att.filename}
+                                                        <button
+                                                            onClick={() => removeAttachment(att.documentId)}
+                                                            aria-label={`Remove ${att.filename}`}
+                                                            style={{ background: 'none', border: 'none', color: '#a5b4fc', cursor: 'pointer', padding: 0, display: 'inline-flex' }}
+                                                        >
+                                                            <XIcon size={12} />
+                                                        </button>
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        <div className="pa-actions" style={{ marginTop: '1rem', display: 'flex', alignItems: 'center', gap: 8 }}>
                                             <button
                                                 className="pa-btn pa-btn--primary"
                                                 onClick={handleSubmitAnswer}
-                                                disabled={!answer || submitLoading}
+                                                disabled={!answer || submitLoading || attachUploading}
                                             >
                                                 {submitLoading ? <Loader size={16} className="spin" /> : t('pa.submitAnswer')}
+                                            </button>
+                                            <input
+                                                ref={fileInputRef}
+                                                type="file"
+                                                accept=".pdf,.docx,.txt,.csv,.xlsx"
+                                                style={{ display: 'none' }}
+                                                onChange={handleAttachFile}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => fileInputRef.current?.click()}
+                                                disabled={attachUploading || submitLoading}
+                                                title="Attach a supporting file (PDF, DOCX, TXT, CSV, XLSX). The AI will use it to ground follow-up questions."
+                                                style={{
+                                                    display: 'inline-flex', alignItems: 'center', gap: 6,
+                                                    padding: '8px 12px', borderRadius: 8,
+                                                    background: 'transparent',
+                                                    border: '1px solid var(--border)',
+                                                    color: 'var(--text-secondary)', cursor: 'pointer',
+                                                    fontSize: '0.82rem',
+                                                }}
+                                            >
+                                                {attachUploading ? <Loader size={14} className="spin" /> : <Paperclip size={14} />}
+                                                {attachUploading ? 'Uploading…' : 'Attach file'}
                                             </button>
                                         </div>
                                     </div>

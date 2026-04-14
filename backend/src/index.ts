@@ -6,6 +6,7 @@ import { initializeIndices, opensearchClient, INDICES } from './config/database'
 import documentRoutes from './routes/documents';
 import chatRoutes from './routes/chat';
 import interviewRoutes from './routes/interview';
+import interviewAttachmentRoutes from './routes/interviewAttachments';
 import authRoutes from './routes/auth';
 import adminRoutes from './routes/admin';
 import sessionsRoutes from './routes/sessions';
@@ -88,6 +89,7 @@ app.use('/api/admin', authenticateToken, auditMiddleware, adminRoutes);
 app.use('/api/documents', authenticateToken, auditMiddleware, documentRoutes);
 app.use('/api/chat', authenticateToken, auditMiddleware, chatRoutes);
 app.use('/api/interview', authenticateToken, auditMiddleware, interviewRoutes);
+app.use('/api/interview', authenticateToken, interviewAttachmentRoutes);
 app.use('/api', authenticateToken, auditMiddleware, sessionsRoutes);
 app.use('/api/notifications', authenticateToken, notificationRoutes);
 app.use('/api/search', authenticateToken, searchRoutes);

@@ -296,4 +296,72 @@ router.get('/cumulative-gaps', async (_req: Request, res: Response) => {
     }
 });
 
+// GET /api/dashboard/maturity-trend?days=90
+// Aggregates broad_area report scores over time so the dashboard can show
+// "system improvement" — a measurable delta between a baseline period and now.
+router.get('/maturity-trend', async (req: Request, res: Response) => {
+    try {
+        const days = Math.max(7, Math.min(365, parseInt(String(req.query.days ?? '90'), 10) || 90));
+        const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+
+        const indexExists = await opensearchClient.indices.exists({ index: INDICES.REPORTS });
+        if (!indexExists.body) {
+            return res.json({ days, points: [], baseline: null, current: null, deltaPct: 0, sampleCount: 0 });
+        }
+
+        const result = await opensearchClient.search({
+            index: INDICES.REPORTS,
+            body: {
+                size: 500,
+                query: {
+                    bool: {
+                        must: [
+                            { term: { type: 'broad_area' } },
+                            { term: { status: 'ready' } },
+                            { range: { createdAt: { gte: since } } },
+                        ],
+                    },
+                },
+                sort: [{ createdAt: { order: 'asc' } }],
+                _source: ['createdAt', 'content.overallScore', 'broadAreaId'],
+            },
+        });
+
+        // Bucket by week (ISO week start, Monday). Average overallScore per bucket.
+        const buckets = new Map<string, { sum: number; count: number; ts: number }>();
+        for (const hit of result.body.hits.hits as any[]) {
+            const score = hit._source?.content?.overallScore;
+            const created = hit._source?.createdAt;
+            if (typeof score !== 'number' || !created) continue;
+            const d = new Date(created);
+            // Snap to Monday 00:00 UTC
+            const day = d.getUTCDay();
+            const diffToMon = (day + 6) % 7;
+            const weekStart = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - diffToMon));
+            const key = weekStart.toISOString().slice(0, 10);
+            const b = buckets.get(key) || { sum: 0, count: 0, ts: weekStart.getTime() };
+            b.sum += score;
+            b.count += 1;
+            buckets.set(key, b);
+        }
+
+        const points = Array.from(buckets.entries())
+            .sort(([, a], [, b]) => a.ts - b.ts)
+            .map(([week, b]) => ({ week, avgScore: Math.round((b.sum / b.count) * 10) / 10, samples: b.count }));
+
+        const baseline = points.length > 0 ? points[0].avgScore : null;
+        const current = points.length > 0 ? points[points.length - 1].avgScore : null;
+        const deltaPct =
+            baseline != null && current != null && baseline > 0
+                ? Math.round(((current - baseline) / baseline) * 1000) / 10
+                : 0;
+        const sampleCount = points.reduce((s, p) => s + p.samples, 0);
+
+        return res.json({ days, points, baseline, current, deltaPct, sampleCount });
+    } catch (err: any) {
+        console.error('Error computing maturity trend:', err.message);
+        return res.status(500).json({ error: err.message });
+    }
+});
+
 export default router;

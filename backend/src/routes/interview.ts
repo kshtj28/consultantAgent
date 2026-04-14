@@ -215,7 +215,7 @@ router.post('/:sessionId/translate-history', async (req: Request, res: Response)
 router.post('/:sessionId/answer', async (req: Request, res: Response) => {
     try {
         const { sessionId } = req.params;
-        const { questionId, question, answer, type, mode, categoryId, subAreaId, model, aiConfident, language } = req.body;
+        const { questionId, question, answer, type, mode, categoryId, subAreaId, model, aiConfident, language, attachments } = req.body;
 
         const session = await getInterviewSession(sessionId);
         if (!session) return res.status(404).json({ error: 'Session not found' });
@@ -235,6 +235,7 @@ router.post('/:sessionId/answer', async (req: Request, res: Response) => {
             mode: mode || 'discovery',
             subAreaId: targetSubArea,
             aiConfident: aiConfident || false,
+            attachments: Array.isArray(attachments) ? attachments : undefined,
         });
 
         const progress = getInterviewProgress(session);

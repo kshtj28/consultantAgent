@@ -18,7 +18,7 @@ import {
 } from './domainService';
 import { getLanguageInstructions, getYesNoOptions, isValidLanguage, LanguageCode } from './languageService';
 import { getProjectContext, getEffectiveModel } from './settingsService';
-import { searchKnowledgeBase } from './knowledgeBase';
+import { searchKnowledgeBase, searchSessionAttachments } from './knowledgeBase';
 
 /** Retrieve top KB chunks for `query` and format them as a prompt block.
  *  Returns '' on any failure so callers can safely concat unconditionally. */
@@ -32,6 +32,27 @@ async function buildKnowledgeBaseContext(query: string, limit: number = 4): Prom
         return `\n## UPLOADED DOCUMENT CONTEXT (from client knowledge base)\nUse the excerpts below to ground your question in what the client has actually documented. Reference specific systems, processes, or numbers from these docs when relevant.\n\n${blocks}\n`;
     } catch (err) {
         console.warn('[KB] retrieval failed:', (err as Error).message);
+        return '';
+    }
+}
+
+/** Retrieve files attached *during this session* (per-answer uploads) and format them
+ *  as a higher-priority prompt block. These are evidence the user volunteered
+ *  while answering — the LLM should probe what's in them before moving on. */
+async function buildSessionAttachmentContext(
+    sessionId: string,
+    query: string,
+    limit: number = 4
+): Promise<string> {
+    try {
+        const results = await searchSessionAttachments(sessionId, query, limit);
+        if (!results || results.length === 0) return '';
+        const blocks = results.map((r, i) =>
+            `[Attachment ${i + 1} — ${r.filename}]\n${r.content.trim()}`
+        ).join('\n\n---\n\n');
+        return `\n## ATTACHED EVIDENCE FROM THIS SESSION (priority context)\nThe user has uploaded these files while answering. Treat their content as direct evidence about the client. Your next question SHOULD probe specifics from these documents (numbers, system names, owners, dates, edge cases) before moving to a new topic.\n\n${blocks}\n`;
+    } catch (err) {
+        console.warn('[KB] session attachment retrieval failed:', (err as Error).message);
         return '';
     }
 }
@@ -60,6 +81,12 @@ export interface GeneratedInterviewQuestion {
     followUpTopics?: string[];
 }
 
+export interface AnswerAttachment {
+    documentId: string;
+    filename: string;
+    excerpt: string;
+}
+
 export interface InterviewAnswer {
     questionId: string;
     question: string;
@@ -67,6 +94,7 @@ export interface InterviewAnswer {
     type: QuestionType;
     mode: QuestionMode;
     timestamp: Date;
+    attachments?: AnswerAttachment[];
 }
 
 // ─── Broad Area / Sub-Area Coverage Types ───────────────────────────
@@ -438,9 +466,13 @@ export async function generateNextInterviewQuestion(
     // Build KPI probing guidance based on broad area
     const kpiGuidance = buildKPIGuidance(broadAreaName, subArea.name);
 
-    // Pull relevant excerpts from uploaded knowledge base documents
+    // Pull relevant excerpts from uploaded knowledge base documents (global) AND
+    // any files the user attached to answers in *this* session (priority).
     const kbQuery = `${subArea.name} ${broadAreaName} ${subArea.description ?? ''}`.trim();
-    const kbContext = await buildKnowledgeBaseContext(kbQuery, 4);
+    const [kbContext, sessionAttachContext] = await Promise.all([
+        buildKnowledgeBaseContext(kbQuery, 4),
+        buildSessionAttachmentContext(session.sessionId, kbQuery, 4),
+    ]);
 
     const sessionLang = (session.language as LanguageCode) ?? 'en';
 
@@ -477,7 +509,7 @@ ${maturityBenchmarks}
 
 ## KEY METRICS & KPIs TO PROBE (when relevant)
 ${kpiGuidance}
-${kbContext}
+${sessionAttachContext}${kbContext}
 ## CONVERSATION SO FAR
 Previous Q&A in ${subArea.name}:
 ${previousQA || 'No previous questions yet — start with the fundamentals.'}
@@ -573,6 +605,7 @@ export async function submitInterviewAnswer(
         categoryId?: CategoryId;
         subAreaId?: string;
         aiConfident?: boolean;
+        attachments?: AnswerAttachment[];
     }
 ): Promise<void> {
     const targetId = answer.subAreaId || answer.categoryId || session.currentSubArea || session.currentCategory;
@@ -592,6 +625,7 @@ export async function submitInterviewAnswer(
         type: answer.type,
         mode: answer.mode,
         timestamp: new Date(),
+        attachments: answer.attachments && answer.attachments.length > 0 ? answer.attachments : undefined,
     });
 
     const answerText = Array.isArray(answer.answer) ? answer.answer.join(', ') : String(answer.answer);

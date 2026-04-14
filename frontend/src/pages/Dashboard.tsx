@@ -6,8 +6,10 @@ import StatusBadge from '../components/shared/StatusBadge';
 import { SkeletonStatCards, SkeletonChart } from '../components/shared/Skeleton';
 import {
     fetchSessions, fetchDashboardStats, fetchCumulativeGaps, fetchExecutiveSummary,
+    fetchMaturityTrend,
     subscribeToDashboardStream,
     type SessionSummary, type DashboardStats, type CumulativeGapData, type ExecutiveSummary,
+    type MaturityTrend,
 } from '../services/api';
 import { useLanguage } from '../i18n/LanguageContext';
 import './Dashboard.css';
@@ -69,6 +71,61 @@ function GaugeChart({ value, max, label, color }: { value: number; max: number; 
     );
 }
 
+/* ── Maturity Trend (system improvement over time) ── */
+function MaturityTrendCard({ trend }: { trend: MaturityTrend | null }) {
+    if (!trend || !trend.points.length) {
+        return (
+            <div className="dashboard__kpi-card" style={{ minHeight: 140 }}>
+                <span className="dashboard__kpi-label">
+                    <TrendingUp size={14} style={{ marginRight: 6, verticalAlign: 'text-bottom' }} />
+                    System Improvement
+                </span>
+                <div style={{ marginTop: 12, color: 'var(--text-secondary)', fontSize: '0.78rem' }}>
+                    Generate a few broad-area reports across different days to build a maturity baseline.
+                </div>
+            </div>
+        );
+    }
+
+    const { points, baseline, current, deltaPct, sampleCount } = trend;
+    const positive = deltaPct >= 0;
+    const deltaColor = positive ? '#10b981' : '#ef4444';
+    const arrow = positive ? '↑' : '↓';
+
+    // Build a mini sparkline path
+    const w = 180, h = 44, pad = 4;
+    const scores = points.map(p => p.avgScore);
+    const minS = Math.min(...scores, 0);
+    const maxS = Math.max(...scores, 100);
+    const range = Math.max(1, maxS - minS);
+    const path = points.map((p, i) => {
+        const x = pad + (i * (w - pad * 2)) / Math.max(1, points.length - 1);
+        const y = h - pad - ((p.avgScore - minS) / range) * (h - pad * 2);
+        return `${i === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`;
+    }).join(' ');
+
+    return (
+        <div className="dashboard__kpi-card" style={{ minHeight: 140 }}>
+            <span className="dashboard__kpi-label">
+                <TrendingUp size={14} style={{ marginRight: 6, verticalAlign: 'text-bottom' }} />
+                System Improvement <span style={{ opacity: 0.6, fontWeight: 400 }}>· {trend.days}d</span>
+            </span>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 6 }}>
+                <span className="dashboard__kpi-big-value">{current ?? 0}</span>
+                <span style={{ color: deltaColor, fontWeight: 700, fontSize: '0.95rem' }}>
+                    {arrow} {Math.abs(deltaPct)}%
+                </span>
+            </div>
+            <svg width={w} height={h} style={{ marginTop: 4 }}>
+                <path d={path} fill="none" stroke={deltaColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <span className="dashboard__kpi-subtitle">
+                Maturity {baseline ?? 0} → {current ?? 0} · {sampleCount} report{sampleCount === 1 ? '' : 's'}
+            </span>
+        </div>
+    );
+}
+
 /* ── Circular Progress Ring ── */
 function CircularProgress({ pct, color }: { pct: number; color: string }) {
     const r = 42;
@@ -101,6 +158,7 @@ export default function Dashboard() {
     const [stats, setStats] = useState<DashboardStats | null>(null);
     const [cumulativeGaps, setCumulativeGaps] = useState<CumulativeGapData | null>(null);
     const [execSummary, setExecSummary] = useState<ExecutiveSummary | null>(null);
+    const [maturityTrend, setMaturityTrend] = useState<MaturityTrend | null>(null);
     const [loading, setLoading] = useState(true);
     const esRef = useRef<EventSource | null>(null);
 
@@ -108,12 +166,19 @@ export default function Dashboard() {
         navigate('/reports', { state: { scrollToGaps: true, severity, areaId } });
 
     useEffect(() => {
-        Promise.all([fetchSessions(), fetchDashboardStats(), fetchCumulativeGaps(), fetchExecutiveSummary()])
-            .then(([sessRes, dashStats, gapData, execData]) => {
+        Promise.all([
+            fetchSessions(),
+            fetchDashboardStats(),
+            fetchCumulativeGaps(),
+            fetchExecutiveSummary(),
+            fetchMaturityTrend(90).catch(() => null),
+        ])
+            .then(([sessRes, dashStats, gapData, execData, trendData]) => {
                 setSessions(sessRes.sessions || []);
                 setStats(dashStats);
                 setCumulativeGaps(gapData);
                 setExecSummary(execData);
+                setMaturityTrend(trendData);
             })
             .catch(() => {})
             .finally(() => setLoading(false));
@@ -293,6 +358,8 @@ export default function Dashboard() {
                         </div>
                         <span className="dashboard__kpi-subtitle">{t('dash.estCompletion')} {stats?.estCompletion ?? '—'}</span>
                     </div>
+
+                    <MaturityTrendCard trend={maturityTrend} />
                 </div>
             </div>
 

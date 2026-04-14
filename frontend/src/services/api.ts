@@ -158,6 +158,12 @@ export async function getNextInterviewQuestion(sessionId: string, model?: string
     return request(`/api/interview/${sessionId}/next-question${qs ? `?${qs}` : ''}`);
 }
 
+export interface AnswerAttachment {
+    documentId: string;
+    filename: string;
+    excerpt: string;
+}
+
 export async function submitInterviewAnswer(sessionId: string, payload: {
     questionId: string;
     question: string;
@@ -168,11 +174,38 @@ export async function submitInterviewAnswer(sessionId: string, payload: {
     aiConfident?: boolean;
     model?: string;
     language?: string;
+    attachments?: AnswerAttachment[];
 }): Promise<any> {
     return request(`/api/interview/${sessionId}/answer`, {
         method: 'POST',
         body: JSON.stringify(payload),
     });
+}
+
+/** Upload a file attached to a specific answer. The file is processed into the
+ *  same vector store as Knowledge Base docs, but tagged with sessionId/questionId
+ *  so it's surfaced as priority context in subsequent question generation. */
+export async function uploadAnswerAttachment(
+    sessionId: string,
+    questionId: string,
+    file: File
+): Promise<AnswerAttachment> {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('questionId', questionId);
+
+    const token = getToken();
+    const res = await fetch(`/api/interview/${sessionId}/attachment`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+    });
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Upload failed' }));
+        throw new Error(err.error || `Upload failed (${res.status})`);
+    }
+    const data = await res.json();
+    return { documentId: data.documentId, filename: data.filename, excerpt: data.excerpt };
 }
 
 export async function switchSubArea(sessionId: string, subAreaId: string): Promise<any> {
@@ -576,6 +609,25 @@ export interface CumulativeGapData {
 
 export async function fetchCumulativeGaps() {
     return request<CumulativeGapData>(`${API_BASE}/dashboard/cumulative-gaps`);
+}
+
+export interface MaturityTrendPoint {
+    week: string;        // ISO date (Monday of the week)
+    avgScore: number;
+    samples: number;
+}
+
+export interface MaturityTrend {
+    days: number;
+    points: MaturityTrendPoint[];
+    baseline: number | null;
+    current: number | null;
+    deltaPct: number;     // signed % change from baseline → current
+    sampleCount: number;
+}
+
+export async function fetchMaturityTrend(days: number = 90) {
+    return request<MaturityTrend>(`${API_BASE}/dashboard/maturity-trend?days=${days}`);
 }
 
 export async function updateDashboardMetrics(metrics: Record<string, unknown>) {
