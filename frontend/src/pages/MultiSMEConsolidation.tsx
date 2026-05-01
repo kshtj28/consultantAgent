@@ -11,7 +11,9 @@ import {
   ChevronDown,
   Info,
   Loader2,
+  RefreshCw,
 } from 'lucide-react';
+import BpmnViewerModal from '../components/BpmnViewerModal';
 import {
   fetchMultiSMEConsolidation,
   regenerateMultiSMEConsolidation,
@@ -215,6 +217,7 @@ export default function MultiSMEConsolidationPage() {
   const [generating, setGenerating] = useState(false);
   const [processes, setProcesses] = useState<AvailableProcess[]>([]);
   const [generateError, setGenerateError] = useState<string | null>(null);
+  const [showBpmn, setShowBpmn] = useState(false);
 
   const navigate = useNavigate();
   const params = useParams<{ processId?: string }>();
@@ -344,12 +347,36 @@ export default function MultiSMEConsolidationPage() {
 
   async function handleGenerateBPMN() {
     if (!consolidation) return;
+    setShowBpmn(true);
+  }
+
+  async function handleDownloadBpmnXml() {
+    if (!consolidation) return;
     try {
-      await generateUnifiedBPMN(consolidation.consolidationId);
-      window.alert(t('consolidation.bpmnComingSoon'));
+      const res = await generateUnifiedBPMN(consolidation.consolidationId);
+      if (res?.bpmnXml) {
+        const blob = new Blob([res.bpmnXml], { type: 'application/xml' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${consolidation.processId}-bpmn.xml`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
     } catch (err) {
-      console.error('Generate BPMN failed:', err);
+      console.error('Download BPMN failed:', err);
     }
+  }
+
+  async function handleRegenerate() {
+    if (!processId || processId === 'loan-origination') return;
+    setGenerating(true);
+    setGenerateError(null);
+    regenerateMultiSMEConsolidation(processId, { forceMock: false }).catch((err: any) => {
+      console.error('Regenerate failed:', err);
+      setGenerateError(err.message || 'Consolidation failed. Please try again.');
+      setGenerating(false);
+    });
   }
 
   async function handleGenerateDemo() {
@@ -559,13 +586,43 @@ export default function MultiSMEConsolidationPage() {
           <button className="consolidation-btn" onClick={handleInviteSME}>
             <UserPlus size={14} /> {t('consolidation.inviteSME')}
           </button>
-          <button className="consolidation-btn consolidation-btn--primary" onClick={handleGenerateBPMN}>
-            <GitMerge size={14} /> {t('consolidation.generateBPMN')}
+          {processId && processId !== 'loan-origination' && (
+            <button
+              className="consolidation-btn"
+              onClick={handleRegenerate}
+              disabled={generating}
+              title="Re-run the AI pipeline on the latest interview data"
+            >
+              {generating
+                ? <><Loader2 size={13} className="animate-spin" style={{ display: 'inline', marginRight: 4 }} />Analysing…</>
+                : <><RefreshCw size={13} style={{ display: 'inline', marginRight: 4 }} />Regenerate</>}
+            </button>
+          )}
+          <button
+            className="consolidation-btn consolidation-btn--primary"
+            onClick={handleGenerateBPMN}
+            disabled={!consolidation}
+          >
+            <GitMerge size={14} style={{ display: 'inline', marginRight: 4 }} />{t('consolidation.generateBPMN')}
           </button>
         </div>
       </div>
 
       {renderContent()}
+
+      {showBpmn && consolidation && (
+        <BpmnViewerModal
+          steps={consolidation.steps}
+          processName={consolidation.processName}
+          note={
+            consolidation.steps.filter(s => s.accepted).length < 2
+              ? 'Fewer than 2 steps accepted — showing all steps. Accept steps to refine the diagram.'
+              : 'Showing all consolidated steps. Accepted steps are highlighted.'
+          }
+          onDownloadXml={handleDownloadBpmnXml}
+          onClose={() => setShowBpmn(false)}
+        />
+      )}
     </div>
   );
 }

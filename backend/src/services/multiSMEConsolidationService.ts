@@ -614,7 +614,9 @@ async function runRealConsolidation(opts: GenerateOptions): Promise<MultiSMECons
       label: step.label,
       description: step.description,
       status: 'unique' as StepStatus,
-      confidence: 0.75,
+      // Store confidence as an integer percentage (0-100) to match what computeMetrics
+      // expects. Using 0.75 (decimal) caused Math.round to produce 1% in the UI.
+      confidence: 75,
       mentionedByCount: 1,
       totalSMEs: 1,
       mentionedBy: [{ userId: ctx.stakeholder.userId, username: ctx.stakeholder.username, initials: ctx.stakeholder.initials, color: ctx.stakeholder.color }],
@@ -827,9 +829,46 @@ async function loadSMEContexts(opts: GenerateOptions): Promise<SMEContext[]> {
     usersRes.body.hits.hits.map((h: any) => [h._source.userId, h._source])
   );
 
+  // ── Deduplicate sessions per userId ──────────────────────────────────────────
+  // A user can have multiple sessions for the same process (e.g. resumed later).
+  // Without deduplication, the same SME appears twice on the Stakeholder Roster
+  // and is counted twice in metrics. We merge all sessions for a given user into
+  // a single synthetic session: responses are merged and transcripts concatenated.
+  //
+  // Pre-filter: discard sessions that have zero answers entirely. These are
+  // sessions that were created but abandoned before the user answered anything.
+  // They have no transcript content and must not appear as stakeholder cards.
+  const sessionsWithAnswers = sessions.filter((s: any) => hasAnyAnswers(s));
+  const sessionsToMerge = sessionsWithAnswers.length > 0 ? sessionsWithAnswers : sessions;
+
+  const sessionsByUser = new Map<string, any>();
+  for (const session of sessionsToMerge) {
+    const uid = session.userId || session.sessionId; // fallback for anonymous sessions
+    if (!sessionsByUser.has(uid)) {
+      sessionsByUser.set(uid, { ...session });
+    } else {
+      // Merge responses: combine answer arrays per sub-area key
+      const merged = sessionsByUser.get(uid);
+      const incoming = session.responses || {};
+      const existing = merged.responses || {};
+      for (const subId of Object.keys(incoming)) {
+        if (!existing[subId]) {
+          existing[subId] = incoming[subId];
+        } else if (Array.isArray(existing[subId]) && Array.isArray(incoming[subId])) {
+          existing[subId] = [...existing[subId], ...incoming[subId]];
+        }
+      }
+      merged.responses = existing;
+      // Prefer 'completed' status if any session is completed
+      if (session.status === 'completed') merged.status = 'completed';
+    }
+  }
+  const deduplicatedSessions = Array.from(sessionsByUser.values());
+  // ── End deduplication ────────────────────────────────────────────────────────
+
   const contexts: SMEContext[] = [];
   let paletteIdx = 0;
-  for (const session of sessions) {
+  for (const session of deduplicatedSessions) {
     const user = users.get(session.userId) || { userId: session.userId, username: session.userId, role: 'sme', department: 'Unknown' };
     const stakeholder = buildStakeholderEntry(user, session, paletteIdx++);
     const transcript = transcribeSession(session);
@@ -1265,21 +1304,255 @@ export async function inviteSMEToConsolidation(
 }
 
 export async function generateUnifiedBPMN(consolidationId: string): Promise<{ bpmnXml: string; note: string } | null> {
-  // TODO(BPMN follow-up): turn accepted consolidated steps into BPMN 2.0 XML.
   const consolidation = await getConsolidationById(consolidationId);
   if (!consolidation) return null;
 
-  const accepted = consolidation.steps.filter(s => s.accepted);
-  const stub = `<?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" id="${consolidation.consolidationId}">
-  <!-- ${accepted.length} accepted steps; full BPMN generation is a follow-up task -->
-</bpmn:definitions>`;
+  // Use accepted steps first; fall back to ALL steps if fewer than 2 are accepted
+  const stepsToRender = consolidation.steps.filter(s => s.accepted).length >= 2
+    ? consolidation.steps.filter(s => s.accepted)
+    : [...consolidation.steps].sort((a, b) => a.order - b.order);
 
-  return {
-    bpmnXml: stub,
-    note: 'BPMN generation is a follow-up — this is a placeholder so the UI wiring can be tested.',
-  };
+  const bpmnXml = buildBpmnXml(consolidation.processId, consolidation.processName, stepsToRender);
+  const note = stepsToRender.length === consolidation.steps.length && consolidation.steps.filter(s => s.accepted).length < 2
+    ? 'Fewer than 2 steps are accepted — showing all steps. Accept steps in the Consolidated Process Flow to refine the diagram.'
+    : 'Showing accepted steps only. Accept more steps in the Consolidated Process Flow to expand the diagram.';
+
+  return { bpmnXml, note };
 }
+
+// ─── BPMN XML Builder ────────────────────────────────────────────────────────
+
+/**
+ * Builds a valid BPMN 2.0 XML string with:
+ *  - bpmn:Process containing bpmn:StartEvent, one bpmn:SubProcess per phase,
+ *    bpmn:EndEvent, and bpmn:SequenceFlow connectors
+ *  - bpmndi:BPMNDiagram with auto-calculated layout (horizontal, left-to-right)
+ *
+ * Phase grouping: every PHASE_SIZE steps become one SubProcess. A sub-process
+ * expands horizontally inside the main pool lane.
+ */
+function buildBpmnXml(processId: string, processName: string, steps: ConsolidatedStep[]): string {
+  const PHASE_SIZE = 4;                    // steps per subprocess
+  const TASK_W = 140, TASK_H = 60;
+  const TASK_GAP_X = 20, TASK_GAP_Y = 20;
+  const SP_PAD_X = 30, SP_PAD_Y = 40;     // padding inside subprocess
+  const SP_GAP_X = 80;                    // gap between subprocesses
+  const START_X = 80, START_Y = 200;      // start event position
+  const EVENT_R = 18;                      // radius of start/end circle
+  const LANE_Y = 80;                       // top of the process lane
+
+  function xmlId(raw: string) {
+    return raw.replace(/[^a-zA-Z0-9_-]/g, '_');
+  }
+
+  const procId = `Process_${xmlId(processId)}`;
+  const defId  = `Definitions_${xmlId(processId)}`;
+
+  // ── Split steps into phases ───────────────────────────────────────────────
+  const phases: ConsolidatedStep[][] = [];
+  for (let i = 0; i < steps.length; i += PHASE_SIZE) {
+    phases.push(steps.slice(i, i + PHASE_SIZE));
+  }
+
+  // ── Calculate SubProcess widths ───────────────────────────────────────────
+  interface PhaseLayout {
+    spId: string;
+    spX: number; spY: number; spW: number; spH: number;
+    tasks: Array<{ taskId: string; label: string; x: number; y: number; w: number; h: number }>;
+    inFlowId: string;
+    outFlowId: string;
+  }
+
+  const phaseLayouts: PhaseLayout[] = [];
+  let cursorX = START_X + EVENT_R * 2 + SP_GAP_X;
+  const spY = LANE_Y + 60;
+  const spH = SP_PAD_Y * 2 + TASK_H;
+
+  phases.forEach((phase, pi) => {
+    const spId = `SubProcess_Phase${pi + 1}`;
+    const spW = SP_PAD_X * 2 + phase.length * (TASK_W + TASK_GAP_X) - TASK_GAP_X;
+    const tasks = phase.map((step, si) => ({
+      taskId: `Task_${xmlId(step.stepId)}`,
+      label: step.label.length > 50 ? step.label.slice(0, 47) + '…' : step.label,
+      x: cursorX + SP_PAD_X + si * (TASK_W + TASK_GAP_X),
+      y: spY + SP_PAD_Y,
+      w: TASK_W,
+      h: TASK_H,
+    }));
+    phaseLayouts.push({
+      spId, spX: cursorX, spY, spW, spH,
+      tasks,
+      inFlowId: `Flow_to_SP${pi + 1}`,
+      outFlowId: `Flow_from_SP${pi + 1}`,
+    });
+    cursorX += spW + SP_GAP_X;
+  });
+
+  const endX = cursorX + EVENT_R;
+  const endY = START_Y;
+  const startEventId = 'StartEvent_1';
+  const endEventId   = 'EndEvent_1';
+  const totalW = endX + EVENT_R * 2 + 80;
+  const totalH = spY + spH + 120;
+
+  // ── Task sequence flows inside each subprocess ───────────────────────────
+  function taskFlows(pl: PhaseLayout): string {
+    return pl.tasks.slice(0, -1).map((t, i) => {
+      const fid = `Flow_${pl.spId}_T${i}`;
+      return `    <bpmn:sequenceFlow id="${fid}" sourceRef="${t.taskId}" targetRef="${pl.tasks[i + 1].taskId}" />`;
+    }).join('\n');
+  }
+
+  // ── BPMN semantic XML ─────────────────────────────────────────────────────
+  const semanticLines: string[] = [];
+  semanticLines.push(`  <bpmn:process id="${procId}" name="${escapeXml(processName)}" isExecutable="false">`);
+  semanticLines.push(`    <bpmn:startEvent id="${startEventId}" name="Start" />`);
+
+  phaseLayouts.forEach((pl, pi) => {
+    const phaseName = phases.length > 1 ? `Phase ${pi + 1}` : processName;
+    semanticLines.push(`    <bpmn:subProcess id="${pl.spId}" name="${escapeXml(phaseName)}" triggeredByEvent="false">`);
+    semanticLines.push(`      <bpmn:startEvent id="${pl.spId}_Start" />`);
+    pl.tasks.forEach(t => {
+      semanticLines.push(`      <bpmn:task id="${t.taskId}" name="${escapeXml(t.label)}" />`);
+    });
+    semanticLines.push(`      <bpmn:endEvent id="${pl.spId}_End" />`);
+    // inner flows: start→first task
+    if (pl.tasks.length > 0) {
+      semanticLines.push(`      <bpmn:sequenceFlow id="Flow_${pl.spId}_StoT0" sourceRef="${pl.spId}_Start" targetRef="${pl.tasks[0].taskId}" />`);
+      semanticLines.push(taskFlows(pl));
+      semanticLines.push(`      <bpmn:sequenceFlow id="Flow_${pl.spId}_TtoE" sourceRef="${pl.tasks[pl.tasks.length - 1].taskId}" targetRef="${pl.spId}_End" />`);
+    }
+    semanticLines.push(`    </bpmn:subProcess>`);
+
+    // outer flow: prev element → this subprocess
+    const prevRef = pi === 0 ? startEventId : phaseLayouts[pi - 1].spId;
+    semanticLines.push(`    <bpmn:sequenceFlow id="${pl.inFlowId}" sourceRef="${prevRef}" targetRef="${pl.spId}" />`);
+  });
+
+  // last subprocess → end event
+  if (phaseLayouts.length > 0) {
+    const lastSP = phaseLayouts[phaseLayouts.length - 1];
+    semanticLines.push(`    <bpmn:sequenceFlow id="Flow_to_End" sourceRef="${lastSP.spId}" targetRef="${endEventId}" />`);
+  } else {
+    semanticLines.push(`    <bpmn:sequenceFlow id="Flow_to_End" sourceRef="${startEventId}" targetRef="${endEventId}" />`);
+  }
+  semanticLines.push(`    <bpmn:endEvent id="${endEventId}" name="End" />`);
+  semanticLines.push(`  </bpmn:process>`);
+
+  // ── BPMNDI diagram section ────────────────────────────────────────────────
+  const diagramLines: string[] = [];
+  diagramLines.push(`  <bpmndi:BPMNDiagram id="BPMNDiagram_1">`);
+  diagramLines.push(`    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="${procId}">`);
+
+  // Start event shape
+  diagramLines.push(`      <bpmndi:BPMNShape id="${startEventId}_di" bpmnElement="${startEventId}">`);
+  diagramLines.push(`        <dc:Bounds x="${START_X}" y="${START_Y - EVENT_R}" width="${EVENT_R * 2}" height="${EVENT_R * 2}" />`);
+  diagramLines.push(`      </bpmndi:BPMNShape>`);
+
+  // SubProcess shapes + task shapes
+  phaseLayouts.forEach(pl => {
+    diagramLines.push(`      <bpmndi:BPMNShape id="${pl.spId}_di" bpmnElement="${pl.spId}" isExpanded="true">`);
+    diagramLines.push(`        <dc:Bounds x="${pl.spX}" y="${pl.spY}" width="${pl.spW}" height="${pl.spH}" />`);
+    diagramLines.push(`      </bpmndi:BPMNShape>`);
+
+    // subprocess start/end events (small, inside)
+    const innerStartX = pl.spX + 12, innerEndX = pl.spX + pl.spW - 30;
+    const innerEventY = pl.spY + pl.spH / 2 - 9;
+    diagramLines.push(`      <bpmndi:BPMNShape id="${pl.spId}_Start_di" bpmnElement="${pl.spId}_Start">`);
+    diagramLines.push(`        <dc:Bounds x="${innerStartX}" y="${innerEventY}" width="18" height="18" />`);
+    diagramLines.push(`      </bpmndi:BPMNShape>`);
+
+    pl.tasks.forEach(t => {
+      diagramLines.push(`      <bpmndi:BPMNShape id="${t.taskId}_di" bpmnElement="${t.taskId}">`);
+      diagramLines.push(`        <dc:Bounds x="${t.x}" y="${t.y}" width="${t.w}" height="${t.h}" />`);
+      diagramLines.push(`      </bpmndi:BPMNShape>`);
+    });
+
+    diagramLines.push(`      <bpmndi:BPMNShape id="${pl.spId}_End_di" bpmnElement="${pl.spId}_End">`);
+    diagramLines.push(`        <dc:Bounds x="${innerEndX}" y="${innerEventY}" width="18" height="18" />`);
+    diagramLines.push(`      </bpmndi:BPMNShape>`);
+
+    // inner task flows
+    if (pl.tasks.length > 0) {
+      // start → first task
+      diagramLines.push(`      <bpmndi:BPMNEdge id="Flow_${pl.spId}_StoT0_di" bpmnElement="Flow_${pl.spId}_StoT0">`);
+      diagramLines.push(`        <di:waypoint x="${innerStartX + 18}" y="${innerEventY + 9}" />`);
+      diagramLines.push(`        <di:waypoint x="${pl.tasks[0].x}" y="${pl.tasks[0].y + pl.tasks[0].h / 2}" />`);
+      diagramLines.push(`      </bpmndi:BPMNEdge>`);
+
+      pl.tasks.slice(0, -1).forEach((t, i) => {
+        const fid = `Flow_${pl.spId}_T${i}`;
+        const next = pl.tasks[i + 1];
+        diagramLines.push(`      <bpmndi:BPMNEdge id="${fid}_di" bpmnElement="${fid}">`);
+        diagramLines.push(`        <di:waypoint x="${t.x + t.w}" y="${t.y + t.h / 2}" />`);
+        diagramLines.push(`        <di:waypoint x="${next.x}" y="${next.y + next.h / 2}" />`);
+        diagramLines.push(`      </bpmndi:BPMNEdge>`);
+      });
+
+      // last task → end
+      const lastT = pl.tasks[pl.tasks.length - 1];
+      diagramLines.push(`      <bpmndi:BPMNEdge id="Flow_${pl.spId}_TtoE_di" bpmnElement="Flow_${pl.spId}_TtoE">`);
+      diagramLines.push(`        <di:waypoint x="${lastT.x + lastT.w}" y="${lastT.y + lastT.h / 2}" />`);
+      diagramLines.push(`        <di:waypoint x="${innerEndX}" y="${innerEventY + 9}" />`);
+      diagramLines.push(`      </bpmndi:BPMNEdge>`);
+    }
+  });
+
+  // End event shape
+  diagramLines.push(`      <bpmndi:BPMNShape id="${endEventId}_di" bpmnElement="${endEventId}">`);
+  diagramLines.push(`        <dc:Bounds x="${endX}" y="${endY - EVENT_R}" width="${EVENT_R * 2}" height="${EVENT_R * 2}" />`);
+  diagramLines.push(`      </bpmndi:BPMNShape>`);
+
+  // Outer sequence flow edges (start → subprocesses → end)
+  phaseLayouts.forEach((pl, pi) => {
+    const prevRef = pi === 0 ? startEventId : phaseLayouts[pi - 1].spId;
+    const prevX = pi === 0 ? START_X + EVENT_R * 2 : phaseLayouts[pi - 1].spX + phaseLayouts[pi - 1].spW;
+    const prevY = pi === 0 ? START_Y : phaseLayouts[pi - 1].spY + phaseLayouts[pi - 1].spH / 2;
+    const toY = pl.spY + pl.spH / 2;
+    diagramLines.push(`      <bpmndi:BPMNEdge id="${pl.inFlowId}_di" bpmnElement="${pl.inFlowId}">`);
+    diagramLines.push(`        <di:waypoint x="${prevX}" y="${prevY}" />`);
+    diagramLines.push(`        <di:waypoint x="${pl.spX}" y="${toY}" />`);
+    diagramLines.push(`      </bpmndi:BPMNEdge>`);
+  });
+
+  if (phaseLayouts.length > 0) {
+    const lastPL = phaseLayouts[phaseLayouts.length - 1];
+    diagramLines.push(`      <bpmndi:BPMNEdge id="Flow_to_End_di" bpmnElement="Flow_to_End">`);
+    diagramLines.push(`        <di:waypoint x="${lastPL.spX + lastPL.spW}" y="${lastPL.spY + lastPL.spH / 2}" />`);
+    diagramLines.push(`        <di:waypoint x="${endX}" y="${endY}" />`);
+    diagramLines.push(`      </bpmndi:BPMNEdge>`);
+  }
+
+  diagramLines.push(`    </bpmndi:BPMNPlane>`);
+  diagramLines.push(`  </bpmndi:BPMNDiagram>`);
+
+  const xml = [
+    `<?xml version="1.0" encoding="UTF-8"?>`,
+    `<bpmn:definitions`,
+    `  xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"`,
+    `  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"`,
+    `  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"`,
+    `  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"`,
+    `  id="${defId}"`,
+    `  targetNamespace="http://bpmn.io/schema/bpmn"`,
+    `  exporter="ERP Gap Analyzer" exporterVersion="1.0">`,
+    semanticLines.join('\n'),
+    diagramLines.join('\n'),
+    `</bpmn:definitions>`,
+  ].join('\n');
+
+  return xml;
+}
+
+function escapeXml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
 
 async function getConsolidationById(consolidationId: string): Promise<MultiSMEConsolidation | null> {
   try {
