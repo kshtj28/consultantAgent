@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { opensearchClient, INDICES } from '../config/database';
+import { AuthRequest } from '../middleware/auth';
 
 const router = Router();
 
@@ -23,6 +24,10 @@ interface SessionSummary {
 // GET /api/sessions/all — list all interview and readiness sessions
 router.get('/sessions/all', async (req: Request, res: Response) => {
     try {
+        const user = (req as AuthRequest).user;
+        const isAdmin = user?.role === 'admin';
+        const userId = user?.userId || (user as any)?.id;
+
         const sessions: SessionSummary[] = [];
 
         // Pre-fetch report gap data keyed by sessionId for per-session metrics
@@ -63,12 +68,17 @@ router.get('/sessions/all', async (req: Request, res: Response) => {
 
         // --- Interview sessions (stored in consultant_conversations, tagged with sessionType) ---
         try {
+            const interviewMust: any[] = [{ match: { sessionType: 'interview_session' } }];
+            if (!isAdmin && userId) {
+                interviewMust.push({ bool: { should: [
+                    { term: { userId } },
+                    { term: { 'userId.keyword': userId } },
+                ], minimum_should_match: 1 } });
+            }
             const interviewResult = await opensearchClient.search({
                 index: INDICES.CONVERSATIONS,
                 body: {
-                    query: {
-                        match: { sessionType: 'interview_session' },
-                    },
+                    query: { bool: { must: interviewMust } },
                     sort: [{ updatedAt: { order: 'desc', unmapped_type: 'date' } }],
                     size: 50,
                 },
@@ -125,10 +135,16 @@ router.get('/sessions/all', async (req: Request, res: Response) => {
             });
 
             if (readinessExists.body) {
+                const readinessQuery: any = !isAdmin && userId
+                    ? { bool: { should: [
+                        { term: { userId } },
+                        { term: { 'userId.keyword': userId } },
+                    ], minimum_should_match: 1 } }
+                    : { match_all: {} };
                 const readinessResult = await opensearchClient.search({
                     index: 'readiness_sessions',
                     body: {
-                        query: { match_all: {} },
+                        query: readinessQuery,
                         sort: [{ updatedAt: { order: 'desc', unmapped_type: 'date' } }],
                         size: 50,
                     },

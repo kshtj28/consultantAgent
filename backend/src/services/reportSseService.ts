@@ -32,9 +32,19 @@ export interface InsightsEvent {
   updatedAt: string;
 }
 
+export interface ConsolidationEvent {
+  consolidationId: string;
+  processId: string;
+  type: 'generated' | 'step-accepted' | 'step-edited' | 'sme-invited' | 'regenerated' | 'no_data' | 'error';
+  stepId?: string;
+  metrics?: unknown;
+  updatedAt: string;
+}
+
 const reportClients = new Set<Response>();
 const smeClients = new Set<Response>();
 const insightsClients = new Set<Response>();
+const consolidationClients = new Map<string, Set<Response>>();
 
 function addClient(set: Set<Response>, res: Response): void {
   set.add(res);
@@ -70,4 +80,23 @@ export function broadcastSMEEngagement(event: SMEEngagementEvent): void {
 
 export function broadcastInsights(event: InsightsEvent): void {
   broadcast(insightsClients, 'insights-updated', event);
+}
+
+export function addConsolidationSSEClient(processId: string, res: Response): void {
+  let set = consolidationClients.get(processId);
+  if (!set) {
+    set = new Set<Response>();
+    consolidationClients.set(processId, set);
+  }
+  set.add(res);
+  res.on('close', () => {
+    set!.delete(res);
+    if (set!.size === 0) consolidationClients.delete(processId);
+  });
+}
+
+export function broadcastConsolidationUpdate(event: ConsolidationEvent): void {
+  const set = consolidationClients.get(event.processId);
+  if (!set) return;
+  broadcast(set, 'consolidation-update', event);
 }

@@ -94,7 +94,7 @@ export function Login() {
                     <div className="login-tabs">
                         <button
                             className={`login-tab ${activeTab === 'user' ? 'login-tab--active' : ''}`}
-                            onClick={() => setActiveTab('user')}
+                            onClick={() => { setActiveTab('user'); setUsername(''); setPassword(''); }}
                             type="button"
                         >
                             <User size={18} />
@@ -103,7 +103,7 @@ export function Login() {
                         </button>
                         <button
                             className={`login-tab ${activeTab === 'admin' ? 'login-tab--active' : ''}`}
-                            onClick={() => setActiveTab('admin')}
+                            onClick={() => { setActiveTab('admin'); setUsername('admin'); }}
                             type="button"
                         >
                             <ClipboardList size={18} />
@@ -120,12 +120,19 @@ export function Login() {
                     )}
 
                     <form onSubmit={handleSubmit}>
-                        <label className="login-label">Username</label>
+                        <label className="login-label">
+                            Username
+                            {activeTab === 'user' && (
+                                <span style={{ fontWeight: 400, color: 'var(--text-secondary)', fontSize: '0.75rem', marginLeft: 6 }}>
+                                    (email format, e.g. you@company.com)
+                                </span>
+                            )}
+                        </label>
                         <div className="login-input-group">
                             <input
                                 type="text"
                                 className="login-input"
-                                placeholder="Username or email"
+                                placeholder={activeTab === 'admin' ? 'admin' : 'you@company.com'}
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
                                 required

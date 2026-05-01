@@ -25,6 +25,8 @@ export default function UserManagement() {
     const [editDept, setEditDept] = useState('');
     const [editStatus, setEditStatus] = useState('');
     const [saving, setSaving] = useState(false);
+    const [saveError, setSaveError] = useState('');
+    const [actionError, setActionError] = useState('');
 
     const load = async () => {
         setLoading(true);
@@ -48,6 +50,7 @@ export default function UserManagement() {
     const adminCount = users.filter((u) => u.role === 'admin').length;
 
     const openEdit = (user: UserProfile) => {
+        setSaveError('');
         setEditUser(user);
         setEditRole(user.role);
         setEditOrg(user.organization || '');
@@ -58,6 +61,7 @@ export default function UserManagement() {
     const handleSave = async () => {
         if (!editUser) return;
         setSaving(true);
+        setSaveError('');
         try {
             await updateUser(editUser.userId, {
                 role: editRole,
@@ -67,20 +71,21 @@ export default function UserManagement() {
             });
             setEditUser(null);
             await load();
-        } catch {
-            // silently handle
+        } catch (err: any) {
+            setSaveError(err.message || 'Failed to save changes');
         } finally {
             setSaving(false);
         }
     };
 
     const handleDeactivate = async (user: UserProfile) => {
-        if (!window.confirm(`Are you sure you want to deactivate user "${user.username}"?`)) return;
+        if (!window.confirm(`Deactivate "${user.username}"? They will no longer be able to log in.`)) return;
+        setActionError('');
         try {
             await deactivateUser(user.userId);
             await load();
-        } catch {
-            // silently handle
+        } catch (err: any) {
+            setActionError(err.message || 'Failed to deactivate user');
         }
     };
 
@@ -114,6 +119,14 @@ export default function UserManagement() {
                 <StatCard icon={<UserCheck size={18} />} label="Active Users" value={activeUsers} />
                 <StatCard icon={<Shield size={18} />} label="Admin Count" value={adminCount} />
             </div>
+
+            {/* Action error banner */}
+            {actionError && (
+                <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, padding: '0.75rem 1rem', fontSize: '0.85rem', color: '#fca5a5', marginBottom: '0.5rem' }}>
+                    {actionError}
+                    <button onClick={() => setActionError('')} style={{ float: 'right', background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '1rem' }}>×</button>
+                </div>
+            )}
 
             {/* Users table */}
             <SectionCard title="Users">
@@ -221,6 +234,12 @@ export default function UserManagement() {
                                 <option value="inactive">Inactive</option>
                             </select>
                         </div>
+
+                        {saveError && (
+                            <div style={{ color: '#fca5a5', fontSize: '0.82rem', marginBottom: '0.5rem', padding: '0.5rem', background: 'rgba(239,68,68,0.1)', borderRadius: 6 }}>
+                                {saveError}
+                            </div>
+                        )}
 
                         <div className="user-mgmt__modal-actions">
                             <button

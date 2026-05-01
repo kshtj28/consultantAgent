@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   Activity,
@@ -11,6 +12,9 @@ import {
   ScrollText,
   BookOpen,
   Plug,
+  MessageSquare,
+  ChevronDown,
+  GitMerge,
 } from 'lucide-react';
 import { getInitials, getRoleLabel } from '../../utils/format';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -25,20 +29,33 @@ const Sidebar = ({ user, onLogout }: SidebarProps) => {
   const location = useLocation();
   const { t } = useLanguage();
 
+  const smeChildPaths = ['/sme-engagement', '/sme/consolidation'];
+  const isInSMEGroup = smeChildPaths.some(p => location.pathname === p || location.pathname.startsWith(p + '/'));
+  const [smeExpanded, setSMEExpanded] = useState<boolean>(isInSMEGroup);
+
+  const isAdmin = user?.role === 'admin';
+
   const navItems = [
     { path: '/dashboard', label: t('nav.dashboard'), icon: LayoutDashboard },
     { path: '/process-analysis', label: t('nav.processAnalysis'), icon: Activity },
-    { path: '/insights', label: t('nav.insights'), icon: TrendingUp },
-    { path: '/sme-engagement', label: t('nav.smeEngagement'), icon: Users },
+    ...(isAdmin ? [{ path: '/insights', label: t('nav.insights'), icon: TrendingUp }] : []),
+  ];
+
+  const tailItems = [
     { path: '/reports', label: t('nav.reports'), icon: FileText },
     { path: '/knowledge-base', label: t('nav.knowledgeBase'), icon: BookOpen },
-    { path: '/connectors', label: 'Connectors', icon: Plug },
+    ...(isAdmin ? [{ path: '/connectors', label: 'Connectors', icon: Plug }] : []),
     { path: '/settings', label: t('nav.settings'), icon: Settings },
   ];
 
   const adminNavItems = [
     { path: '/admin/users', label: t('nav.userManagement'), icon: UserPlus },
     { path: '/admin/audit-logs', label: t('nav.auditLogs'), icon: ScrollText },
+  ];
+
+  const smeChildren = [
+    { path: '/sme-engagement', label: t('nav.smeEngagement'), icon: MessageSquare },
+    ...(isAdmin ? [{ path: '/sme/consolidation', label: t('nav.multiSMEConsolidation'), icon: GitMerge }] : []),
   ];
 
   return (
@@ -58,13 +75,54 @@ const Sidebar = ({ user, onLogout }: SidebarProps) => {
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path || location.pathname.startsWith(item.path + '/');
-
             return (
               <li key={item.path} className="sidebar-nav-item">
-                <NavLink
-                  to={item.path}
-                  className={`sidebar-nav-link ${isActive ? 'active' : ''}`}
-                >
+                <NavLink to={item.path} className={`sidebar-nav-link ${isActive ? 'active' : ''}`}>
+                  <Icon size={18} strokeWidth={1.8} />
+                  <span>{item.label}</span>
+                </NavLink>
+              </li>
+            );
+          })}
+
+          {/* SME Interview group */}
+          <li className="sidebar-nav-item">
+            <button
+              type="button"
+              className={`sidebar-nav-group-toggle ${smeExpanded || isInSMEGroup ? 'expanded' : ''}`}
+              onClick={() => setSMEExpanded((v) => !v)}
+              aria-expanded={smeExpanded}
+            >
+              <Users size={18} strokeWidth={1.8} />
+              <span className="sidebar-nav-group-label">{t('nav.smeInterview')}</span>
+              <span className={`sidebar-nav-group-chevron ${smeExpanded ? 'expanded' : ''}`}>
+                <ChevronDown size={14} strokeWidth={2} />
+              </span>
+            </button>
+            {(smeExpanded || isInSMEGroup) && (
+              <ul className="sidebar-nav-sublist">
+                {smeChildren.map((child) => {
+                  const ChildIcon = child.icon;
+                  const isActive = location.pathname === child.path || location.pathname.startsWith(child.path + '/');
+                  return (
+                    <li key={child.path} className="sidebar-nav-item">
+                      <NavLink to={child.path} className={`sidebar-nav-sublink ${isActive ? 'active' : ''}`}>
+                        <ChildIcon size={14} strokeWidth={1.8} />
+                        <span>{child.label}</span>
+                      </NavLink>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </li>
+
+          {tailItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = location.pathname === item.path || location.pathname.startsWith(item.path + '/');
+            return (
+              <li key={item.path} className="sidebar-nav-item">
+                <NavLink to={item.path} className={`sidebar-nav-link ${isActive ? 'active' : ''}`}>
                   <Icon size={18} strokeWidth={1.8} />
                   <span>{item.label}</span>
                 </NavLink>

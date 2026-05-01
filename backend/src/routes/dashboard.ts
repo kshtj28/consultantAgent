@@ -8,7 +8,80 @@ import { opensearchClient, INDICES } from '../config/database';
 const router = Router();
 
 // GET /api/dashboard/stats — always recompute from live data
-router.get('/stats', async (_req: Request, res: Response) => {
+router.get('/stats', async (req: Request, res: Response) => {
+    const user = (req as AuthRequest).user;
+    if (user?.role !== 'admin') {
+        // Non-admin users: return stats scoped to their own sessions/reports
+        try {
+            const uid = user?.userId || (user as any)?.id;
+            const userFilter = uid ? { bool: { should: [
+                { term: { generatedBy: uid } },
+                { term: { 'generatedBy.keyword': uid } },
+            ], minimum_should_match: 1 } } : { match_all: {} };
+
+            let totalSessions = 0;
+            let completedSessions = 0;
+            try {
+                const sessRes = await opensearchClient.search({
+                    index: INDICES.CONVERSATIONS,
+                    body: {
+                        query: uid ? { bool: { must: [
+                            { match: { sessionType: 'interview_session' } },
+                            { bool: { should: [{ term: { userId: uid } }, { term: { 'userId.keyword': uid } }], minimum_should_match: 1 } },
+                        ] } } : { match: { sessionType: 'interview_session' } },
+                        size: 0,
+                        aggs: {
+                            total: { value_count: { field: 'sessionId' } },
+                            completed: { filter: { term: { status: 'completed' } } },
+                        },
+                    },
+                });
+                totalSessions = sessRes.body.hits.total?.value || 0;
+                completedSessions = sessRes.body.aggregations?.completed?.doc_count || 0;
+            } catch { /* sessions may not exist */ }
+
+            let criticalIssues = 0;
+            try {
+                const reportIndexExists = await opensearchClient.indices.exists({ index: INDICES.REPORTS });
+                if (reportIndexExists.body) {
+                    const gapRes = await opensearchClient.search({
+                        index: INDICES.REPORTS,
+                        body: {
+                            query: { bool: { must: [{ term: { status: 'ready' } }, userFilter] } },
+                            size: 200,
+                            _source: ['content.gaps'],
+                        },
+                    });
+                    for (const hit of gapRes.body.hits.hits as any[]) {
+                        const gaps = hit._source?.content?.gaps || [];
+                        criticalIssues += gaps.filter((g: any) => (g.impact || '').toLowerCase() === 'high').length;
+                    }
+                }
+            } catch { /* reports may not exist */ }
+
+            return res.json({
+                totalSessions,
+                completedSessions,
+                criticalIssues,
+                criticalIssuesTrend: 'stable',
+                discoveryPct: totalSessions > 0 ? Math.round((completedSessions / totalSessions) * 100) : 0,
+                gapSeverity: criticalIssues >= 5 ? 'High Risk' : criticalIssues >= 2 ? 'Medium Risk' : 'Low Risk',
+                avgRisk: 0,
+                maxRisk: 0,
+                automationPct: 0,
+                automationDelta: 0,
+                automationTrend: 'stable',
+                estCompletion: 'N/A',
+                processFlow: null,
+                processTypeDistribution: [],
+                processEfficiency: [],
+            });
+        } catch (err: any) {
+            console.error('Error fetching user dashboard stats:', err);
+            return res.status(500).json({ error: err.message });
+        }
+    }
+
     try {
         const metrics = await recomputeAndStoreMetrics();
 
@@ -93,7 +166,10 @@ router.get('/stream', (req: Request, res: Response) => {
 });
 
 // GET /api/dashboard/executive-summary — high-level CXO data: readiness score, recommendations, impact
-router.get('/executive-summary', async (_req: Request, res: Response) => {
+router.get('/executive-summary', async (req: Request, res: Response) => {
+    const user = (req as AuthRequest).user;
+    const uid = user?.role !== 'admin' ? (user?.userId || (user as any)?.id) : null;
+
     try {
         // 1. Fetch cumulative gap data to compute readiness score
         let totalGaps = 0;
@@ -105,13 +181,20 @@ router.get('/executive-summary', async (_req: Request, res: Response) => {
 
         const indexExists = await opensearchClient.indices.exists({ index: INDICES.REPORTS });
         if (indexExists.body) {
+            const reportsFilter: any[] = [
+                { term: { type: 'broad_area' } },
+                { term: { status: 'ready' } },
+            ];
+            if (uid) {
+                reportsFilter.push({ bool: { should: [
+                    { term: { generatedBy: uid } },
+                    { term: { 'generatedBy.keyword': uid } },
+                ], minimum_should_match: 1 } });
+            }
             const result = await opensearchClient.search({
                 index: INDICES.REPORTS,
                 body: {
-                    query: { bool: { must: [
-                        { term: { type: 'broad_area' } },
-                        { term: { status: 'ready' } },
-                    ] } },
+                    query: { bool: { must: reportsFilter } },
                     size: 200,
                     sort: [{ createdAt: { order: 'desc' } }],
                 },
@@ -200,7 +283,10 @@ router.get('/executive-summary', async (_req: Request, res: Response) => {
 });
 
 // GET /api/dashboard/cumulative-gaps — aggregate gaps across all ready broad_area reports
-router.get('/cumulative-gaps', async (_req: Request, res: Response) => {
+router.get('/cumulative-gaps', async (req: Request, res: Response) => {
+    const user = (req as AuthRequest).user;
+    const uid = user?.role !== 'admin' ? (user?.userId || (user as any)?.id) : null;
+
     try {
         const indexExists = await opensearchClient.indices.exists({ index: INDICES.REPORTS });
         if (!indexExists.body) {
@@ -208,13 +294,20 @@ router.get('/cumulative-gaps', async (_req: Request, res: Response) => {
         }
 
         // Fetch all ready broad_area reports with content
+        const gapsFilter: any[] = [
+            { term: { type: 'broad_area' } },
+            { term: { status: 'ready' } },
+        ];
+        if (uid) {
+            gapsFilter.push({ bool: { should: [
+                { term: { generatedBy: uid } },
+                { term: { 'generatedBy.keyword': uid } },
+            ], minimum_should_match: 1 } });
+        }
         const result = await opensearchClient.search({
             index: INDICES.REPORTS,
             body: {
-                query: { bool: { must: [
-                    { term: { type: 'broad_area' } },
-                    { term: { status: 'ready' } },
-                ] } },
+                query: { bool: { must: gapsFilter } },
                 size: 200,
                 sort: [{ createdAt: { order: 'desc' } }],
             },
@@ -300,6 +393,9 @@ router.get('/cumulative-gaps', async (_req: Request, res: Response) => {
 // Aggregates broad_area report scores over time so the dashboard can show
 // "system improvement" — a measurable delta between a baseline period and now.
 router.get('/maturity-trend', async (req: Request, res: Response) => {
+    const user = (req as AuthRequest).user;
+    const uid = user?.role !== 'admin' ? (user?.userId || (user as any)?.id) : null;
+
     try {
         const days = Math.max(7, Math.min(365, parseInt(String(req.query.days ?? '90'), 10) || 90));
         const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
@@ -309,19 +405,22 @@ router.get('/maturity-trend', async (req: Request, res: Response) => {
             return res.json({ days, points: [], baseline: null, current: null, deltaPct: 0, sampleCount: 0 });
         }
 
+        const trendMust: any[] = [
+            { term: { type: 'broad_area' } },
+            { term: { status: 'ready' } },
+            { range: { createdAt: { gte: since } } },
+        ];
+        if (uid) {
+            trendMust.push({ bool: { should: [
+                { term: { generatedBy: uid } },
+                { term: { 'generatedBy.keyword': uid } },
+            ], minimum_should_match: 1 } });
+        }
         const result = await opensearchClient.search({
             index: INDICES.REPORTS,
             body: {
                 size: 500,
-                query: {
-                    bool: {
-                        must: [
-                            { term: { type: 'broad_area' } },
-                            { term: { status: 'ready' } },
-                            { range: { createdAt: { gte: since } } },
-                        ],
-                    },
-                },
+                query: { bool: { must: trendMust } },
                 sort: [{ createdAt: { order: 'asc' } }],
                 _source: ['createdAt', 'content.overallScore', 'broadAreaId'],
             },

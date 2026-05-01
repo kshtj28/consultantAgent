@@ -24,12 +24,23 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
         ...options,
         headers: { ...authHeaders(), ...options?.headers },
     });
+    const contentType = res.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+        // Server returned HTML (502, 503, nginx error page, etc.)
+        await res.text().catch(() => '');
+        throw new Error(
+            res.status === 502 || res.status === 503
+                ? 'Server is unavailable. Please try again in a moment.'
+                : `Server returned unexpected response (${res.status}). The backend may be restarting.`
+        );
+    }
     const data = await res.json();
     if (!res.ok) {
         if (data.code === 'LLM_WARMING_UP' || data.code === 'GPU_SCALE_UP_FAILED') {
             throw new LLMWarmingUpError(data.error || 'AI engine is warming up');
         }
-        throw new Error(data.error || `Request failed (${res.status})`);
+        const errorMsg = data.detail ? `${data.error}: ${data.detail}` : (data.error || `Request failed (${res.status})`);
+        throw new Error(errorMsg);
     }
     return data as T;
 }
@@ -973,6 +984,166 @@ export function subscribeToInsightsStream(
     const es = new EventSource(`${API_BASE}/insights/stream?token=${token}`);
 
     es.addEventListener('insights-updated', (e: MessageEvent) => {
+        onEvent(JSON.parse(e.data));
+    });
+
+    es.onerror = (err) => onError?.(err);
+    return es;
+}
+
+// ─── Multi-SME Consolidation ───────────────────────────────
+
+export type ConsolidationStepStatus = 'consensus' | 'majority' | 'conflict' | 'unique';
+
+export interface ConsolidationStakeholder {
+    userId: string;
+    username: string;
+    initials: string;
+    color: string;
+    role: string;
+    seniority: 'junior' | 'mid' | 'senior';
+    yearsExperience: number;
+    sessionStatus: 'done' | 'active' | 'invited';
+    turnsTaken: number;
+    completePct: number;
+    weight: number;
+}
+
+export interface PerSMEStepVersion {
+    userId: string;
+    username: string;
+    initials: string;
+    color: string;
+    role: string;
+    seniority: 'junior' | 'mid' | 'senior';
+    weight: number;
+    description: string;
+    quote: string;
+    recordedAt: string;
+}
+
+export interface ConsolidatedStep {
+    stepId: string;
+    order: number;
+    label: string;
+    description: string;
+    status: ConsolidationStepStatus;
+    confidence: number;
+    mentionedByCount: number;
+    totalSMEs: number;
+    mentionedBy: Array<{ userId: string; username: string; initials: string; color: string }>;
+    perSMEVersions: PerSMEStepVersion[];
+    aiProposedMerge?: { proposed: string; rationale: string };
+    accepted: boolean;
+    acceptedBy?: string;
+    acceptedAt?: string;
+}
+
+export interface ConsolidationMetrics {
+    interviewsCompletedLabel: string;
+    interviewsCompleted: number;
+    interviewsTotal: number;
+    inProgress: number;
+    consensusSteps: number;
+    consensusPct: number;
+    majoritySteps: number;
+    conflicts: number;
+    uniqueSteps: number;
+    avgSemanticAlignment: number;
+    stepsNeedingReview: number;
+}
+
+export interface MultiSMEConsolidation {
+    consolidationId: string;
+    processId: string;
+    processName: string;
+    department: string;
+    division: string;
+    stakeholders: ConsolidationStakeholder[];
+    metrics: ConsolidationMetrics;
+    steps: ConsolidatedStep[];
+    generatedAt: string;
+    updatedAt: string;
+}
+
+export interface AvailableProcess {
+    processId: string;
+    processName: string;
+    smeCount: number;
+    completedCount: number;
+    inProgressCount: number;
+    hasRealData: boolean;
+}
+
+export async function listConsolidationProcesses(): Promise<{ processes: AvailableProcess[] }> {
+    return request(`${API_BASE}/multi-sme-consolidation/processes`);
+}
+
+export async function fetchMultiSMEConsolidation(processId: string): Promise<{ consolidation: MultiSMEConsolidation }> {
+    return request(`${API_BASE}/multi-sme-consolidation/${encodeURIComponent(processId)}`);
+}
+
+export async function regenerateMultiSMEConsolidation(
+    processId: string,
+    opts?: { sessionIds?: string[]; forceMock?: boolean }
+): Promise<{ generating: boolean; processId: string }> {
+    return request(`${API_BASE}/multi-sme-consolidation/${encodeURIComponent(processId)}/generate`, {
+        method: 'POST',
+        body: JSON.stringify(opts || {}),
+    });
+}
+
+export async function acceptConsolidationStep(
+    consolidationId: string,
+    stepId: string
+): Promise<{ consolidation: MultiSMEConsolidation }> {
+    return request(
+        `${API_BASE}/multi-sme-consolidation/${encodeURIComponent(consolidationId)}/steps/${encodeURIComponent(stepId)}/accept`,
+        { method: 'POST' }
+    );
+}
+
+export async function editConsolidationStep(
+    consolidationId: string,
+    stepId: string,
+    description: string
+): Promise<{ consolidation: MultiSMEConsolidation }> {
+    return request(
+        `${API_BASE}/multi-sme-consolidation/${encodeURIComponent(consolidationId)}/steps/${encodeURIComponent(stepId)}/edit`,
+        { method: 'POST', body: JSON.stringify({ description }) }
+    );
+}
+
+export async function inviteSMEToConsolidation(
+    consolidationId: string,
+    invite: { username: string; role: string; seniority?: 'junior' | 'mid' | 'senior' }
+): Promise<{ consolidation: MultiSMEConsolidation }> {
+    return request(
+        `${API_BASE}/multi-sme-consolidation/${encodeURIComponent(consolidationId)}/invite-sme`,
+        { method: 'POST', body: JSON.stringify(invite) }
+    );
+}
+
+export async function generateUnifiedBPMN(
+    consolidationId: string
+): Promise<{ bpmnXml: string; note: string }> {
+    return request(
+        `${API_BASE}/multi-sme-consolidation/${encodeURIComponent(consolidationId)}/generate-bpmn`,
+        { method: 'POST' }
+    );
+}
+
+export function subscribeToConsolidationStream(
+    processId: string,
+    onEvent: (event: any) => void,
+    onError?: (err: Event) => void
+): EventSource {
+    const token = getToken();
+    const es = new EventSource(
+        `${API_BASE}/multi-sme-consolidation/${encodeURIComponent(processId)}/stream?token=${token}`
+    );
+
+    es.addEventListener('consolidation-update', (e: MessageEvent) => {
         onEvent(JSON.parse(e.data));
     });
 

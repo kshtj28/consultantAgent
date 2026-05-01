@@ -131,16 +131,22 @@ router.put('/users/:id', requireRole('admin'), async (req: Request, res: Respons
                     params,
                 },
                 query: {
-                    term: { userId: id },
+                    bool: {
+                        should: [
+                            { term: { userId: id } },
+                            { term: { 'userId.keyword': id } },
+                        ],
+                        minimum_should_match: 1,
+                    },
                 },
             },
         });
 
         if (response.body.updated === 0) {
-            return res.status(404).json({ error: 'User not found' });
+            return res.status(404).json({ error: 'User not found or no changes applied' });
         }
 
-        res.json({ message: 'User updated successfully', updated: response.body.updated });
+        res.json({ success: true, updated: response.body.updated });
     } catch (error: any) {
         console.error('Error updating user:', error);
         res.status(500).json({ error: error.message });
@@ -161,7 +167,13 @@ router.delete('/users/:id', requireRole('admin'), async (req: Request, res: Resp
                     lang: 'painless',
                 },
                 query: {
-                    term: { userId: id },
+                    bool: {
+                        should: [
+                            { term: { userId: id } },
+                            { term: { 'userId.keyword': id } },
+                        ],
+                        minimum_should_match: 1,
+                    },
                 },
             },
         });
@@ -170,7 +182,7 @@ router.delete('/users/:id', requireRole('admin'), async (req: Request, res: Resp
             return res.status(404).json({ error: 'User not found' });
         }
 
-        res.json({ message: 'User deactivated successfully' });
+        res.json({ success: true, message: 'User deactivated successfully' });
     } catch (error: any) {
         console.error('Error deactivating user:', error);
         res.status(500).json({ error: error.message });

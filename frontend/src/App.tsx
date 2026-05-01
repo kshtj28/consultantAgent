@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard';
 import ProcessAnalysis from './pages/ProcessAnalysis';
 import Insights from './pages/Insights';
 import SMEEngagement from './pages/SMEEngagement';
+import MultiSMEConsolidation from './pages/MultiSMEConsolidation';
 import Reports from './pages/Reports';
 import SettingsPage from './pages/SettingsPage';
 import KnowledgeBase from './pages/KnowledgeBase';
@@ -59,6 +60,20 @@ function RequireAuth({ children }: { children: JSX.Element }) {
     return children;
 }
 
+function RequireAdmin({ children }: { children: JSX.Element }) {
+    const { isAuthenticated, user } = useAuth();
+    const location = useLocation();
+
+    if (!isAuthenticated) {
+        return <Navigate to="/login" state={{ from: location }} replace />;
+    }
+    if (user?.role !== 'admin') {
+        return <Navigate to="/dashboard" replace />;
+    }
+
+    return children;
+}
+
 function AppRoutes() {
     return (
         <Routes>
@@ -74,15 +89,17 @@ function AppRoutes() {
             >
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/process-analysis" element={<ProcessAnalysis />} />
-                <Route path="/insights" element={<Insights />} />
+                <Route path="/insights" element={<RequireAdmin><Insights /></RequireAdmin>} />
                 <Route path="/sme-engagement" element={<SMEEngagement />} />
+                <Route path="/sme/consolidation" element={<RequireAdmin><MultiSMEConsolidation /></RequireAdmin>} />
+                <Route path="/sme/consolidation/:processId" element={<RequireAdmin><MultiSMEConsolidation /></RequireAdmin>} />
                 <Route path="/reports" element={<Reports />} />
                 <Route path="/knowledge-base" element={<KnowledgeBase />} />
-                <Route path="/connectors" element={<Connectors />} />
+                <Route path="/connectors" element={<RequireAdmin><Connectors /></RequireAdmin>} />
                 <Route path="/settings" element={<SettingsPage />} />
-                <Route path="/admin/users" element={<UserManagement />} />
-                <Route path="/admin/create-user" element={<CreateUser />} />
-                <Route path="/admin/audit-logs" element={<AuditLogs />} />
+                <Route path="/admin/users" element={<RequireAdmin><UserManagement /></RequireAdmin>} />
+                <Route path="/admin/create-user" element={<RequireAdmin><CreateUser /></RequireAdmin>} />
+                <Route path="/admin/audit-logs" element={<RequireAdmin><AuditLogs /></RequireAdmin>} />
 
                 {/* Default redirect */}
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />

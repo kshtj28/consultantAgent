@@ -25,6 +25,7 @@ export const INDICES = {
   DASHBOARD_METRICS: 'consultant_dashboard_metrics',
   SME_ENGAGEMENT: 'consultant_sme_engagement',
   INSIGHTS: 'consultant_insights',
+  MULTI_SME_CONSOLIDATIONS: 'consultant_multi_sme_consolidations',
 } as const;
 
 // Initialize indices with proper mappings
@@ -392,6 +393,32 @@ export async function initializeIndices(): Promise<void> {
         },
       });
       console.log('✅ Created insights index');
+    }
+
+    // Multi-SME Consolidation index
+    const consolidationsExists = await opensearchClient.indices.exists({ index: INDICES.MULTI_SME_CONSOLIDATIONS });
+    if (!consolidationsExists.body) {
+      await opensearchClient.indices.create({
+        index: INDICES.MULTI_SME_CONSOLIDATIONS,
+        body: {
+          settings: { number_of_shards: 1, number_of_replicas: 0 },
+          mappings: {
+            properties: {
+              consolidationId: { type: 'keyword' },
+              processId: { type: 'keyword' },
+              processName: { type: 'text' },
+              department: { type: 'keyword' },
+              division: { type: 'keyword' },
+              stakeholders: { type: 'object', enabled: true },
+              metrics: { type: 'object', enabled: true },
+              steps: { type: 'object', enabled: true },
+              generatedAt: { type: 'date' },
+              updatedAt: { type: 'date' },
+            },
+          },
+        },
+      });
+      console.log('✅ Created multi_sme_consolidations index');
     }
 
     console.log('✅ All OpenSearch indices initialized');

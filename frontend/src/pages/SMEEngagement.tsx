@@ -52,14 +52,14 @@ export default function SMEEngagement() {
     const avgEngagement = users.length > 0
         ? Math.round(users.reduce((sum, u) => sum + (u.engagementScore || 0), 0) / users.length)
         : 0;
-    const activeUsers = users.filter(u => (u.engagementScore || 0) > 30);
+    const activeUsers = users.filter(u => u.lastActive && (Date.now() - new Date(u.lastActive).getTime()) < 7 * 24 * 60 * 60 * 1000);
     const participationRate = users.length > 0
         ? Math.round((activeUsers.length / users.length) * 100)
         : 0;
     // "Responses" stat = total assessment sessions taken (what testers expect),
     // not Q&A pair count which doubles/inflates the number.
     const totalResponses = users.reduce((sum, u) => sum + (u.sessionsTaken ?? 0), 0);
-    const lowEngagement = users.filter(u => (u.engagementScore || 0) < 40).length;
+    const lowEngagement = users.filter(u => !u.lastActive || (Date.now() - new Date(u.lastActive).getTime()) >= 7 * 24 * 60 * 60 * 1000).length;
 
     const stats = [
         { icon: <Users size={18} />, label: 'Total SMEs', value: String(totalSMEs), subtitle: `${avgEngagement}% avg engagement` },
@@ -143,7 +143,14 @@ export default function SMEEngagement() {
                                         <td>{user.sessionsTaken ?? 0}</td>
                                         <td className="sme-table__muted">{user.lastActive ? formatRelativeTime(user.lastActive) : '—'}</td>
                                         <td>
-                                            <StatusBadge label={(user.engagementScore || 0) > 30 ? t('sme.active') : t('sme.inactive')} />
+                                            <StatusBadge
+                                                label={user.lastActive && (Date.now() - new Date(user.lastActive).getTime()) < 7 * 24 * 60 * 60 * 1000
+                                                    ? t('sme.active')
+                                                    : t('sme.inactive')}
+                                                variant={user.lastActive && (Date.now() - new Date(user.lastActive).getTime()) < 7 * 24 * 60 * 60 * 1000
+                                                    ? 'success'
+                                                    : 'neutral'}
+                                            />
                                         </td>
                                     </tr>
                                 ))}

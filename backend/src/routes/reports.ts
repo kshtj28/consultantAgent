@@ -95,6 +95,17 @@ router.get('/', async (req: Request, res: Response) => {
             must.push({ term: { type } });
         }
 
+        // Non-admin users only see their own reports
+        if (user?.role !== 'admin') {
+            const uid = user?.userId || user?.id;
+            if (uid) {
+                must.push({ bool: { should: [
+                    { term: { generatedBy: uid } },
+                    { term: { 'generatedBy.keyword': uid } },
+                ], minimum_should_match: 1 } });
+            }
+        }
+
         const query = must.length > 0 ? { bool: { must } } : { match_all: {} };
 
         const result = await opensearchClient.search({
@@ -125,15 +136,27 @@ router.get('/', async (req: Request, res: Response) => {
 // GET /api/reports/stats
 router.get('/stats', async (req: Request, res: Response) => {
     try {
+        const user = (req as AuthRequest).user;
         const indexExists = await opensearchClient.indices.exists({ index: INDICES.REPORTS });
         if (!indexExists.body) {
             return res.json({ totalReports: 0, thisMonth: 0, totalDownloads: 0, storageUsed: '0 KB' });
         }
 
+        // Build base filter — non-admins only see their own reports
+        const baseFilter: any = user?.role !== 'admin'
+            ? (() => {
+                const uid = user?.userId || user?.id;
+                return uid ? { bool: { should: [
+                    { term: { generatedBy: uid } },
+                    { term: { 'generatedBy.keyword': uid } },
+                ], minimum_should_match: 1 } } : { match_all: {} };
+              })()
+            : { match_all: {} };
+
         // Total reports count
         const countResult = await opensearchClient.count({
             index: INDICES.REPORTS,
-            body: { query: { match_all: {} } },
+            body: { query: baseFilter },
         });
         const totalReports = countResult.body.count || 0;
 
@@ -144,8 +167,11 @@ router.get('/stats', async (req: Request, res: Response) => {
             index: INDICES.REPORTS,
             body: {
                 query: {
-                    range: {
-                        createdAt: { gte: startOfMonth },
+                    bool: {
+                        must: [
+                            baseFilter,
+                            { range: { createdAt: { gte: startOfMonth } } },
+                        ],
                     },
                 },
             },
@@ -156,7 +182,7 @@ router.get('/stats', async (req: Request, res: Response) => {
         const aggResult = await opensearchClient.search({
             index: INDICES.REPORTS,
             body: {
-                query: { match_all: {} },
+                query: baseFilter,
                 size: 0,
                 aggs: {
                     totalDownloads: {
@@ -171,7 +197,7 @@ router.get('/stats', async (req: Request, res: Response) => {
         const allReports = await opensearchClient.search({
             index: INDICES.REPORTS,
             body: {
-                query: { match_all: {} },
+                query: baseFilter,
                 size: 10000,
                 _source: ['fileSize'],
             },

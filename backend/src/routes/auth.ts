@@ -171,23 +171,25 @@ router.post('/login', async (req: Request, res: Response) => {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
-        // Update last login
+        // Update last login and ensure status is active
         try {
             await opensearchClient.updateByQuery({
                 index: INDICES.USERS,
                 body: {
                     script: {
-                        source: 'ctx._source.lastLoginAt = params.now',
+                        source: 'ctx._source.lastLoginAt = params.now; ctx._source.status = "active"',
                         lang: 'painless',
-                        params: {
-                            now: new Date().toISOString()
-                        }
+                        params: { now: new Date().toISOString() }
                     },
                     query: {
-                        term: {
-                            userId: user.userId
-                        }
-                    }
+                        bool: {
+                            should: [
+                                { term: { userId: user.userId } },
+                                { term: { 'userId.keyword': user.userId } },
+                            ],
+                            minimum_should_match: 1,
+                        },
+                    },
                 }
             });
         } catch (updateError) {

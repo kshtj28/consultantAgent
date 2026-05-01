@@ -477,6 +477,54 @@ export const translations: Record<string, Record<string, string>> = {
         'sme.uploading': 'Uploading…',
         'sme.uploadDrop': 'Drop files here or click to upload',
         'sme.deleteDoc': 'Delete this document?',
+        // SME Interview group + Multi-SME Consolidation
+        'nav.smeInterview': 'SME Interview',
+        'nav.conductInterview': 'Conduct Interview',
+        'nav.multiSMEConsolidation': 'Multi-SME Consolidation',
+        'consolidation.title': 'Multi-SME Consolidation',
+        'consolidation.subtitleTpl': '{department} · {count} stakeholders · Merge divergent views into a unified process flow',
+        'consolidation.inviteSME': 'Invite SME',
+        'consolidation.generateBPMN': 'Generate unified BPMN',
+        'consolidation.metricInterviewsCompleted': 'Interviews Completed',
+        'consolidation.metricInterviewsHelper': '{n} in progress',
+        'consolidation.metricConsensusSteps': 'Consensus Steps',
+        'consolidation.metricConsensusHelper': '{pct}% of flow',
+        'consolidation.metricMajority': 'Majority (divergent)',
+        'consolidation.metricMajorityHelper': 'Needs facilitator review',
+        'consolidation.metricConflicts': 'Conflicts',
+        'consolidation.metricConflictsHelper': 'Requires resolution',
+        'consolidation.metricAlignment': 'Avg. Semantic Alignment',
+        'consolidation.metricAlignmentHelper': 'Across all steps',
+        'consolidation.stakeholderRoster': 'Stakeholder Roster',
+        'consolidation.rosterDeptTpl': '{department} Department',
+        'consolidation.statusDone': 'Done',
+        'consolidation.statusActive': 'Active',
+        'consolidation.statusInvited': 'Invited',
+        'consolidation.turns': 'turns',
+        'consolidation.complete': 'complete',
+        'consolidation.consolidatedFlow': 'Consolidated Process Flow',
+        'consolidation.stepsNeedReview': '{n} steps need review',
+        'consolidation.filterAll': 'All',
+        'consolidation.filterConsensus': 'Consensus',
+        'consolidation.filterMajority': 'Majority',
+        'consolidation.filterConflict': 'Conflict',
+        'consolidation.filterUnique': 'Unique',
+        'consolidation.confidence': 'Confidence:',
+        'consolidation.mentionedByTpl': 'Mentioned by {n}/{total} SMEs',
+        'consolidation.accepted': 'Accepted',
+        'consolidation.perSMEVersion': 'Per-SME version',
+        'consolidation.weightTpl': '{seniority} · weight {weight}×',
+        'consolidation.aiProposedMerge': 'AI-proposed merge',
+        'consolidation.acceptMerge': 'Accept merge',
+        'consolidation.editVersion': 'Edit version',
+        'consolidation.scheduleWorkshop': 'Schedule workshop',
+        'consolidation.howItWorks': 'How consolidation works',
+        'consolidation.howItWorksBody': 'Each SME answers the same structured interview. An LLM extracts process steps from every transcript, embeds them semantically, and clusters equivalent steps across interviews. The clustering produces consensus (all agree), majority (most agree), conflict (meaningful divergence), or unique (only one SME mentioned it). Senior-SME weighting is applied, and the facilitator can accept, override, or edit the AI-proposed merge.',
+        'consolidation.bpmnComingSoon': 'Unified BPMN generation is part of the follow-up work — a placeholder is returned for now.',
+        'consolidation.editPrompt': 'Edit the consolidated description for this step:',
+        'consolidation.invitePrompt': 'Invite SME — full name:',
+        'consolidation.inviteRolePrompt': 'Role / title:',
+        'consolidation.empty': 'No consolidation generated yet.',
         // TopBar
         'topbar.currentProject': 'Current Project:',
         'topbar.searchPlaceholder': 'Search processes...',
@@ -2702,7 +2750,7 @@ export const translations: Record<string, Record<string, string>> = {
 interface LanguageContextType {
     language: string;
     setLanguage: (lang: string) => void;
-    t: (key: string) => string;
+    t: (key: string, vars?: Record<string, string | number>) => string;
     direction: 'ltr' | 'rtl';
 }
 
@@ -2722,8 +2770,10 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
         document.documentElement.setAttribute('lang', lang);
     };
 
-    const t = (key: string): string => {
-        return translations[language]?.[key] || translations[DEFAULT_LANGUAGE]?.[key] || key;
+    const t = (key: string, vars?: Record<string, string | number>): string => {
+        const raw = translations[language]?.[key] || translations[DEFAULT_LANGUAGE]?.[key] || key;
+        if (!vars) return raw;
+        return raw.replace(/\{(\w+)\}/g, (_, name) => (vars[name] !== undefined ? String(vars[name]) : `{${name}}`));
     };
 
     return (
