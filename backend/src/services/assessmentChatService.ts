@@ -8,6 +8,7 @@
 import { opensearchClient, INDICES } from '../config/database';
 import { getProjectContext } from './settingsService';
 import { fetchInsights } from './insightsService';
+import { getFullERPContextBlock } from './erpEnrichmentService';
 
 export interface AssessmentContext {
     projectContext: string;
@@ -16,6 +17,7 @@ export interface AssessmentContext {
     sessionHighlights: string;
     insights: string;
     metrics: string;
+    erpData: string;
 }
 
 /**
@@ -23,13 +25,14 @@ export interface AssessmentContext {
  * The result is injected into the LLM prompt so answers are grounded in real data.
  */
 export async function buildAssessmentContext(userQuestion: string): Promise<AssessmentContext> {
-    const [projectCtx, gaps, reports, sessions, insightsData, metricsData] = await Promise.all([
+    const [projectCtx, gaps, reports, sessions, insightsData, metricsData, erpBlock] = await Promise.all([
         getProjectContext().catch(() => ({ projectName: '', clientName: '', erpPath: '', industry: '' })),
         fetchGapData(),
         fetchReportData(),
         fetchSessionHighlights(),
         fetchInsightsData(),
         fetchMetricsData(),
+        getFullERPContextBlock().catch(() => null),
     ]);
 
     // Project context
@@ -147,7 +150,9 @@ export async function buildAssessmentContext(userQuestion: string): Promise<Asse
         ].join(' | ');
     }
 
-    return { projectContext, gapSummary, reportContent, sessionHighlights, insights, metrics };
+    const erpData = erpBlock || 'No ERP connector configured.';
+
+    return { projectContext, gapSummary, reportContent, sessionHighlights, insights, metrics, erpData };
 }
 
 /**
@@ -164,6 +169,9 @@ ${ctx.projectContext}
 
 METRICS SNAPSHOT:
 ${ctx.metrics || 'Not yet computed.'}
+
+ERP SYSTEM DATA:
+${ctx.erpData}
 
 GAP REGISTER:
 ${ctx.gapSummary}

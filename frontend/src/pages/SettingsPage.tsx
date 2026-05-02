@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Settings, Bell, Shield, Database, Loader } from 'lucide-react';
+import { Settings, Bell, Shield, Database, Loader, Plug, CheckCircle2, XCircle, FlaskConical } from 'lucide-react';
 import {
     fetchLanguages,
     fetchDomains,
@@ -13,6 +13,9 @@ import {
     exportProjectData,
     archiveAssessments,
     deleteProjectData,
+    getERPConnectionSettings,
+    saveERPConnectionSettings,
+    testERPConnection,
     type Language,
     type Domain,
     type ModelConfig,
@@ -26,6 +29,8 @@ interface ToggleState {
     smeResponseUpdates: boolean;
     weeklySummary: boolean;
 }
+
+interface AvailableConnector { id: string; name: string; vendor: string; protocol: string; }
 
 export default function SettingsPage() {
     const { isAdmin } = useAuth();
@@ -47,6 +52,15 @@ export default function SettingsPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [saveMsg, setSaveMsg] = useState('');
+    // ERP Connection state
+    const [erpConnectorId, setErpConnectorId] = useState('sap_s4hana');
+    const [erpMode, setErpMode] = useState<'demo' | 'live'>('demo');
+    const [erpBaseUrl, setErpBaseUrl] = useState('');
+    const [erpUsername, setErpUsername] = useState('');
+    const [erpPassword, setErpPassword] = useState('');
+    const [availableConnectors, setAvailableConnectors] = useState<AvailableConnector[]>([]);
+    const [erpTestResult, setErpTestResult] = useState<{ success: boolean; message: string } | null>(null);
+    const [erpTesting, setErpTesting] = useState(false);
     const [toggles, setToggles] = useState<ToggleState>({
         criticalRiskAlerts: true,
         smeResponseUpdates: true,
@@ -54,8 +68,11 @@ export default function SettingsPage() {
     });
 
     useEffect(() => {
-        Promise.all([fetchLanguages(), fetchDomains(), getActiveDomain(), fetchModels(), fetchProjectSettings()])
-            .then(([langRes, domRes, domainRes, modelRes, settingsRes]) => {
+        Promise.all([
+            fetchLanguages(), fetchDomains(), getActiveDomain(),
+            fetchModels(), fetchProjectSettings(), getERPConnectionSettings(),
+        ])
+            .then(([langRes, domRes, domainRes, modelRes, settingsRes, erpRes]) => {
                 setLanguages(langRes.languages || []);
                 setDomains(domRes.domains || []);
                 if (domainRes.domain) {
@@ -70,7 +87,6 @@ export default function SettingsPage() {
                             : modelRes.defaultModel.id || '',
                     );
                 }
-                // Populate project settings
                 if (settingsRes) {
                     setProjectName(settingsRes.projectName || '');
                     setClientName(settingsRes.clientName || '');
@@ -91,6 +107,17 @@ export default function SettingsPage() {
                         else setSessionTimeout('1 hour');
                     }
                 }
+                // ERP connection
+                if (erpRes?.config) {
+                    setErpConnectorId(erpRes.config.activeConnectorId || 'sap_s4hana');
+                    setErpMode(erpRes.config.mode || 'demo');
+                    setErpBaseUrl(erpRes.config.baseUrl || '');
+                    setErpUsername(erpRes.config.username || '');
+                    setErpPassword(erpRes.config.password || '');
+                }
+                if (erpRes?.availableConnectors) {
+                    setAvailableConnectors(erpRes.availableConnectors);
+                }
             })
             .catch(() => {})
             .finally(() => setLoading(false));
@@ -108,27 +135,23 @@ export default function SettingsPage() {
                 const res = await setActiveDomain(selectedDomainId);
                 setCurrentDomain(res.domain);
             }
-            if (selectedLanguage !== language) {
-                setLanguage(selectedLanguage);
-            }
-            // Save model preference (available to all users)
-            if (selectedModel) {
-                await saveModelPreference(selectedModel);
-            }
-            // Save project settings (admin only for project-level fields)
+            if (selectedLanguage !== language) setLanguage(selectedLanguage);
+            if (selectedModel) await saveModelPreference(selectedModel);
             if (isAdmin) {
                 const timeoutMinutes =
                     sessionTimeout === '15 minutes' ? 15 :
                     sessionTimeout === '1 hour' ? 60 : 30;
                 await updateProjectSettings({
-                    projectName,
-                    clientName,
-                    erpPath,
-                    assessmentPeriod,
-                    timeZone,
-                    notifications: toggles,
-                    sessionTimeout: timeoutMinutes,
-                    defaultModel: selectedModel,
+                    projectName, clientName, erpPath, assessmentPeriod, timeZone,
+                    notifications: toggles, sessionTimeout: timeoutMinutes, defaultModel: selectedModel,
+                });
+                // Save ERP connection config
+                await saveERPConnectionSettings({
+                    activeConnectorId: erpConnectorId,
+                    mode: erpMode,
+                    baseUrl: erpBaseUrl,
+                    username: erpUsername,
+                    password: erpPassword !== '••••••••' ? erpPassword : undefined,
                 });
             }
             setSaveMsg(t('settings.saved'));
@@ -139,6 +162,19 @@ export default function SettingsPage() {
             setSaving(false);
         }
     };
+
+    async function handleTestERPConnection() {
+        setErpTesting(true);
+        setErpTestResult(null);
+        try {
+            const result = await testERPConnection({ activeConnectorId: erpConnectorId, mode: erpMode, baseUrl: erpBaseUrl });
+            setErpTestResult(result);
+        } catch (err: any) {
+            setErpTestResult({ success: false, message: err.message });
+        } finally {
+            setErpTesting(false);
+        }
+    }
 
     if (loading) {
         return (
@@ -380,6 +416,117 @@ export default function SettingsPage() {
                         </select>
                     </label>
                 </section>
+
+                {/* ERP Connector (admin only) */}
+                {isAdmin && (
+                    <section className="settings-section">
+                        <div className="settings-section__header">
+                            <Plug size={18} className="settings-section__icon" />
+                            <h3>ERP Data Connector</h3>
+                        </div>
+
+                        {/* Connector selector */}
+                        <label className="settings-field">
+                            <span className="settings-field__label">ERP System</span>
+                            <select
+                                className="settings-field__input"
+                                value={erpConnectorId}
+                                onChange={e => { setErpConnectorId(e.target.value); setErpTestResult(null); }}
+                            >
+                                {availableConnectors.length > 0
+                                    ? availableConnectors.map(c => (
+                                        <option key={c.id} value={c.id}>{c.name} ({c.vendor})</option>
+                                    ))
+                                    : <option value="sap_s4hana">SAP S/4HANA</option>
+                                }
+                            </select>
+                        </label>
+
+                        {/* Demo / Live toggle */}
+                        <div className="settings-field">
+                            <span className="settings-field__label">Connection Mode</span>
+                            <div className="erp-mode-toggle">
+                                <button
+                                    className={`erp-mode-btn ${erpMode === 'demo' ? 'erp-mode-btn--active' : ''}`}
+                                    onClick={() => { setErpMode('demo'); setErpTestResult(null); }}
+                                    type="button"
+                                >
+                                    <FlaskConical size={13} /> Demo Data
+                                </button>
+                                <button
+                                    className={`erp-mode-btn ${erpMode === 'live' ? 'erp-mode-btn--active erp-mode-btn--live' : ''}`}
+                                    onClick={() => { setErpMode('live'); setErpTestResult(null); }}
+                                    type="button"
+                                >
+                                    <Plug size={13} /> Live OData
+                                </button>
+                            </div>
+                            <span className="settings-field__desc">
+                                {erpMode === 'demo'
+                                    ? 'Uses built-in fixture data — no network connection required. Perfect for demos and development.'
+                                    : 'Connects to your real ERP via OData/REST. Provide the base URL and service account credentials below.'}
+                            </span>
+                        </div>
+
+                        {/* Live-mode fields */}
+                        {erpMode === 'live' && (
+                            <>
+                                <label className="settings-field">
+                                    <span className="settings-field__label">Base URL</span>
+                                    <input
+                                        type="url"
+                                        className="settings-field__input"
+                                        value={erpBaseUrl}
+                                        onChange={e => setErpBaseUrl(e.target.value)}
+                                        placeholder="https://your-erp.example.com/sap/opu/odata/sap"
+                                    />
+                                </label>
+                                <label className="settings-field">
+                                    <span className="settings-field__label">Username</span>
+                                    <input
+                                        type="text"
+                                        className="settings-field__input"
+                                        value={erpUsername}
+                                        onChange={e => setErpUsername(e.target.value)}
+                                        placeholder="service_account"
+                                        autoComplete="off"
+                                    />
+                                </label>
+                                <label className="settings-field">
+                                    <span className="settings-field__label">Password</span>
+                                    <input
+                                        type="password"
+                                        className="settings-field__input"
+                                        value={erpPassword}
+                                        onChange={e => setErpPassword(e.target.value)}
+                                        placeholder="••••••••"
+                                        autoComplete="new-password"
+                                    />
+                                </label>
+                            </>
+                        )}
+
+                        {/* Test connection */}
+                        <div className="erp-test-row">
+                            <button
+                                className="settings-btn settings-btn--primary"
+                                onClick={handleTestERPConnection}
+                                disabled={erpTesting}
+                                type="button"
+                            >
+                                {erpTesting
+                                    ? <><Loader size={13} className="spin" style={{ display: 'inline', marginRight: 5 }} />Testing…</>
+                                    : 'Test Connection'}
+                            </button>
+                            {erpTestResult && (
+                                <div className={`erp-test-result ${erpTestResult.success ? 'erp-test-result--ok' : 'erp-test-result--fail'}`}>
+                                    {erpTestResult.success ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
+                                    <span>{erpTestResult.message}</span>
+                                </div>
+                            )}
+                        </div>
+                    </section>
+                )}
 
                 {/* Data Management (admin only) */}
                 {isAdmin && (

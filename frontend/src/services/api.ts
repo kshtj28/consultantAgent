@@ -934,6 +934,46 @@ export async function syncConnector(id: string): Promise<{ connector: ConnectorS
     });
 }
 
+// ─── ERP Connection Settings ──────────────────────────────────
+
+export interface ERPConnectionConfig {
+    activeConnectorId: string;
+    mode: 'demo' | 'live';
+    baseUrl: string;
+    username: string;
+    password: string;
+    updatedAt?: string;
+}
+
+export async function getERPConnectionSettings(): Promise<{
+    config: ERPConnectionConfig;
+    availableConnectors: { id: string; name: string; vendor: string; protocol: string }[];
+}> {
+    return request(`${API_BASE}/settings/erp-connection`, { headers: authHeaders() });
+}
+
+export async function saveERPConnectionSettings(
+    config: Partial<ERPConnectionConfig> & { password?: string | undefined }
+): Promise<{ config: ERPConnectionConfig }> {
+    return request(`${API_BASE}/settings/erp-connection`, {
+        method: 'PUT',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify(config),
+    });
+}
+
+export async function testERPConnection(params: {
+    activeConnectorId: string;
+    mode: string;
+    baseUrl?: string;
+}): Promise<{ success: boolean; message: string }> {
+    return request(`${API_BASE}/settings/erp-connection/test`, {
+        method: 'POST',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify(params),
+    });
+}
+
 export async function computeInsightsData(sessionId?: string): Promise<{ insights: any }> {
     return request(`${API_BASE}/insights/compute`, {
         method: 'POST',

@@ -432,6 +432,12 @@ export async function executeDataPipeline(input: {
     ]);
     console.log('[pipeline] Phase 2 complete.');
 
+    // Phase 2.5: Recompute metrics AGAIN now that area reports are saved as 'ready'
+    // This ensures the dashboard stats reflect the completed reports via SSE immediately.
+    runMetricsComputation().catch(err =>
+      console.error('[pipeline] Post-report metrics recompute failed (non-fatal):', err.message)
+    );
+
     // Phase 3: Check pending regeneration
     await runPendingRegenerationCheck(input).catch(err => { console.error('[pipeline] Pending regeneration check failed (non-fatal):', err.message); });
     console.log('[pipeline] Pipeline completed successfully.');

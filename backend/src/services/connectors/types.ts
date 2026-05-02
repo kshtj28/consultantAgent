@@ -13,7 +13,9 @@ export type CanonicalEntityName =
   | 'gl_entry'
   | 'vendor'
   | 'customer'
-  | 'material';
+  | 'material'
+  | 'invoice'
+  | 'ar_item';
 
 export type FieldType = 'string' | 'number' | 'date' | 'currency' | 'boolean';
 

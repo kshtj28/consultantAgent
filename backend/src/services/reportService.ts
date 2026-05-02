@@ -5,6 +5,22 @@ import { buildReadinessReportPrompt, buildGapReportPrompt } from '../prompts/rep
 import { getLanguageInstructions } from './languageService';
 import { getProjectContext } from './settingsService';
 import { searchKnowledgeBase } from './knowledgeBase';
+import { getSubAreaERPEvidence } from './erpEnrichmentService';
+
+/** Pull ERP evidence for all assessed sub-areas and format as a prompt section. */
+async function buildReportERPEvidence(session: any): Promise<string> {
+    try {
+        const evidenceParts: string[] = [];
+        for (const areaId of (session.selectedAreas || [])) {
+            const evidence = await getSubAreaERPEvidence(areaId).catch(() => null);
+            if (evidence) evidenceParts.push(evidence.contextBlock);
+        }
+        if (!evidenceParts.length) return '';
+        return `\n\n## ERP SYSTEM DATA (use as quantitative evidence for gaps — cross-reference SME claims against these figures)\n${evidenceParts.join('\n\n---\n\n')}`;
+    } catch {
+        return '';
+    }
+}
 
 /** Pull relevant KB chunks for the assessed areas and format as a prompt block. */
 async function buildReportKBContext(session: any, limit: number = 6): Promise<string> {
@@ -67,10 +83,24 @@ export interface GapItem {
     priority: number;
 }
 
+export interface GapReportERPEvidence {
+    connectorId: string;
+    connectorName: string;
+    mode: 'demo' | 'live';
+    entities: Array<{
+        entityName: string;
+        displayName: string;
+        rowCount: number;
+        metrics: Record<string, any>;
+    }>;
+    computedAt: string;
+}
+
 export interface GapReport {
     sessionId: string;
     generatedAt: Date;
     executiveSummary: string;
+    erpEvidence?: GapReportERPEvidence[] | null;
     gaps: GapItem[];
     quickWins: GapItem[];
     roadmap: {
@@ -126,6 +156,7 @@ export interface ConsolidatedReport {
     // From GapReport
     gaps: GapItem[];
     quickWins: GapItem[];
+    erpEvidence?: GapReportERPEvidence[] | null;
     roadmap: {
         phase: string;
         duration: string;
@@ -255,14 +286,23 @@ export async function generateGapReport(sessionId: string, modelId?: string): Pr
     // Include ERP migration path so gaps are benchmarked against the correct target system
     const projectCtx = await getProjectContext();
 
-    const kbContext = await buildReportKBContext(session);
+    const [kbContext, erpEvidenceBlock, erpEvidenceData] = await Promise.all([
+        buildReportKBContext(session),
+        buildReportERPEvidence(session),
+        // Collect structured evidence for the UI panel (per sub-area)
+        Promise.all(
+            (session.selectedAreas || []).map((areaId: string) =>
+                getSubAreaERPEvidence(areaId).catch(() => null)
+            )
+        ).then(results => results.filter(Boolean) as any[]),
+    ]);
 
     const prompt = `${languageInstructions}\n\n${buildGapReportPrompt(
         answerContext,
         session.conversationContext.identifiedGaps.join(', '),
         session.conversationContext.painPoints.join(', '),
         projectCtx.erpPath || ''
-    )}${kbContext}`;
+    )}${kbContext}${erpEvidenceBlock}`;
 
     const response = await generateCompletion(modelId || null, [
         { role: 'user', content: prompt }
@@ -461,6 +501,7 @@ export async function generateGapReport(sessionId: string, modelId?: string): Pr
         sessionId,
         generatedAt: new Date(),
         executiveSummary: parsed.executiveSummary || 'Gap analysis completed.',
+        erpEvidence: erpEvidenceData.length > 0 ? erpEvidenceData : null,
         gaps: sortedGaps,
         quickWins,
         roadmap: parsed.roadmap || [],
@@ -531,6 +572,7 @@ export async function generateConsolidatedReport(sessionId: string, modelId?: st
         quickWins: gap.quickWins,
         roadmap: gap.roadmap,
         riskAssessment: gap.riskAssessment,
+        erpEvidence: gap.erpEvidence,
         chartData: {
             pieChart: readiness.chartData.pieChart,
             maturityRadar: gap.chartData.maturityRadar,

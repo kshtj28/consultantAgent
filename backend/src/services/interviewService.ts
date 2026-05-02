@@ -19,6 +19,7 @@ import {
 import { getLanguageInstructions, getYesNoOptions, isValidLanguage, LanguageCode } from './languageService';
 import { getProjectContext, getEffectiveModel } from './settingsService';
 import { searchKnowledgeBase, searchSessionAttachments } from './knowledgeBase';
+import { getSubAreaERPEvidence } from './erpEnrichmentService';
 
 /** Retrieve top KB chunks for `query` and format them as a prompt block.
  *  Returns '' on any failure so callers can safely concat unconditionally. */
@@ -468,11 +469,17 @@ export async function generateNextInterviewQuestion(
 
     // Pull relevant excerpts from uploaded knowledge base documents (global) AND
     // any files the user attached to answers in *this* session (priority).
+    // Also fetch ERP evidence for this sub-area to ground questions in real data.
     const kbQuery = `${subArea.name} ${broadAreaName} ${subArea.description ?? ''}`.trim();
-    const [kbContext, sessionAttachContext] = await Promise.all([
+    const [kbContext, sessionAttachContext, erpEvidence] = await Promise.all([
         buildKnowledgeBaseContext(kbQuery, 4),
         buildSessionAttachmentContext(session.sessionId, kbQuery, 4),
+        getSubAreaERPEvidence(targetSubAreaId).catch(() => null),
     ]);
+
+    const erpEvidenceBlock = erpEvidence
+        ? `\n## ERP SYSTEM DATA FOR THIS PROCESS AREA\nUse these figures to probe the SME — ask whether their stated metrics align with these system readings, or to explain discrepancies.\n${erpEvidence.contextBlock}\n`
+        : '';
 
     const sessionLang = (session.language as LanguageCode) ?? 'en';
 
@@ -509,7 +516,7 @@ ${maturityBenchmarks}
 
 ## KEY METRICS & KPIs TO PROBE (when relevant)
 ${kpiGuidance}
-${sessionAttachContext}${kbContext}
+${erpEvidenceBlock}${sessionAttachContext}${kbContext}
 ## CONVERSATION SO FAR
 Previous Q&A in ${subArea.name}:
 ${previousQA || 'No previous questions yet — start with the fundamentals.'}

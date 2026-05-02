@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Download, AlertTriangle, Zap, TrendingUp, Shield, Map, BarChart3, Network, Activity } from 'lucide-react';
+import { Download, AlertTriangle, Zap, TrendingUp, Shield, Map, BarChart3, Network, Activity, Database, FlaskConical, Plug } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 import { MaturityRadarChart } from './charts/MaturityRadarChart';
 import { ImpactEffortBubble } from './charts/ImpactEffortBubble';
@@ -23,10 +23,27 @@ export interface GapItem {
     priority: number;
 }
 
+export interface ERPEntityEvidence {
+    entityName: string;
+    displayName: string;
+    rowCount: number;
+    metrics: Record<string, any>;
+}
+
+export interface GapReportERPEvidence {
+    connectorId: string;
+    connectorName: string;
+    mode: 'demo' | 'live';
+    subAreaId: string;
+    entities: ERPEntityEvidence[];
+    computedAt: string;
+}
+
 export interface GapReport {
     sessionId: string;
     generatedAt: string;
     executiveSummary: string;
+    erpEvidence?: GapReportERPEvidence[] | null;
     gaps: GapItem[];
     quickWins: GapItem[];
     roadmap: { phase: string; duration: string; items: string[] }[];
@@ -178,7 +195,100 @@ export function GapAnalysisReport({ report }: GapAnalysisReportProps) {
                             </p>
                         </div>
 
-                        {/* Quick wins */}
+                        {/* ERP Evidence panel */}
+                {report.erpEvidence && report.erpEvidence.length > 0 && (() => {
+                    // Merge all entities across sub-areas, deduplicate by displayName
+                    const allEntities: ERPEntityEvidence[] = [];
+                    const seen = new Set<string>();
+                    const firstEvidence = report.erpEvidence[0];
+                    for (const ev of report.erpEvidence) {
+                        for (const ent of ev.entities) {
+                            if (!seen.has(ent.displayName)) {
+                                seen.add(ent.displayName);
+                                allEntities.push(ent);
+                            }
+                        }
+                    }
+                    return (
+                        <div style={{
+                            background: 'var(--surface)',
+                            border: '1px solid rgba(99,102,241,0.3)',
+                            borderRadius: '12px',
+                            padding: '20px',
+                            position: 'relative',
+                            overflow: 'hidden',
+                        }}>
+                            {/* Accent bar */}
+                            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: 'linear-gradient(90deg,#6366f1,#8b5cf6,#06b6d4)' }} />
+
+                            {/* Header */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <Database size={15} color="#6366f1" />
+                                    <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text)' }}>
+                                        ERP System Evidence
+                                    </span>
+                                    <span style={{
+                                        display: 'inline-flex', alignItems: 'center', gap: '4px',
+                                        padding: '2px 8px', borderRadius: '20px', fontSize: '0.68rem', fontWeight: 600,
+                                        background: firstEvidence.mode === 'demo' ? 'rgba(99,102,241,0.15)' : 'rgba(22,163,74,0.15)',
+                                        color: firstEvidence.mode === 'demo' ? '#818cf8' : '#4ade80',
+                                        border: `1px solid ${firstEvidence.mode === 'demo' ? 'rgba(99,102,241,0.3)' : 'rgba(22,163,74,0.3)'}`,
+                                    }}>
+                                        {firstEvidence.mode === 'demo' ? <FlaskConical size={10} /> : <Plug size={10} />}
+                                        {firstEvidence.mode === 'demo' ? 'Demo Data' : 'Live'}
+                                    </span>
+                                </div>
+                                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                                    {firstEvidence.connectorName}
+                                </span>
+                            </div>
+
+                            {/* Entity metric tiles */}
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+                                {allEntities.map(ent => (
+                                    <div key={ent.displayName} style={{
+                                        background: '#ffffff06',
+                                        border: '1px solid var(--border)',
+                                        borderRadius: '8px',
+                                        padding: '12px 14px',
+                                    }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                                            <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text)' }}>
+                                                {ent.displayName}
+                                            </span>
+                                            <span style={{
+                                                fontSize: '0.65rem', color: '#6366f1',
+                                                background: 'rgba(99,102,241,0.12)',
+                                                padding: '1px 6px', borderRadius: '10px',
+                                            }}>
+                                                {ent.rowCount} records
+                                            </span>
+                                        </div>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                            {Object.entries(ent.metrics).slice(0, 4).map(([k, v]) => (
+                                                <div key={k} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                    <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                                                        {k.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())}
+                                                    </span>
+                                                    <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text)' }}>
+                                                        {Array.isArray(v) ? v.join(', ') : typeof v === 'number' ? v.toLocaleString() : String(v)}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <p style={{ margin: '12px 0 0', fontSize: '0.7rem', color: 'var(--text-secondary)', opacity: 0.7 }}>
+                                Data retrieved from {firstEvidence.connectorName} · Used to cross-reference SME interview claims in this report
+                            </p>
+                        </div>
+                    );
+                })()}
+
+                {/* Quick wins */}
                         {report.quickWins.length > 0 && (
                             <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '10px', padding: '20px' }}>
                                 <h4 style={{ margin: '0 0 12px', fontSize: '0.9rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: '6px' }}>

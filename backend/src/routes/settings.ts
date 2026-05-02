@@ -3,6 +3,8 @@ import { opensearchClient, INDICES } from '../config/database';
 import { authenticateToken, requireAdmin } from '../middleware/auth';
 import { getAvailableModels } from '../config/env';
 import { SETTINGS_DOC_ID, SETTINGS_INDEX } from '../services/settingsService';
+import { getERPConnectionSettings, saveERPConnectionSettings } from '../services/connectors/connectionSettings';
+import { getConnector, listConnectors } from '../services/connectors/registry';
 
 const router = Router();
 const READINESS_INDEX = 'readiness_sessions';
@@ -279,6 +281,82 @@ router.delete('/data', requireAdmin, async (req: Request, res: Response) => {
         console.error('Failed to delete project data:', err.message);
         res.status(500).json({ error: 'Failed to delete project data' });
     }
+});
+
+// ─── ERP Connection Settings ────────────────────────────────────────────────
+
+// GET /api/settings/erp-connection
+router.get('/erp-connection', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const config = await getERPConnectionSettings();
+    const available = listConnectors().map(c => {
+      const s = c.summary();
+      return { id: s.id, name: s.name, vendor: s.vendor, protocol: s.protocol };
+    });
+    // Mask password in response
+    res.json({ config: { ...config, password: config.password ? '••••••••' : '' }, availableConnectors: available });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to fetch ERP connection settings' });
+  }
+});
+
+// PUT /api/settings/erp-connection (admin only)
+router.put('/erp-connection', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const { activeConnectorId, mode, baseUrl, username, password } = req.body;
+    if (!activeConnectorId || !mode) {
+      return res.status(400).json({ error: 'activeConnectorId and mode are required' });
+    }
+    if (!['demo', 'live'].includes(mode)) {
+      return res.status(400).json({ error: 'mode must be "demo" or "live"' });
+    }
+    if (!getConnector(activeConnectorId)) {
+      return res.status(400).json({ error: `Unknown connector: ${activeConnectorId}` });
+    }
+    // Only update password if a real value is provided (not the masked placeholder)
+    const update: any = { activeConnectorId, mode, baseUrl: baseUrl || '', username: username || '' };
+    if (password && password !== '••••••••') update.password = password;
+
+    const saved = await saveERPConnectionSettings(update);
+    res.json({ config: { ...saved, password: saved.password ? '••••••••' : '' } });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to save ERP connection settings' });
+  }
+});
+
+// POST /api/settings/erp-connection/test
+// In demo mode: confirms the connector is in the registry.
+// In live mode: would ping the actual OData endpoint (stubbed for now).
+router.post('/erp-connection/test', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const { activeConnectorId, mode, baseUrl } = req.body;
+    const connector = getConnector(activeConnectorId);
+    if (!connector) {
+      return res.status(404).json({ success: false, message: `Connector "${activeConnectorId}" not found in registry.` });
+    }
+
+    if (mode === 'demo') {
+      const s = connector.summary();
+      return res.json({
+        success: true,
+        message: `✓ Demo connector "${s.name}" is available. ${s.entityCount} entities, ${s.totalRows} rows ready.`,
+        connectorName: s.name,
+      });
+    }
+
+    // Live mode: attempt a lightweight OData ping
+    // For now returns a structured "not yet implemented" rather than silently failing
+    if (!baseUrl) {
+      return res.status(400).json({ success: false, message: 'Base URL is required for live mode.' });
+    }
+    // TODO: replace with real fetch() ping when live OData adapters are wired
+    return res.json({
+      success: false,
+      message: `Live OData connection to ${baseUrl} — real network calls are not yet implemented. Switch to Demo mode to use fixture data, or implement the OData fetch layer in the adapter.`,
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
 });
 
 export default router;

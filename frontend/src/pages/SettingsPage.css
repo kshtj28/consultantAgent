@@ -219,3 +219,79 @@
 @keyframes spin {
     to { transform: rotate(360deg); }
 }
+
+/* ─── ERP Connection section ──────────────────────────── */
+
+.erp-mode-toggle {
+    display: flex;
+    gap: 0.4rem;
+    margin-top: 0.25rem;
+}
+
+.erp-mode-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.4rem 0.9rem;
+    border: 1px solid var(--border);
+    border-radius: 0.45rem;
+    background: var(--surface-light);
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.18s;
+}
+
+.erp-mode-btn:hover {
+    border-color: var(--primary);
+    color: var(--text);
+}
+
+.erp-mode-btn--active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+}
+
+.erp-mode-btn--active.erp-mode-btn--live {
+    background: #16a34a;
+    border-color: #16a34a;
+}
+
+.erp-test-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.erp-test-result {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.75rem;
+    border-radius: 0.45rem;
+    font-size: 0.78rem;
+    font-weight: 500;
+    flex: 1;
+    min-width: 0;
+}
+
+.erp-test-result span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.erp-test-result--ok {
+    background: rgba(22, 163, 74, 0.12);
+    border: 1px solid rgba(22, 163, 74, 0.35);
+    color: #4ade80;
+}
+
+.erp-test-result--fail {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: #f87171;
+}

@@ -688,19 +688,59 @@ export default function ProcessAnalysis() {
             <div className="process-analysis__charts">
                 <SectionCard title={t('pa.processTypeDistribution')}>
                     <div className="process-analysis__chart-container">
-                        <div dir="ltr" style={{ width: '100%', height: '320px' }}>
+                        <div dir="ltr" style={{ width: '100%', height: '260px' }}>
                         <ResponsiveContainer width="100%" height="100%">
-                            <PieChart margin={{ top: 20, right: 40, bottom: 20, left: 40 }}>
-                                <Pie data={pieData} cx="50%" cy="50%" innerRadius={40} outerRadius={65} paddingAngle={2} dataKey="value"
-                                    label={({ name, percent }) => `${name}: ${((percent || 0) * 100).toFixed(0)}%`}
-                                    labelLine={{ strokeWidth: 1 }}
+                            <PieChart>
+                                <Pie
+                                    data={pieData}
+                                    cx="50%"
+                                    cy="50%"
+                                    innerRadius={70}
+                                    outerRadius={110}
+                                    paddingAngle={3}
+                                    dataKey="value"
+                                    strokeWidth={0}
                                 >
                                     {pieData.map((_, i) => (<Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />))}
                                 </Pie>
-                                <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8 }} itemStyle={{ color: '#f8fafc' }} />
+                                <Tooltip
+                                    contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8, fontSize: '0.8rem' }}
+                                    itemStyle={{ color: '#f8fafc' }}
+                                    formatter={(value: any, name: any) => [`${Number(value).toFixed(0)}%`, name]}
+                                />
                             </PieChart>
                         </ResponsiveContainer>
                         </div>
+                        {/* Legend */}
+                        {pieData.length > 0 && (
+                            <div style={{
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+                                gap: '6px 16px',
+                                marginTop: '12px',
+                                padding: '0 8px',
+                            }}>
+                                {pieData.map((entry, i) => {
+                                    const total = pieData.reduce((sum, d) => sum + (d.value || 0), 0);
+                                    const pct = total > 0 ? ((entry.value / total) * 100).toFixed(0) : '0';
+                                    return (
+                                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '7px', minWidth: 0 }}>
+                                            <span style={{
+                                                width: 10, height: 10, borderRadius: '50%', flexShrink: 0,
+                                                background: PIE_COLORS[i % PIE_COLORS.length],
+                                            }} />
+                                            <span style={{
+                                                fontSize: '0.72rem', color: 'var(--text-secondary)',
+                                                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1,
+                                            }} title={entry.name}>{entry.name}</span>
+                                            <span style={{ fontSize: '0.72rem', color: 'var(--text)', fontWeight: 600, flexShrink: 0 }}>
+                                                {pct}%
+                                            </span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
                 </SectionCard>
 

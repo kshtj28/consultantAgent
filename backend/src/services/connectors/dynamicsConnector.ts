@@ -116,6 +116,41 @@ const ENTITIES: ConnectorEntity[] = [
     ],
     rowCount: 5,
   },
+  {
+    canonicalName: 'invoice',
+    displayName: 'Vendor Invoices',
+    nativeTable: 'VendInvoiceInfoTable',
+    description: 'Vendor invoice headers (D365 F&O data entity)',
+    mappings: [
+      { native: 'InvoiceId', canonical: 'invoiceId', type: 'string' },
+      { native: 'InvoiceAccount', canonical: 'companyCode', type: 'string' },
+      { native: 'VendorAccountNumber', canonical: 'vendorId', type: 'string' },
+      { native: 'InvoiceDate', canonical: 'invoiceDate', type: 'date' },
+      { native: 'DueDate', canonical: 'dueDate', type: 'date' },
+      { native: 'PaymentDate', canonical: 'paymentDate', type: 'date' },
+      { native: 'InvoiceAmount', canonical: 'amount', type: 'currency' },
+      { native: 'CurrencyCode', canonical: 'currency', type: 'string' },
+      { native: 'DocumentStatus', canonical: 'status', type: 'string' },
+    ],
+    rowCount: 8,
+  },
+  {
+    canonicalName: 'ar_item',
+    displayName: 'Customer Transactions',
+    nativeTable: 'CustTransV3',
+    description: 'Customer open transactions (AR line items)',
+    mappings: [
+      { native: 'AccountNumber', canonical: 'customerId', type: 'string' },
+      { native: 'Voucher', canonical: 'documentNumber', type: 'string' },
+      { native: 'TransDate', canonical: 'postingDate', type: 'date' },
+      { native: 'DueDate', canonical: 'dueDate', type: 'date' },
+      { native: 'AmountCur', canonical: 'amount', type: 'currency' },
+      { native: 'CurrencyCode', canonical: 'currency', type: 'string' },
+      { native: 'PaymTermId', canonical: 'paymentTerms', type: 'string' },
+      { native: 'DaysOverdue', canonical: 'daysPastDue', type: 'number' },
+    ],
+    rowCount: 7,
+  },
 ];
 
 const DATA: Record<CanonicalEntityName, Record<string, any>[]> = {
@@ -162,6 +197,25 @@ const DATA: Record<CanonicalEntityName, Record<string, any>[]> = {
     { ItemNumber: 'ITM-PKG-01', ItemGroupId: 'PACKAGING', InventoryUnitSymbol: 'ea', ProductType: 'Item' },
     { ItemNumber: 'ITM-SPR-B7', ItemGroupId: 'SPARES', InventoryUnitSymbol: 'ea', ProductType: 'Item' },
     { ItemNumber: 'ITM-ELC-22', ItemGroupId: 'ELECTRONICS', InventoryUnitSymbol: 'ea', ProductType: 'Item' },
+  ],
+  invoice: [
+    { InvoiceId: 'VI-2026-0301', InvoiceAccount: 'USMF', VendorAccountNumber: 'V-1001', InvoiceDate: '2026-02-03', DueDate: '2026-03-05', PaymentDate: '2026-03-12', InvoiceAmount: 64200.0, CurrencyCode: 'USD', DocumentStatus: 'Posted' },
+    { InvoiceId: 'VI-2026-0302', InvoiceAccount: 'USMF', VendorAccountNumber: 'V-1004', InvoiceDate: '2026-02-10', DueDate: '2026-03-12', PaymentDate: '2026-03-30', InvoiceAmount: 9750.0, CurrencyCode: 'USD', DocumentStatus: 'Posted' },
+    { InvoiceId: 'VI-2026-0303', InvoiceAccount: 'DEMF', VendorAccountNumber: 'V-1008', InvoiceDate: '2026-02-18', DueDate: '2026-03-20', PaymentDate: null, InvoiceAmount: 189000.0, CurrencyCode: 'EUR', DocumentStatus: 'Open' },
+    { InvoiceId: 'VI-2026-0304', InvoiceAccount: 'USMF', VendorAccountNumber: 'V-1001', InvoiceDate: '2026-02-25', DueDate: '2026-03-27', PaymentDate: '2026-03-25', InvoiceAmount: 2800.0, CurrencyCode: 'USD', DocumentStatus: 'Posted' },
+    { InvoiceId: 'VI-2026-0305', InvoiceAccount: 'GBSI', VendorAccountNumber: 'V-1012', InvoiceDate: '2026-03-04', DueDate: '2026-04-03', PaymentDate: null, InvoiceAmount: 41560.0, CurrencyCode: 'GBP', DocumentStatus: 'Overdue' },
+    { InvoiceId: 'VI-2026-0306', InvoiceAccount: 'USMF', VendorAccountNumber: 'V-1004', InvoiceDate: '2026-03-12', DueDate: '2026-04-11', PaymentDate: null, InvoiceAmount: 15200.5, CurrencyCode: 'USD', DocumentStatus: 'Open' },
+    { InvoiceId: 'VI-2026-0307', InvoiceAccount: 'DEMF', VendorAccountNumber: 'V-1008', InvoiceDate: '2026-03-20', DueDate: '2026-04-19', PaymentDate: '2026-04-22', InvoiceAmount: 7600.0, CurrencyCode: 'EUR', DocumentStatus: 'Posted' },
+    { InvoiceId: 'VI-2026-0308', InvoiceAccount: 'USMF', VendorAccountNumber: 'V-1019', InvoiceDate: '2026-03-28', DueDate: '2026-04-27', PaymentDate: null, InvoiceAmount: 28400.0, CurrencyCode: 'USD', DocumentStatus: 'On Hold' },
+  ],
+  ar_item: [
+    { AccountNumber: 'C-2001', Voucher: 'AR-D365-5001', TransDate: '2026-01-18', DueDate: '2026-02-17', AmountCur: 31200.0, CurrencyCode: 'USD', PaymTermId: 'Net30', DaysOverdue: 0 },
+    { AccountNumber: 'C-2002', Voucher: 'AR-D365-5002', TransDate: '2026-01-25', DueDate: '2026-02-24', AmountCur: 18500.0, CurrencyCode: 'CHF', PaymTermId: 'Net30', DaysOverdue: 0 },
+    { AccountNumber: 'C-2003', Voucher: 'AR-D365-5003', TransDate: '2026-02-05', DueDate: '2026-03-07', AmountCur: 49800.0, CurrencyCode: 'USD', PaymTermId: 'Net30', DaysOverdue: 22 },
+    { AccountNumber: 'C-2001', Voucher: 'AR-D365-5004', TransDate: '2026-02-14', DueDate: '2026-03-16', AmountCur: 9400.0, CurrencyCode: 'USD', PaymTermId: 'Net30', DaysOverdue: 13 },
+    { AccountNumber: 'C-2004', Voucher: 'AR-D365-5005', TransDate: '2026-02-22', DueDate: '2026-03-24', AmountCur: 72000.0, CurrencyCode: 'USD', PaymTermId: 'Net30', DaysOverdue: 0 },
+    { AccountNumber: 'C-2003', Voucher: 'AR-D365-5006', TransDate: '2026-03-08', DueDate: '2026-04-07', AmountCur: 23100.0, CurrencyCode: 'USD', PaymTermId: 'Net30', DaysOverdue: 25 },
+    { AccountNumber: 'C-2002', Voucher: 'AR-D365-5007', TransDate: '2026-03-20', DueDate: '2026-04-19', AmountCur: 14600.0, CurrencyCode: 'CHF', PaymTermId: 'Net30', DaysOverdue: 13 },
   ],
 };
 
