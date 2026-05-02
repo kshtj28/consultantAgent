@@ -41,6 +41,8 @@ router.get('/stats', async (req: Request, res: Response) => {
             } catch { /* sessions may not exist */ }
 
             let criticalIssues = 0;
+            let mediumGaps = 0;
+            let lowGaps = 0;
             try {
                 const reportIndexExists = await opensearchClient.indices.exists({ index: INDICES.REPORTS });
                 if (reportIndexExists.body) {
@@ -54,10 +56,20 @@ router.get('/stats', async (req: Request, res: Response) => {
                     });
                     for (const hit of gapRes.body.hits.hits as any[]) {
                         const gaps = hit._source?.content?.gaps || [];
-                        criticalIssues += gaps.filter((g: any) => (g.impact || '').toLowerCase() === 'high').length;
+                        for (const g of gaps) {
+                            const impact = (g.impact || '').toLowerCase();
+                            if (impact === 'high') criticalIssues++;
+                            else if (impact === 'medium') mediumGaps++;
+                            else lowGaps++;
+                        }
                     }
                 }
             } catch { /* reports may not exist */ }
+
+            const totalGaps = criticalIssues + mediumGaps + lowGaps;
+            const avgRisk = totalGaps > 0
+                ? Math.round((criticalIssues * 3 + mediumGaps * 2 + lowGaps * 1) / totalGaps * 33)
+                : 0;
 
             return res.json({
                 totalSessions,
@@ -66,8 +78,8 @@ router.get('/stats', async (req: Request, res: Response) => {
                 criticalIssuesTrend: 'stable',
                 discoveryPct: totalSessions > 0 ? Math.round((completedSessions / totalSessions) * 100) : 0,
                 gapSeverity: criticalIssues >= 5 ? 'High Risk' : criticalIssues >= 2 ? 'Medium Risk' : 'Low Risk',
-                avgRisk: 0,
-                maxRisk: 0,
+                avgRisk,
+                maxRisk: 100,
                 automationPct: 0,
                 automationDelta: 0,
                 automationTrend: 'stable',
@@ -355,7 +367,7 @@ router.get('/cumulative-gaps', async (req: Request, res: Response) => {
                 entry.gapCount++;
                 const impact = (gap.impact || '').toLowerCase();
                 if (impact === 'high') entry.criticalCount++;
-                else if (impact === 'medium') entry.highCount++;
+                else if (impact === 'medium') entry.mediumCount++;
                 else entry.lowCount++;
             }
 
