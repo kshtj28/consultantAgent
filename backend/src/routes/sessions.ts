@@ -118,7 +118,7 @@ router.get('/sessions/all', async (req: Request, res: Response) => {
                         completed: completedAreas,
                         total: totalAreas,
                     },
-                    title: `Finance Interview — ${new Date(doc.createdAt || Date.now()).toLocaleDateString('en-US')}`,
+                    title: `${({ finance: 'Finance', banking: 'Banking', hr: 'HR', supplychain: 'Supply Chain', construction: 'Construction', manufacturing: 'Manufacturing' }[doc.domainId as string] ?? 'Finance')} Interview — ${new Date(doc.createdAt || Date.now()).toLocaleDateString('en-US')}`,
                     gapCount,
                     highGapCount,
                     riskScore,

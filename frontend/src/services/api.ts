@@ -580,6 +580,28 @@ export async function fetchDashboardStats() {
     return request<DashboardStats>(`${API_BASE}/dashboard/stats`);
 }
 
+export interface BankingKpiValue {
+    current: number | null;
+    target: number | null;
+    unit: string;
+    label: string;
+}
+
+export interface BankingKpis {
+    avgCycleTimeDays: BankingKpiValue;
+    costPerLoan:      BankingKpiValue;
+    stpRate:          BankingKpiValue;
+    npaRatio:         BankingKpiValue;
+}
+
+export async function fetchBankingKpis() {
+    return request<{ available: boolean; kpis: BankingKpis | null }>(`${API_BASE}/dashboard/banking-kpis`);
+}
+
+export async function fetchActiveDomain() {
+    return request<{ id: string; name: string; broadAreas?: any[] }>(`${API_BASE}/interview/config/domain`);
+}
+
 export interface ExecutiveSummary {
     readinessScore: number;
     riskLevel: string;

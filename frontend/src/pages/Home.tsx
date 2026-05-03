@@ -138,7 +138,7 @@ function SessionCard({
                             {session.title}
                         </div>
                         <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                            {isInterview ? 'Finance Interview' : 'Readiness Assessment'}
+                            {isInterview ? 'Interview Session' : 'Readiness Assessment'}
                         </div>
                     </div>
                 </div>

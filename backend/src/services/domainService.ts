@@ -47,13 +47,34 @@ export type DomainArea = SubArea;
 export type DomainInterviewCategory = { id: string; name: string; order: number; description: string };
 
 // Available domain IDs
-export type DomainId = 'finance' | 'hr' | 'supplychain' | 'construction' | 'manufacturing';
+export type DomainId = 'finance' | 'hr' | 'supplychain' | 'construction' | 'manufacturing' | 'banking';
 
 // Cache loaded domain configs
 const domainCache: Map<string, DomainConfig> = new Map();
 
-// Active domain (defaults to finance)
-let activeDomainId: DomainId = 'finance';
+// Persist active domain selection across restarts
+const ACTIVE_DOMAIN_FILE = path.join(__dirname, '..', 'config', 'activeDomain.json');
+
+function readPersistedDomain(): DomainId {
+    try {
+        if (fs.existsSync(ACTIVE_DOMAIN_FILE)) {
+            const { domainId } = JSON.parse(fs.readFileSync(ACTIVE_DOMAIN_FILE, 'utf-8'));
+            if (domainId) return domainId as DomainId;
+        }
+    } catch { /* fall through to default */ }
+    return 'finance';
+}
+
+function persistActiveDomain(domainId: DomainId): void {
+    try {
+        fs.writeFileSync(ACTIVE_DOMAIN_FILE, JSON.stringify({ domainId }), 'utf-8');
+    } catch (err) {
+        console.warn('Could not persist active domain setting:', err);
+    }
+}
+
+// Active domain — loaded from disk, defaults to finance
+let activeDomainId: DomainId = readPersistedDomain();
 
 /**
  * Get the path to domain config files
@@ -112,6 +133,7 @@ export function setActiveDomain(domainId: DomainId): void {
     // Validate by attempting to load it
     loadDomainConfig(domainId);
     activeDomainId = domainId;
+    persistActiveDomain(domainId);
     console.log(`🔧 Active domain set to: ${domainId}`);
 }
 
@@ -210,7 +232,7 @@ export function getAreaBenchmarks(areaId: string): SubArea['benchmarks'] | null 
  * Get list of available domains
  */
 export function getAvailableDomains(): { id: DomainId; name: string; description: string }[] {
-    const domainIds: DomainId[] = ['finance', 'hr', 'supplychain', 'construction', 'manufacturing'];
+    const domainIds: DomainId[] = ['finance', 'hr', 'supplychain', 'construction', 'manufacturing', 'banking'];
 
     return domainIds.map(id => {
         try {
@@ -234,7 +256,7 @@ export function getAvailableDomains(): { id: DomainId; name: string; description
  * Check if a domain ID is valid
  */
 export function isValidDomain(domainId: string): domainId is DomainId {
-    return ['finance', 'hr', 'supplychain', 'construction', 'manufacturing'].includes(domainId);
+    return ['finance', 'hr', 'supplychain', 'construction', 'manufacturing', 'banking'].includes(domainId);
 }
 
 /**

@@ -3,6 +3,7 @@ import { AuthRequest } from '../middleware/auth';
 import { getMetrics, upsertMetrics, recomputeAndStoreMetrics, addMetricsSSEClient } from '../services/metricsService';
 import { fetchInsights } from '../services/insightsService';
 import { getProjectContext } from '../services/settingsService';
+import { getActiveDomainId } from '../services/domainService';
 import { opensearchClient, INDICES } from '../config/database';
 
 const router = Router();
@@ -471,6 +472,38 @@ router.get('/maturity-trend', async (req: Request, res: Response) => {
         return res.json({ days, points, baseline, current, deltaPct, sampleCount });
     } catch (err: any) {
         console.error('Error computing maturity trend:', err.message);
+        return res.status(500).json({ error: err.message });
+    }
+});
+
+// GET /api/dashboard/banking-kpis — returns AS-IS/TO-BE KPIs from the latest banking report
+router.get('/banking-kpis', async (req: Request, res: Response) => {
+    if (getActiveDomainId() !== 'banking') {
+        return res.json({ available: false });
+    }
+    try {
+        const indexExists = await opensearchClient.indices.exists({ index: INDICES.REPORTS });
+        if (!indexExists.body) return res.json({ available: true, kpis: null });
+
+        const result = await opensearchClient.search({
+            index: INDICES.REPORTS,
+            body: {
+                query: { bool: { must: [
+                    { term: { status: 'ready' } },
+                    { exists: { field: 'content.bankingKpis' } },
+                ] } },
+                size: 1,
+                sort: [{ createdAt: { order: 'desc' } }],
+                _source: ['content.bankingKpis'],
+            },
+        });
+
+        const hit = (result.body.hits.hits as any[])[0];
+        if (!hit) return res.json({ available: true, kpis: null });
+
+        return res.json({ available: true, kpis: hit._source?.content?.bankingKpis ?? null });
+    } catch (err: any) {
+        console.error('Error fetching banking KPIs:', err.message);
         return res.status(500).json({ error: err.message });
     }
 });

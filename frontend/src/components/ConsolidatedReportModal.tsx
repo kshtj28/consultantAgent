@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import {
-    X, Download, BarChart3, Table2, Zap, Shield, Network, AlertTriangle, RefreshCw, Settings,
+    X, Download, BarChart3, Table2, Zap, Shield, Network, AlertTriangle, RefreshCw, Settings, GitCompare, ArrowRight,
 } from 'lucide-react';
 import { GapKnowledgeGraph, type KGNode, type KGEdge } from './charts/GapKnowledgeGraph';
 import { regenerateReport, fetchModels, fetchProjectSettings, type ModelConfig } from '../services/api';
@@ -8,18 +8,26 @@ import './ConsolidatedReportModal.css';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-type TabId = 'executive' | 'gaps' | 'roadmap' | 'risks' | 'knowledge';
+type TabId = 'executive' | 'gaps' | 'roadmap' | 'risks' | 'knowledge' | 'asis-tobe';
 
 interface GapItem {
     id?: string;
     category: string;
     area: string;
     currentState: string;
+    targetState?: string;
     gap: string;
     impact: 'high' | 'medium' | 'low';
     effort: 'high' | 'medium' | 'low';
     fit?: 'gap' | 'partial' | 'fit';
     standard?: string;
+}
+
+interface BankingKpiValue {
+    current: number | null;
+    target: number | null;
+    unit: string;
+    label: string;
 }
 
 interface ReportData {
@@ -32,6 +40,7 @@ interface ReportData {
     gaps?: GapItem[];
     roadmap?: { phase: string; duration: string; items: string[] }[];
     riskAssessment?: { risk: string; likelihood: string; impact: string; mitigation: string }[];
+    bankingKpis?: Record<string, BankingKpiValue> | null;
     chartData?: {
         maturityRadar?: { area: string; current: number; target: number; fullMark?: number }[];
         knowledgeGraph?: { nodes: KGNode[]; edges: KGEdge[] };
@@ -303,10 +312,11 @@ export function ConsolidatedReportModal({
 
     const TABS: { id: TabId; label: string; Icon: typeof BarChart3 }[] = [
         { id: 'executive', label: 'Executive Summary', Icon: BarChart3 },
-        { id: 'gaps',      label: 'Gap Register',     Icon: Table2 },
-        { id: 'roadmap',   label: 'Roadmap',          Icon: Zap },
-        { id: 'risks',     label: 'Risks',            Icon: Shield },
-        { id: 'knowledge', label: 'Knowledge Graph',  Icon: Network },
+        { id: 'gaps',      label: 'Gap Register',      Icon: Table2 },
+        { id: 'asis-tobe', label: 'AS-IS / TO-BE',     Icon: GitCompare },
+        { id: 'roadmap',   label: 'Roadmap',           Icon: Zap },
+        { id: 'risks',     label: 'Risks',             Icon: Shield },
+        { id: 'knowledge', label: 'Knowledge Graph',   Icon: Network },
     ];
 
     const gaps: GapItem[] = report.gaps ?? [];
@@ -632,6 +642,74 @@ export function ConsolidatedReportModal({
                                 </div>
                             )) : (
                                 <div className="crm__empty">No risk data available.</div>
+                            )}
+                        </>
+                    )}
+
+                    {/* AS-IS / TO-BE Comparison */}
+                    {activeTab === 'asis-tobe' && (
+                        <>
+                            {/* Banking KPI tiles if present */}
+                            {report.bankingKpis && Object.keys(report.bankingKpis).length > 0 && (
+                                <div className="crm__card">
+                                    <h4 className="crm__card-title">Banking KPI Comparison</h4>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', marginTop: '0.75rem' }}>
+                                        {Object.entries(report.bankingKpis).map(([key, v]) => (
+                                            <div key={key} style={{ background: 'var(--surface-2, #1e293b)', borderRadius: 8, padding: '0.75rem', border: '1px solid var(--border)' }}>
+                                                <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>{v.label}</div>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                    <div style={{ textAlign: 'center' }}>
+                                                        <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#ef4444' }}>{v.current ?? '—'}<span style={{ fontSize: '0.65rem', marginLeft: 2 }}>{v.current !== null ? v.unit : ''}</span></div>
+                                                        <div style={{ fontSize: '0.58rem', color: 'var(--text-secondary)' }}>AS-IS</div>
+                                                    </div>
+                                                    <ArrowRight size={12} color="#64748b" />
+                                                    <div style={{ textAlign: 'center' }}>
+                                                        <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#10b981' }}>{v.target ?? '—'}<span style={{ fontSize: '0.65rem', marginLeft: 2 }}>{v.target !== null ? v.unit : ''}</span></div>
+                                                        <div style={{ fontSize: '0.58rem', color: 'var(--text-secondary)' }}>TO-BE</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Per-gap AS-IS vs TO-BE table grouped by area */}
+                            {gaps.length > 0 ? (() => {
+                                const byArea = gaps.reduce<Record<string, GapItem[]>>((acc, g) => {
+                                    const k = g.area || 'General';
+                                    (acc[k] = acc[k] || []).push(g);
+                                    return acc;
+                                }, {});
+                                return Object.entries(byArea).map(([area, areaGaps]) => (
+                                    <div key={area} className="crm__card">
+                                        <h4 className="crm__card-title">{area}</h4>
+                                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
+                                            <thead>
+                                                <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                                                    <th style={{ textAlign: 'left', padding: '0.4rem 0.5rem', color: 'var(--text-secondary)', width: '5%' }}>#</th>
+                                                    <th style={{ textAlign: 'left', padding: '0.4rem 0.5rem', color: '#ef4444', width: '42%' }}>AS-IS (Current State)</th>
+                                                    <th style={{ textAlign: 'center', padding: '0.4rem 0.25rem', width: '4%' }}></th>
+                                                    <th style={{ textAlign: 'left', padding: '0.4rem 0.5rem', color: '#10b981', width: '42%' }}>TO-BE (Target State)</th>
+                                                    <th style={{ textAlign: 'center', padding: '0.4rem 0.5rem', color: 'var(--text-secondary)', width: '7%' }}>Impact</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {areaGaps.map((g, i) => (
+                                                    <tr key={g.id || i} style={{ borderBottom: '1px solid var(--border)', verticalAlign: 'top' }}>
+                                                        <td style={{ padding: '0.5rem', color: 'var(--text-secondary)' }}>{i + 1}</td>
+                                                        <td style={{ padding: '0.5rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>{g.currentState || '—'}</td>
+                                                        <td style={{ padding: '0.5rem', textAlign: 'center' }}><ArrowRight size={12} color="#64748b" /></td>
+                                                        <td style={{ padding: '0.5rem', color: 'var(--text)', lineHeight: 1.5 }}>{g.targetState || '—'}</td>
+                                                        <td style={{ padding: '0.5rem', textAlign: 'center' }}><ImpactBadge value={g.impact} /></td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                ));
+                            })() : (
+                                <div className="crm__empty">No gap data available for AS-IS / TO-BE comparison.</div>
                             )}
                         </>
                     )}

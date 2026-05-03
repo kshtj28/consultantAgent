@@ -6,10 +6,10 @@ import StatusBadge from '../components/shared/StatusBadge';
 import { SkeletonStatCards, SkeletonChart } from '../components/shared/Skeleton';
 import {
     fetchSessions, fetchDashboardStats, fetchCumulativeGaps, fetchExecutiveSummary,
-    fetchMaturityTrend,
+    fetchMaturityTrend, fetchBankingKpis, fetchActiveDomain,
     subscribeToDashboardStream,
     type SessionSummary, type DashboardStats, type CumulativeGapData, type ExecutiveSummary,
-    type MaturityTrend,
+    type MaturityTrend, type BankingKpis,
 } from '../services/api';
 import { useLanguage } from '../i18n/LanguageContext';
 import './Dashboard.css';
@@ -151,6 +151,60 @@ function CircularProgress({ pct, color }: { pct: number; color: string }) {
 }
 
 
+/* ── Banking KPI AS-IS → TO-BE Row ── */
+const LOWER_IS_BETTER = new Set(['avgCycleTimeDays', 'costPerLoan', 'npaRatio']);
+
+function BankingKpiRow({ kpis }: { kpis: BankingKpis }) {
+    const entries = (Object.entries(kpis) as [keyof BankingKpis, BankingKpis[keyof BankingKpis]][]).map(
+        ([key, v]) => ({ key, ...v })
+    );
+    return (
+        <div style={{ marginBottom: '1.5rem' }}>
+            <div style={{ fontSize: '0.72rem', fontWeight: 600, letterSpacing: '0.08em', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '0.75rem' }}>
+                Banking KPIs — AS-IS vs TO-BE
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.75rem' }}>
+                {entries.map(e => {
+                    const improved = e.current !== null && e.target !== null
+                        ? (LOWER_IS_BETTER.has(e.key) ? e.target < e.current : e.target > e.current)
+                        : null;
+                    const pct = e.current && e.target && e.current !== 0
+                        ? Math.round(Math.abs((e.target - e.current) / e.current) * 100)
+                        : null;
+                    const deltaColor = improved === true ? '#10b981' : improved === false ? '#ef4444' : '#64748b';
+                    return (
+                        <div key={e.key} className="dashboard__kpi-card" style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                            <span className="dashboard__kpi-label">{e.label}</span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                <div style={{ textAlign: 'center' }}>
+                                    <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#ef4444' }}>
+                                        {e.current ?? '—'}
+                                        <span style={{ fontSize: '0.75rem', fontWeight: 400, marginLeft: 2 }}>{e.current !== null ? e.unit : ''}</span>
+                                    </div>
+                                    <div style={{ fontSize: '0.62rem', color: 'var(--text-secondary)' }}>AS-IS</div>
+                                </div>
+                                <ArrowRight size={14} color="#64748b" style={{ flexShrink: 0 }} />
+                                <div style={{ textAlign: 'center' }}>
+                                    <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#10b981' }}>
+                                        {e.target ?? '—'}
+                                        <span style={{ fontSize: '0.75rem', fontWeight: 400, marginLeft: 2 }}>{e.target !== null ? e.unit : ''}</span>
+                                    </div>
+                                    <div style={{ fontSize: '0.62rem', color: 'var(--text-secondary)' }}>TO-BE</div>
+                                </div>
+                            </div>
+                            {pct !== null && improved !== null && (
+                                <span className="dashboard__kpi-subtitle" style={{ color: deltaColor }}>
+                                    {improved ? '↓' : '↑'} {pct}% {improved ? 'improvement' : 'increase'}
+                                </span>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
+
 export default function Dashboard() {
     const { t } = useLanguage();
     const navigate = useNavigate();
@@ -159,6 +213,8 @@ export default function Dashboard() {
     const [cumulativeGaps, setCumulativeGaps] = useState<CumulativeGapData | null>(null);
     const [execSummary, setExecSummary] = useState<ExecutiveSummary | null>(null);
     const [maturityTrend, setMaturityTrend] = useState<MaturityTrend | null>(null);
+    const [bankingKpis, setBankingKpis] = useState<BankingKpis | null>(null);
+    const [activeDomainId, setActiveDomainId] = useState<string>('finance');
     const [loading, setLoading] = useState(true);
     const esRef = useRef<EventSource | null>(null);
 
@@ -172,13 +228,17 @@ export default function Dashboard() {
             fetchCumulativeGaps(),
             fetchExecutiveSummary(),
             fetchMaturityTrend(90).catch(() => null),
+            fetchActiveDomain().catch(() => null),
+            fetchBankingKpis().catch(() => null),
         ])
-            .then(([sessRes, dashStats, gapData, execData, trendData]) => {
+            .then(([sessRes, dashStats, gapData, execData, trendData, domainData, kpiData]) => {
                 setSessions(sessRes.sessions || []);
                 setStats(dashStats);
                 setCumulativeGaps(gapData);
                 setExecSummary(execData);
                 setMaturityTrend(trendData);
+                if (domainData) setActiveDomainId(domainData.id);
+                if (kpiData?.available && kpiData.kpis) setBankingKpis(kpiData.kpis);
             })
             .catch(() => {})
             .finally(() => setLoading(false));
@@ -282,6 +342,11 @@ export default function Dashboard() {
                         <span className="dashboard__exec-banner-stat-label">As of Today</span>
                     </div>
                 </div>
+            )}
+
+            {/* ── Banking KPI tiles (only when domain = banking and KPIs available) ── */}
+            {activeDomainId === 'banking' && bankingKpis && (
+                <BankingKpiRow kpis={bankingKpis} />
             )}
 
             {/* ── Readiness Score + KPI Row ── */}

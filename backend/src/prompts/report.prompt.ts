@@ -115,7 +115,7 @@ export function getErpStandardsList(erpPath: string): string {
    - COSO Framework for internal controls`;
 }
 
-export function buildGapReportPrompt(answerContext: string, identifiedGaps: string, painPoints: string, erpPath?: string): string {
+export function buildGapReportPrompt(answerContext: string, identifiedGaps: string, painPoints: string, erpPath?: string, isBanking?: boolean): string {
   const targetSystem = erpPath ? (erpPath.split('→').pop()?.trim() ?? erpPath) : null;
 
   const erpContext = erpPath
@@ -215,6 +215,20 @@ Return JSON:
   ],
   "kpiScores": [
     { "category": "Process Area Name", "score": 45, "benchmark": 80 }
-  ]
-}`;
+  ]${isBanking ? `,
+  "bankingKpis": {
+    "avgCycleTimeDays": { "current": null, "target": null, "unit": "days", "label": "Avg Loan Cycle Time" },
+    "costPerLoan":      { "current": null, "target": null, "unit": "₹",    "label": "Cost per Loan" },
+    "stpRate":          { "current": null, "target": null, "unit": "%",    "label": "STP Rate" },
+    "npaRatio":         { "current": null, "target": null, "unit": "%",    "label": "NPA Ratio" }
+  }` : ''}
+}${isBanking ? `
+
+### BANKING KPI EXTRACTION
+Populate "bankingKpis" in the JSON using interview data:
+- avgCycleTimeDays: avg days from loan application to disbursement/account activation — estimate from maturity if not stated
+- costPerLoan: cost in ₹ to process one loan end-to-end (operations + tech + staff cost)
+- stpRate: % of transactions processed end-to-end without manual intervention
+- npaRatio: gross NPA ratio (%) of the loan book
+Use null only if there is genuinely no basis for estimation even from maturity context.` : ''}`;
 }

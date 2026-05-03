@@ -1,0 +1,332 @@
+{
+    "id": "banking",
+    "name": "Banking",
+    "description": "Banking sector process readiness assessment covering onboarding, lending, payments, collections, regulatory reporting, and core operations",
+    "persona": "You are a senior banking transformation consultant with 22 years of experience across retail banking, corporate banking, and financial services in India and globally. You have deep expertise in core banking platforms (Finacle, Temenos T24, Flexcube, Finware), RBI regulatory frameworks, BIAN service domains, and Basel III/IV compliance. You have led large-scale banking transformation programmes covering KYC/AML automation, loan origination system implementations, payment hub modernisation, NPA management, and regulatory reporting automation. You specialise in identifying process inefficiencies, control gaps, and automation opportunities across the full banking value chain, and you benchmark client maturity against APQC PCF and BIAN standards.",
+    "broadAreas": [
+        {
+            "id": "customer_onboarding",
+            "name": "Customer Onboarding",
+            "icon": "user-check",
+            "description": "End-to-end customer acquisition lifecycle from KYC through account activation and digital channel enrolment",
+            "order": 1,
+            "subAreas": [
+                {
+                    "id": "kyc_aml",
+                    "name": "KYC / AML",
+                    "icon": "shield",
+                    "description": "Know Your Customer and Anti-Money Laundering compliance, screening, and ongoing monitoring",
+                    "order": 1,
+                    "basePrompt": "Ask about how the bank collects and verifies customer identity documents (Aadhaar, PAN, passport), how KYC data is stored and refreshed, what AML screening tools are in use (e.g., Actimize, NICE, Oracle FCCM), how transaction monitoring rules are configured and tuned, what the false positive rate is, how suspicious transaction reports (STRs) are filed with the FIU-IND, how re-KYC is triggered and tracked, and how the bank handles periodic CKYC updates with the CERSAI registry.",
+                    "benchmarks": {
+                        "maturity_1": "KYC is entirely paper-based; documents are collected physically at branches, photocopied, and stored in physical files; AML screening is done manually against printed watchlists; no systematic transaction monitoring exists; STR filing is reactive and infrequent",
+                        "maturity_2": "KYC documents are scanned and stored in a document management system; basic AML screening against static lists is automated but rule sets are rarely updated; transaction monitoring uses basic threshold rules with high false-positive rates; re-KYC is triggered manually and tracked in spreadsheets",
+                        "maturity_3": "Digital KYC collection via online portal with Aadhaar OTP verification and API-based PAN validation; AML screening integrates with live watchlist feeds (OFAC, UN, RBI defaulter lists); transaction monitoring system (TMS) is deployed with configurable rule sets; STR workflow is managed in the TMS with escalation paths; CKYC upload to CERSAI registry is automated on a batch basis",
+                        "maturity_4": "End-to-end video KYC (V-KYC) for remote onboarding with live document capture and liveness checks; AI-assisted AML risk scoring supplements rule-based screening, reducing false positives by >40%; real-time transaction monitoring with dynamic rule adjustment based on risk appetite; STR filing is automated with pre-populated fields and audit trails; CKYC records are updated in near-real-time with event-triggered refresh",
+                        "maturity_5": "Frictionless KYC using federated digital identity (DigiLocker, Account Aggregator framework); ML models continuously learn from confirmed SAR outcomes to refine risk scores with minimal human review; behavioural analytics detect anomalies beyond traditional rules; perpetual KYC replaces periodic refresh cycles; full regulatory audit trail is machine-readable and regulator-accessible via API"
+                    }
+                },
+                {
+                    "id": "account_opening",
+                    "name": "Account Opening",
+                    "icon": "file-plus",
+                    "description": "Customer account creation, product selection, documentation, and activation workflow",
+                    "order": 2,
+                    "basePrompt": "Ask about the end-to-end account opening process from customer application to account activation — how long it takes, how many manual handoffs exist, what systems are involved (CRM, core banking, document management), how incomplete applications are tracked and followed up, what the rejection rate is and what are the common reasons, how deduplication of existing customers is handled, and what the first-funding and first-transaction activation rates look like.",
+                    "benchmarks": {
+                        "maturity_1": "Account opening is a multi-day, branch-only process requiring physical presence; application forms are paper-based and data is manually re-keyed into the core banking system; deduplication relies on branch staff memory; average TAT is 3-5 working days",
+                        "maturity_2": "Digital application form captures customer data but still requires branch visit for document submission and signature; core banking entry is semi-automated from the form data; basic deduplication checks run against existing customer master; average TAT is 1-2 working days",
+                        "maturity_3": "Fully digital account opening journey for savings and current accounts; Aadhaar-based e-KYC eliminates branch visit for eligible segments; application data flows automatically into the core banking system with configurable approval workflows; deduplication runs against CKYC and internal customer master; TAT is same-day for straight-through cases; exception queue managed by a dedicated operations team",
+                        "maturity_4": "Omnichannel account opening with consistent experience across mobile app, internet banking, and assisted channels; AI-powered pre-fill using bureau data and account aggregator; real-time decisioning on account type eligibility and product bundling recommendations; STP rate >80%; average TAT under 15 minutes for digital-native customers",
+                        "maturity_5": "Hyper-personalised account opening journey that pre-selects product bundles based on customer financial profile pulled via AA framework; zero-touch STP for compliant customer segments; predictive models recommend cross-sell at point of account opening; near-zero TAT for eligible customers; continuous journey analytics identify drop-off points and trigger recovery flows"
+                    }
+                },
+                {
+                    "id": "digital_onboarding",
+                    "name": "Digital Onboarding",
+                    "icon": "smartphone",
+                    "description": "Post-account digital channel activation, mobile and internet banking enrolment, and early engagement",
+                    "order": 3,
+                    "basePrompt": "Ask about what happens after an account is opened — how customers are enrolled in internet and mobile banking, how UPI linkage and debit card issuance are handled, what the digital activation rate is (% of newly opened accounts that transact digitally within 30 days), how the bank measures and improves early engagement, what onboarding communication journeys look like, and how drop-offs in activation are identified and recovered.",
+                    "benchmarks": {
+                        "maturity_1": "Digital channel enrolment requires a separate branch visit or mailed PIN; debit card is dispatched by post with 7-14 day lead time; no structured post-onboarding communication; digital activation rate is below 20%; no visibility into where customers drop off",
+                        "maturity_2": "Internet banking credentials are issued via email/SMS at account opening; mobile app download link is shared; UPI registration requires manual steps; debit card is couriered within 3-5 days; basic welcome email sequence exists; digital activation rate 20-40%",
+                        "maturity_3": "Integrated digital onboarding journey activates internet banking, mobile app, and UPI at account opening; virtual debit card is issued instantly for digital transactions; welcome journey includes triggered SMS/email milestones; digital activation rate 40-60%; dashboards track activation funnel by segment and channel",
+                        "maturity_4": "One-click digital channel activation embedded in the account opening flow; instant virtual card with spending controls; AI-driven personalised onboarding journey selects communication content and timing based on customer profile; proactive outreach to at-risk non-activating customers; digital activation rate 60-80%; ARPU uplift tracked per onboarding cohort",
+                        "maturity_5": "Zero-friction digital-first onboarding where all channel activations complete during account opening; predictive next-best-action engine guides customers to their first meaningful transaction within 24 hours; real-time A/B testing of onboarding journeys; digital activation rate >80%; full attribution of onboarding journey to LTV outcomes"
+                    }
+                }
+            ]
+        },
+        {
+            "id": "loan_origination",
+            "name": "Loan Origination",
+            "icon": "credit-card",
+            "description": "End-to-end lending lifecycle from application through credit assessment, underwriting, sanction, and disbursement",
+            "order": 2,
+            "subAreas": [
+                {
+                    "id": "credit_assessment",
+                    "name": "Credit Assessment",
+                    "icon": "bar-chart-2",
+                    "description": "Creditworthiness evaluation, bureau pull, financial analysis, and risk rating",
+                    "order": 1,
+                    "basePrompt": "Ask about how credit decisions are made — what bureau data is pulled (CIBIL, Experian, Equifax, CRIF), how financial statements are analysed for business loans, what internal credit scoring models exist, how risk ratings are assigned, what the average cycle time is from application to credit decision, how the credit committee process works for large exposures, what override rates look like and how they are controlled, and how the credit assessment process differs across retail, SME, and corporate segments.",
+                    "benchmarks": {
+                        "maturity_1": "Credit assessment is fully manual; loan officers pull bureau reports individually and perform financial analysis in Excel; risk ratings are judgement-based with no standardised scorecard; credit committee meetings are scheduled ad-hoc; cycle time from application to decision is 7-15 days; no tracking of override rates",
+                        "maturity_2": "Bureau integration provides automated credit report pull at application; basic scorecards exist for retail segments but are not integrated into the workflow; financial spreading for business loans is still manual; credit committee is structured with defined thresholds for delegation of authority; decision cycle time is 5-10 days",
+                        "maturity_3": "Loan origination system (LOS) integrates bureau pull, scorecard execution, and financial spreading in a single workflow; risk ratings are system-generated with manual override capability; delegation of authority matrix is enforced in the system; decision cycle time is 2-5 days for retail; override rate is tracked and reported to credit risk committee",
+                        "maturity_4": "AI-assisted credit models incorporate alternative data (GST returns, bank statement analytics, supply chain data) alongside bureau scores; real-time decisioning for pre-approved retail products; digital credit memo auto-populates from LOS data for committee review; cycle time <24 hours for retail; override rates are monitored with root cause analysis; model performance is tracked with drift alerts",
+                        "maturity_5": "Straight-through credit decisioning for eligible retail segments using ML ensemble models with explainability outputs; continuous model retraining using outcome data; alternative data sources (AA framework, GST, e-commerce) are primary inputs for thin-file customers; credit committee is reserved for exceptions and large structured deals; cycle time <1 hour for retail STP cases; full model governance with regulatory-grade documentation"
+                    }
+                },
+                {
+                    "id": "underwriting",
+                    "name": "Underwriting & Sanction",
+                    "icon": "check-square",
+                    "description": "Loan structuring, terms definition, collateral valuation, legal due diligence, and sanction letter issuance",
+                    "order": 2,
+                    "basePrompt": "Ask about the underwriting process after credit approval — how loan terms and conditions are structured, how collateral is valued and perfected (property valuation, lien marking, hypothecation), how legal due diligence is conducted (title search, CERSAI check, SARFAESI compliance), how sanction letters are generated and communicated, how long the sanction-to-disbursement window typically is, and what the main causes of delay in this stage are.",
+                    "benchmarks": {
+                        "maturity_1": "Loan terms are manually drafted in Word documents by loan officers; collateral valuation is paper-based with no panel management; legal due diligence involves physical document scrutiny; sanction letters are typed and physically signed; average sanction-to-disbursement TAT is 15-30 days; no tracking of individual process step timings",
+                        "maturity_2": "Sanction letter templates exist in the LOS but require manual data entry; collateral management module tracks basic security details; empanelled valuer and legal firms are listed but assignment is manual; CERSAI search is done online but not integrated; TAT is 10-20 days with manual follow-ups",
+                        "maturity_3": "LOS auto-generates sanction letters from approved credit terms; collateral management integrates with property valuation reports (uploaded by empanelled valuers via portal); CERSAI lien creation is system-initiated; legal due diligence checklist is tracked in the LOS with configurable step approvals; TAT is 5-10 days for standard cases",
+                        "maturity_4": "Digital sanction letter with e-signature (Aadhaar-based or DocuSign); automated valuer assignment based on geography and loan type with SLA tracking; API integration with CERSAI for real-time lien creation and search; legal due diligence is workflow-managed with automated reminders; TAT is 2-5 days; exception escalation is automatic",
+                        "maturity_5": "End-to-end digital sanction with zero paper; AI-assisted term structuring suggests covenants and collateral requirements based on risk profile; automated collateral registry check and lien perfection across CERSAI, NSDL, and CDSL; smart legal document review flags anomalies; TAT <48 hours for secured retail products; digital audit trail is regulator-ready"
+                    }
+                },
+                {
+                    "id": "disbursement",
+                    "name": "Disbursement",
+                    "icon": "send",
+                    "description": "Loan account creation, funds transfer to customer or beneficiary, and post-disbursement documentation",
+                    "order": 3,
+                    "basePrompt": "Ask about the disbursement process — how loan accounts are created in the core banking system, how funds are transferred to customers or directly to builders/dealers/vendors (for home/auto/trade loans), how pre-disbursement documentation conditions are checked, what the first EMI and repayment schedule setup looks like, how disbursement errors or reversals are handled, and what the disbursement STP rate is across different loan products.",
+                    "benchmarks": {
+                        "maturity_1": "Loan account creation is manual in core banking; disbursement cheques are physically prepared; pre-disbursement conditions are checked from a paper checklist; repayment schedule is communicated via post; errors require manual reversal; no STP; TAT from sanction to disbursement is 5-10 days",
+                        "maturity_2": "Loan account is created in core banking from LOS data with some manual re-keying; disbursement is via NEFT/RTGS initiated manually by operations team; pre-disbursement conditions are tracked in a spreadsheet; EMI schedule is system-generated but communicated via email; STP rate <20%",
+                        "maturity_3": "LOS-to-core banking integration auto-creates loan account on sanction confirmation; disbursement is initiated from LOS via payment gateway with four-eye check; pre-disbursement condition tracking is in-system with document upload by branch/customer; repayment schedule and welcome letter are auto-generated; STP rate 40-60%",
+                        "maturity_4": "Straight-through disbursement for conditions-met cases without manual intervention; direct disbursement to builder/dealer accounts for home/auto loans via API integration; customer receives real-time notification with digital loan agreement and repayment schedule; exceptions are routed to an operations queue; STP rate 60-80%; disbursement TAT <24 hours for STP cases",
+                        "maturity_5": "Fully automated disbursement engine with zero manual touchpoints for compliant cases; AI validates pre-disbursement conditions from uploaded documents; multi-party disbursement (partial releases, construction-linked) is orchestrated automatically; real-time reconciliation between LOS, core banking, and payment system; STP rate >80%; end-to-end disbursement audit log is immutable"
+                    }
+                }
+            ]
+        },
+        {
+            "id": "payments_settlement",
+            "name": "Payments & Settlement",
+            "icon": "refresh-cw",
+            "description": "Processing of domestic and cross-border payment transactions, interbank settlement, and reconciliation",
+            "order": 3,
+            "subAreas": [
+                {
+                    "id": "payment_processing",
+                    "name": "NEFT / RTGS / IMPS / UPI Processing",
+                    "icon": "zap",
+                    "description": "Domestic payment channel operations, transaction routing, cut-off management, and failure handling",
+                    "order": 1,
+                    "basePrompt": "Ask about how the bank processes domestic payments across channels (NEFT, RTGS, IMPS, UPI) — what payment hubs or systems are in place, how transaction routing works, how cut-off times are managed, what the failure and return rates are by channel, how failed transactions are investigated and resolved, what the NACH mandate management process looks like, and how the bank handles high-volume peak periods (salary cycles, quarter-end).",
+                    "benchmarks": {
+                        "maturity_1": "Payment processing is siloed by channel with separate systems for NEFT, RTGS, and IMPS; manual intervention is required for failed transactions; cut-off management is tracked in spreadsheets; NACH mandates are processed via physical forms; no real-time visibility into transaction status; failure resolution relies on branch staff calling operations",
+                        "maturity_2": "Basic payment hub aggregates NEFT and RTGS channels; IMPS and UPI are on separate stacks; failed transaction queues exist but resolution is manual; NACH is processed electronically via NPCI but mandate management is in a separate system; management reports on channel volumes are generated daily",
+                        "maturity_3": "Unified payment hub processes NEFT, RTGS, IMPS, and UPI with centralised routing and cut-off management; failed transaction alerts are system-generated with auto-classification by failure reason; NACH mandate creation, amendment, and cancellation are end-to-end digital; real-time dashboards show channel health and transaction volumes; API-based status enquiry for corporate customers",
+                        "maturity_4": "Intelligent payment routing selects optimal channel based on amount, urgency, and cost; predictive failure detection flags transactions at risk before submission to RBI/NPCI clearing; auto-remediation resolves >60% of failed transactions without human intervention; NACH delinquency prediction enables proactive outreach before mandate failures; real-time reconciliation against NPCI settlement files",
+                        "maturity_5": "AI-orchestrated payment engine self-tunes routing rules based on real-time channel performance; near-zero manual intervention for transaction exceptions; fraud detection is embedded in the payment flow with sub-second decisioning; full ISO 20022 compliance enables rich data payments; cross-border payment corridors integrated via SWIFT gpi and RBI-sanctioned fintech partners; continuous SLA monitoring with automatic regulator reporting"
+                    }
+                },
+                {
+                    "id": "reconciliation",
+                    "name": "Reconciliation",
+                    "icon": "git-merge",
+                    "description": "Interbank, internal, and customer-level reconciliation of payment transactions and GL entries",
+                    "order": 2,
+                    "basePrompt": "Ask about how the bank reconciles payment transactions — how entries in the core banking system are matched against NPCI/RBI settlement files, how internal inter-branch and inter-system entries are reconciled, how long outstanding items sit before escalation, what the volume of open reconciliation items is, how automated the matching process is (STP rate), who owns the reconciliation process and what the governance structure looks like, and what happens when reconciliation breaks at month-end.",
+                    "benchmarks": {
+                        "maturity_1": "Reconciliation is entirely manual using Excel; staff download NPCI settlement files and match line by line against core banking exports; outstanding items are tracked in spreadsheets; month-end breaks are resolved reactively; dedicated reconciliation team is understaffed and relies on overtime at cut-off periods; no audit trail on matching decisions",
+                        "maturity_2": "Basic reconciliation tool performs automated matching for high-volume routine items; complex or exception items still require manual research; outstanding item aging reports are generated weekly; inter-branch entries are reconciled monthly; month-end reconciliation takes 3-5 days",
+                        "maturity_3": "Automated reconciliation platform matches transactions across NPCI, SWIFT, and internal GL feeds with configurable matching rules; unmatched items are auto-classified and routed to the appropriate team; aging thresholds trigger escalation alerts; inter-system entries are reconciled daily; month-end close supported by a centralised breaks register; STP matching rate 60-75%",
+                        "maturity_4": "AI-powered matching engine applies fuzzy logic and ML to resolve near-matches reducing manual review by >50%; real-time reconciliation for IMPS and UPI settlements; automated journal posting for matched items; dashboards provide live visibility of reconciliation health by channel and entity; STP matching rate 75-90%; month-end close completed within 1 business day",
+                        "maturity_5": "Continuous reconciliation with zero batch dependency; ML models predict and pre-resolve likely breaks before settlement files arrive; blockchain-based settlement for selected corridors eliminates reconciliation entirely; full GL lockdown post-close with automated variance analysis; STP matching rate >90%; reconciliation is a zero-touch process for >95% of transaction volume"
+                    }
+                },
+                {
+                    "id": "nostro_management",
+                    "name": "Nostro & Vostro Management",
+                    "icon": "globe",
+                    "description": "Foreign currency account management, correspondent banking, and SWIFT message processing",
+                    "order": 3,
+                    "basePrompt": "Ask about how the bank manages its nostro accounts with correspondent banks — how many nostro accounts exist across how many currencies and correspondents, how daily nostro positions are tracked and reconciled against SWIFT MT940/950 statements, how the bank manages forex funding and overdraft risk in nostro accounts, what the process is for investigating SWIFT message exceptions (MT199, gpi status), how SWIFT connectivity is maintained (service bureau or direct), and how the bank manages its correspondent banking relationships in the context of de-risking trends.",
+                    "benchmarks": {
+                        "maturity_1": "Nostro positions are tracked manually in Excel with data pulled from SWIFT MT940 statements by hand; reconciliation with internal Vostro entries is done weekly; overdraft monitoring relies on branch staff checking balances; SWIFT message exceptions are investigated by emailing correspondent banks; no centralised nostro management system",
+                        "maturity_2": "Basic treasury management system (TMS) imports SWIFT statements and tracks nostro balances; daily reconciliation is partially automated for major currencies; SWIFT connectivity is via a service bureau; exception investigation is managed via a shared mailbox; correspondent bank SLAs are informally tracked",
+                        "maturity_3": "TMS provides real-time nostro position visibility across all currencies and correspondents; automated SWIFT statement reconciliation with daily exception reports; intraday liquidity monitoring for major nostro accounts; SWIFT gpi tracker is integrated for outbound payment status; correspondent bank relationships are reviewed quarterly with performance dashboards",
+                        "maturity_4": "Predictive nostro funding engine optimises cross-currency positions to minimise idle balances and overdraft costs; automated SWIFT gpi status updates are surfaced to corporate clients; AI-assisted anomaly detection flags unusual nostro movements for investigation; de-risking exposure is monitored with proactive correspondent bank diversification; regulatory reporting on correspondent banking is auto-generated",
+                        "maturity_5": "Real-time multi-currency nostro optimisation using ML forecasting of payment flows; direct SWIFT connectivity with ISO 20022 message processing; smart contract-based settlement with select correspondents eliminates overnight exposure; full intraday liquidity stress testing is automated; regulatory and board reporting on correspondent risk is zero-touch"
+                    }
+                }
+            ]
+        },
+        {
+            "id": "collections_recovery",
+            "name": "Collections & Recovery",
+            "icon": "alert-triangle",
+            "description": "Delinquency management, NPA classification, recovery actions, and legal proceedings for non-performing assets",
+            "order": 4,
+            "subAreas": [
+                {
+                    "id": "early_delinquency",
+                    "name": "Early Delinquency Management",
+                    "icon": "clock",
+                    "description": "Pre-delinquency and early bucket (0-90 DPD) collections, customer contact, and restructuring",
+                    "order": 1,
+                    "basePrompt": "Ask about how the bank manages early-stage delinquency — what triggers a collection action (days past due thresholds), how customers are contacted (IVR, SMS, email, field agent, branch), how the bank prioritises which accounts to contact first, what restructuring and resolution options are available at this stage, how collection agent performance is tracked, what the roll rate from early bucket to NPA is, and how the bank uses predictive analytics to identify at-risk customers before they become delinquent.",
+                    "benchmarks": {
+                        "maturity_1": "Collections activities begin only after significant delinquency; customer contact relies on branch staff making ad-hoc phone calls; no centralised collections system; restructuring requests are handled case by case with no standard process; roll rate from early bucket to NPA is not tracked; no predictive capability",
+                        "maturity_2": "Basic collections management system triggers SMS/email reminders at defined DPD thresholds; field collection agents are deployed for higher-value accounts; agent activity is logged in spreadsheets; standard restructuring products (EMI holiday, tenure extension) exist but approval is manual; roll rate is monitored monthly",
+                        "maturity_3": "Centralised collections platform manages contact strategy across IVR, SMS, email, and field agents based on DPD bucket, product, and customer segment; agent performance is tracked in real-time; digital self-service portal allows customers to raise restructuring requests; roll rate by product and vintage is tracked weekly; early warning system flags accounts 30 days before first missed payment based on payment behaviour",
+                        "maturity_4": "AI-driven contact strategy optimiser selects channel, timing, and message content based on predicted response propensity; predictive delinquency models identify at-risk customers 60-90 days before first DPD enabling proactive intervention; automated restructuring approval for standard cases within defined risk parameters; roll rate improvement tracked as a primary collections KPI; gamification and nudge techniques embedded in digital channels",
+                        "maturity_5": "Real-time collections orchestration engine adapts strategy dynamically based on customer response signals; ML models continuously learn from resolution outcomes to improve contact and offer strategies; digital-first collections with human agents reserved for complex or high-value cases; self-cure rate >40% through automated digital interventions; end-to-end collections lifecycle is zero-touch for STP-eligible resolutions"
+                    }
+                },
+                {
+                    "id": "npa_management",
+                    "name": "NPA Classification & Management",
+                    "icon": "trending-down",
+                    "description": "NPA identification, RBI-compliant classification, provisioning, and restructured account management",
+                    "order": 2,
+                    "basePrompt": "Ask about how the bank identifies and classifies NPAs — how the 90-DPD rule is applied and monitored, how the NPA classification process works in the core banking system, how provisioning calculations are done (standard asset, sub-standard, doubtful, loss), how restructured accounts are tracked under RBI's restructuring guidelines, what the gross and net NPA ratios are, how the bank manages its provision coverage ratio target, and how NPA data flows into regulatory reporting (OSMOS, CRILC submissions).",
+                    "benchmarks": {
+                        "maturity_1": "NPA identification relies on manual review of overdue accounts by branch staff; classification is done retrospectively and inaccurately; provisioning calculations are performed in Excel by the finance team; CRILC submission is manual and often delayed; gross NPA ratio is not tracked at portfolio level; no early warning system",
+                        "maturity_2": "Core banking system automatically flags accounts at 90 DPD; classification is system-driven for retail but manual review is required for corporate accounts; provisioning is calculated by the finance team using system-generated aging reports; CRILC data is extracted from core banking and submitted via the RBI portal; gross NPA ratio is reported monthly",
+                        "maturity_3": "Automated NPA classification engine in core banking applies RBI's IRAC norms across all products and segments; provisioning is calculated and posted automatically at month-end with exception review; restructured account tracking is fully integrated; CRILC and OSMOS submissions are generated from system data with maker-checker controls; NPA ratio is tracked weekly with drill-down by product, geography, and vintage",
+                        "maturity_4": "Real-time NPA monitoring with intraday classification updates; AI-assisted income recognition and provisioning for complex exposures; regulatory submissions are automated end-to-end with internal validation rules mirroring RBI checks; NPA ratio forecasting uses loan-level roll rate models; early warning signals (EWS) are integrated with collections for pre-NPA intervention; board-level NPA dashboard is auto-refreshed",
+                        "maturity_5": "Continuous NPA lifecycle management with zero batch latency; ML models predict NPA formation 90-180 days in advance with account-level probability scores; provisioning is dynamically adjusted using expected credit loss (ECL) models (IFRS 9 compliant); regulator API submissions are real-time where RBI infrastructure supports it; full credit risk data fabric integrates NPA management with capital planning and stress testing"
+                    }
+                },
+                {
+                    "id": "legal_recovery",
+                    "name": "Legal Recovery & SARFAESI",
+                    "icon": "gavel",
+                    "description": "Legal proceedings, SARFAESI actions, DRT filings, security enforcement, and write-off management",
+                    "order": 3,
+                    "basePrompt": "Ask about how the bank handles legal recovery for severely delinquent accounts — when and how SARFAESI notices (Section 13(2) and 13(4)) are issued, how DRT/DRAT filings are managed, how the bank manages its empanelled legal counsels and tracks case progress, what the process is for taking possession and auctioning collateral, how one-time settlement (OTS) proposals are evaluated and approved, what the write-off policy is and how technical write-offs are managed, and how recovery from written-off accounts is tracked.",
+                    "benchmarks": {
+                        "maturity_1": "Legal recovery actions are initiated reactively and inconsistently; SARFAESI notices are drafted manually by legal teams; case tracking is in spreadsheets; empanelled counsel performance is not monitored; property auction process is ad-hoc; OTS approvals are undocumented; write-offs require board approval regardless of size; recovery from written-off accounts is not tracked",
+                        "maturity_2": "Legal case management module tracks DRT and SARFAESI actions by account; standard notice templates reduce drafting effort; counsel assignment is tracked centrally; property valuation for auction is conducted by empanelled valuers; OTS framework with defined eligibility and discount authority exists; write-off policy is documented with defined authority levels",
+                        "maturity_3": "Integrated legal recovery system manages the full SARFAESI lifecycle (Section 13(2), 13(4), possession, auction) with automated milestone tracking; DRT filing is workflow-managed with hearing date tracking and adjournment monitoring; counsel performance scorecards are maintained; e-auction platform is used for collateral disposal; OTS proposals are evaluated against a standard financial model; recovery from written-off accounts is tracked in a dedicated module",
+                        "maturity_4": "AI-assisted triage determines the optimal recovery strategy (SARFAESI vs DRT vs OTS vs compromise) based on account characteristics and recovery probability models; automated SARFAESI notice generation with digital service tracking; e-auction with real-time bidding integrated with property portal aggregators; OTS decisioning is rule-based for standard cases; recovery rate by legal strategy is analysed to optimise strategy selection",
+                        "maturity_5": "End-to-end digital legal recovery engine with zero-touch case initiation for eligible accounts; ML models predict recovery timelines and amounts by strategy enabling portfolio-level recovery planning; blockchain-based property title transfer post-auction; regulator reporting on SARFAESI actions is automated; OTS acceptance probability scoring enables pre-emptive negotiation; recovery from written-off pools is managed as a distinct asset class with dedicated portfolio analytics"
+                    }
+                }
+            ]
+        },
+        {
+            "id": "regulatory_reporting",
+            "name": "Regulatory Reporting",
+            "icon": "file-text",
+            "description": "RBI supervisory returns, capital adequacy reporting, statutory filings, and compliance data management",
+            "order": 5,
+            "subAreas": [
+                {
+                    "id": "rbi_returns",
+                    "name": "RBI Returns & Supervisory Submissions",
+                    "icon": "send",
+                    "description": "Periodic statutory returns to RBI including BSR, OSMOS, DSB, CRILC, and other supervisory data submissions",
+                    "order": 1,
+                    "basePrompt": "Ask about the bank's process for preparing and submitting RBI regulatory returns — what returns are submitted (BSR 1-7, DSB, OSMOS, CRILC, FIU STR, etc.), how data is extracted and validated for these submissions, what the timeline and governance process is, how errors or resubmissions are handled, what the main sources of data quality issues are, how the bank manages the increasing burden of regulatory reporting, and whether any returns have attracted RBI observations or fines.",
+                    "benchmarks": {
+                        "maturity_1": "RBI returns are prepared manually by the compliance team using data extracted in spreadsheets from multiple source systems; each return requires significant manual data collection and reconciliation; submissions are made close to or past deadlines; data quality issues are discovered post-submission; no centralised regulatory data repository; fines for late or incorrect submissions have been received",
+                        "maturity_2": "Basic regulatory reporting module extracts data from core banking for major returns; manual validation checklists exist; a compliance calendar tracks submission deadlines; most returns are submitted on time; resubmissions are managed via email with RBI; data quality is inconsistent for non-core data elements",
+                        "maturity_3": "Centralised regulatory reporting platform aggregates data from core banking, LOS, and payment systems for all major RBI returns; automated validation rules flag data quality issues before submission; submission tracking dashboard monitors status by return type; maker-checker workflow enforces governance; submission history with version control is maintained; resubmissions are tracked and root-caused",
+                        "maturity_4": "Regulatory data mart with a single golden source for all RBI-required data elements; automated end-to-end return preparation with exception-only human review; submission SLA compliance is >99%; regulatory change management process updates reporting rules within 30 days of RBI circulars; AI-assisted anomaly detection flags potential errors before submission; regulator feedback is tracked and closed within defined timelines",
+                        "maturity_5": "Real-time regulatory data fabric enables on-demand generation of any RBI return from a single dataset; API-based direct submission to RBI portals (OSMOS, XBRL) eliminating manual upload; continuous compliance monitoring identifies regulatory data gaps as they occur; regulatory change is auto-parsed from RBI circulars using NLP and mapped to data requirements; zero submission failures; full regulatory data lineage from source to submission"
+                    }
+                },
+                {
+                    "id": "capital_adequacy",
+                    "name": "Basel III / Capital Adequacy",
+                    "icon": "shield",
+                    "description": "Capital ratio computation, ICAAP, stress testing, and Pillar 3 disclosures under RBI's Basel III framework",
+                    "order": 2,
+                    "basePrompt": "Ask about how the bank computes and manages its capital adequacy — how CET1, Tier 1, and Total Capital ratios are calculated, what systems are used for RWA computation, how the bank manages its capital buffer above the regulatory minimum, what the ICAAP process looks like, how stress testing is conducted, how capital planning is integrated with business planning, and how Pillar 3 disclosures are prepared and published.",
+                    "benchmarks": {
+                        "maturity_1": "Capital adequacy computation is done manually in Excel using data extracted from core banking; RWA calculations are basic and may not capture all risk exposures accurately; ICAAP is a compliance exercise with limited analytical depth; stress testing is rudimentary; Pillar 3 disclosures are prepared by the compliance team with significant effort; capital buffer management is reactive",
+                        "maturity_2": "Dedicated capital management module computes standard approach RWA for credit, market, and operational risk; quarterly capital ratios are reviewed by the ALCO; ICAAP documentation follows RBI guidance notes; basic stress scenarios (credit shock, interest rate shock) are modelled annually; Pillar 3 disclosures are published semi-annually on the bank's website",
+                        "maturity_3": "Integrated capital management platform (or ERP-based capital module) computes RWA daily from transaction-level data; ICAAP is a comprehensive analytical exercise reviewed by the board risk committee; stress testing covers a range of scenarios with management action overlays; capital planning is linked to the annual budgeting process; Pillar 3 disclosures are published quarterly; capital ratio is monitored against internal buffers with breach alerts",
+                        "maturity_4": "Real-time capital ratio monitoring with intraday RWA updates for material transactions; advanced IRB approaches (subject to RBI approval) for credit RWA reduce capital requirements; ICAAP uses a dynamic capital model with reverse stress testing; scenario analysis supports strategic decisions (M&A, new product launch); Pillar 3 disclosure preparation is largely automated; capital optimisation analytics identify RWA-dense portfolios",
+                        "maturity_5": "Continuous capital optimisation engine integrates capital planning, pricing, and portfolio management; ML-assisted credit RWA computation improves accuracy for complex exposures; real-time stress testing is embedded in business decision workflows; automated Pillar 3 XBRL submission to RBI; full capital data lineage from transaction to ratio; capital and liquidity risk management are fully integrated in a common risk data architecture"
+                    }
+                },
+                {
+                    "id": "cersai_statutory",
+                    "name": "CERSAI & Statutory Registrations",
+                    "icon": "database",
+                    "description": "CERSAI security interest registration, CKYC updates, and other statutory registry submissions",
+                    "order": 3,
+                    "basePrompt": "Ask about how the bank manages its statutory registration obligations — how security interests are registered with CERSAI at loan disbursement and released at closure, how CKYC records are created and updated in the CERSAI registry, how the bank tracks and rectifies CERSAI registration failures or mismatches, whether the bank has faced any RBI/CERSAI audit observations, and how the overall compliance burden of registry submissions is managed across lending and onboarding teams.",
+                    "benchmarks": {
+                        "maturity_1": "CERSAI registration is done manually by operations staff after receiving a paper-based request from the branch; delays of 30+ days between disbursement and CERSAI registration are common; CKYC creation is similarly manual and delayed; registration failures are discovered only during RBI inspection; no tracking of outstanding or failed registrations",
+                        "maturity_2": "CERSAI registration is initiated from the core banking system but requires manual data entry; a daily exception report tracks overdue registrations; CKYC upload is done in weekly batches; registration status is tracked in a register; RBI audit observations have been received on registration delays and data quality",
+                        "maturity_3": "LOS triggers automated CERSAI registration API call on disbursement confirmation; registration success or failure is surfaced in the LOS exception queue; CKYC creation is integrated into the account opening workflow with same-day upload; registration release on loan closure is system-initiated; a dashboard tracks registration SLA compliance by branch and product",
+                        "maturity_4": "Zero-delay CERSAI registration with real-time API integration at disbursement; automated retry logic handles API failures with escalation alerts; CKYC records are updated in real-time on customer data changes; registration error rate is tracked as a primary compliance KPI; root cause analysis on failures drives process improvement; CERSAI portal data is reconciled against internal records monthly",
+                        "maturity_5": "CERSAI registration is a zero-touch automated process with sub-minute completion at disbursement; ML-based pre-validation eliminates registration failures before submission; CKYC is continuously synchronised with customer data changes; full audit trail of all CERSAI interactions is immutable; regulatory change in CERSAI data requirements is auto-mapped and deployed; compliance with CERSAI and CKYC obligations is continuous and zero-effort"
+                    }
+                }
+            ]
+        },
+        {
+            "id": "core_banking_operations",
+            "name": "Core Banking Operations",
+            "icon": "server",
+            "description": "Day-to-day banking operations including batch processing, liquidity management, and fraud risk oversight",
+            "order": 6,
+            "subAreas": [
+                {
+                    "id": "eod_bod_batch",
+                    "name": "EOD / BOD Batch Processing",
+                    "icon": "cpu",
+                    "description": "End-of-day and beginning-of-day core banking batch cycles, interest accrual, and operational continuity",
+                    "order": 1,
+                    "basePrompt": "Ask about the bank's core banking batch processing — how long the EOD batch takes, what the most frequent causes of batch failures or delays are, how interest accrual and capitalisation are handled, how the bank manages EOD completion monitoring, what the escalation process is for batch failures, how BCP is exercised for core banking system outages, and how the bank is modernising its batch architecture to reduce the batch window or move toward event-driven processing.",
+                    "benchmarks": {
+                        "maturity_1": "EOD batch takes 6-8 hours and frequently overruns into business hours; batch failures are investigated by IT team with no standard runbook; interest accrual errors are discovered post-EOD; monitoring is manual with staff watching batch logs; BCP for core banking has not been tested in the last 12 months; no visibility into batch step SLAs",
+                        "maturity_2": "EOD batch completes in 3-6 hours on most nights; standard batch monitoring tool alerts on step failures; runbooks exist for common failures; interest accrual is validated by a post-batch exception report; BCP is tested annually; batch SLAs are informally tracked",
+                        "maturity_3": "EOD batch is optimised to run in <3 hours with parallel processing of independent batch jobs; automated monitoring platform tracks step-level SLAs and pages the on-call team on breach; interest accrual validation is automated with auto-correction of minor discrepancies; BOD processes (date change, rate updates) are scripted and verified; BCP is tested semi-annually with documented RTO; batch completion report is distributed automatically",
+                        "maturity_4": "Continuous batch monitoring with predictive SLA breach detection based on job run-time trends; automated remediation handles >50% of batch exceptions without human intervention; interest and fee calculations are validated in real-time during the batch using control totals; BCP failover has been tested with live traffic; event-driven processing is partially implemented reducing batch dependency for select processes; batch window is <2 hours",
+                        "maturity_5": "Core banking is on a near-real-time processing architecture with minimal batch dependency; remaining batch jobs are fully automated and self-healing; zero unplanned EOD overruns in the past 12 months; BCP failover is automatic with <15-minute RTO; interest accrual is a continuous event-driven calculation; core banking platform supports cloud-native elastic scaling for peak period processing"
+                    }
+                },
+                {
+                    "id": "liquidity_alm",
+                    "name": "Liquidity Management & ALM",
+                    "icon": "droplet",
+                    "description": "Intraday and structural liquidity monitoring, asset-liability management, and interest rate risk management",
+                    "order": 2,
+                    "basePrompt": "Ask about how the bank manages its liquidity position — how the LCR (Liquidity Coverage Ratio) and NSFR are monitored and reported to RBI, how the ALCO reviews and manages the balance sheet, what tools are used for interest rate risk measurement (NII sensitivity, EVE), how the bank manages its CRR and SLR compliance, how intraday liquidity is monitored across RTGS, CCIL, and internal positions, and how the bank's liquidity stress testing framework works.",
+                    "benchmarks": {
+                        "maturity_1": "LCR and NSFR calculations are done manually in Excel using data extracted from core banking and treasury systems; ALCO meets monthly with backward-looking data; interest rate risk is measured using basic gap analysis in spreadsheets; CRR and SLR compliance is monitored by a single treasury officer; intraday liquidity is not monitored; no liquidity stress testing framework",
+                        "maturity_2": "Dedicated ALM system calculates LCR, NSFR, and basic interest rate risk metrics; ALCO receives a weekly risk report; CRR and SLR positions are tracked in the treasury system with breach alerts; gap analysis covers a 12-month horizon; basic stress testing scenarios are run quarterly; LCR is reported to RBI via the DSB return",
+                        "maturity_3": "Integrated ALM platform calculates LCR, NSFR, NII sensitivity, and EVE daily from enriched data feeds; ALCO is supported by an analytics team with scenario-based dashboards; CRR and SLR compliance is real-time with automated alert on breach risk; intraday liquidity is monitored for major payment systems (RTGS, CCIL); liquidity stress testing is conducted quarterly using RBI-prescribed scenarios; Pillar 2 liquidity risk assessment is embedded in ICAAP",
+                        "maturity_4": "Real-time LCR and intraday liquidity monitoring with automated alert on early warning indicators; predictive cash flow modelling improves liquidity buffer optimisation; ALM analytics incorporate behavioural assumptions validated by historical data; interest rate risk is managed dynamically with hedging recommendations from the ALM system; stress testing covers a range of idiosyncratic and market-wide scenarios; capital and liquidity planning are integrated",
+                        "maturity_5": "Continuous liquidity risk management with real-time data from all transaction systems; ML-based behavioural modelling for retail deposits and loan prepayments improves ALM accuracy; intraday liquidity is optimised across all payment systems with automated recycling of collateral; dynamic stress testing is embedded in business decision workflows; LCR and NSFR are always above internal buffers with zero manual intervention; regulatory submissions are automated and real-time"
+                    }
+                },
+                {
+                    "id": "fraud_risk_monitoring",
+                    "name": "Fraud & Operational Risk Monitoring",
+                    "icon": "eye",
+                    "description": "Transaction fraud detection, cyber fraud prevention, operational risk event management, and RBI fraud reporting",
+                    "order": 3,
+                    "basePrompt": "Ask about how the bank manages fraud and operational risk — what fraud detection systems are in place for card, digital banking, and account takeover fraud, how quickly suspicious transactions are flagged and actioned, what the false positive rate is for fraud alerts, how operational risk events (including cyber incidents) are captured and reported to RBI, how the bank manages its RCSA (Risk and Control Self-Assessment) process, and what key operational risk metrics (BEICF, KRI) are monitored by the board risk committee.",
+                    "benchmarks": {
+                        "maturity_1": "Fraud detection relies on reactive investigation after customer complaints; no automated transaction monitoring for fraud; card disputes are managed manually; operational risk events are reported informally; no RCSA process; RBI fraud reporting (CFRD portal) is done manually and often delayed; no KRI framework",
+                        "maturity_2": "Basic rule-based fraud detection system flags high-risk transactions for review; card fraud disputes are tracked in a module; operational risk events are logged in a register; annual RCSA is conducted by business units; RBI fraud reporting is structured but relies on manual data collection; basic KRIs are reported to the risk committee quarterly",
+                        "maturity_3": "Enterprise fraud management system (FMS) monitors transactions in real-time across channels with configurable rules and scoring; fraud case management module handles investigation and customer communication; operational risk management system (ORMS) captures risk events, near-misses, and losses; RCSA is conducted semi-annually with control testing; CFRD reporting is automated; BEICF and KRI dashboards are available to risk management",
+                        "maturity_4": "AI/ML-based fraud detection with customer behavioural profiles and network analysis reduces false positives by >30% while improving detection rates; real-time card blocking on high-risk transactions; digital fraud (phishing, SIM swap) detection integrated with mobile banking platform; operational risk data is aggregated with loss database benchmarking; RCSA is continuous with automated control testing; risk appetite breach alerts are board-level",
+                        "maturity_5": "Adaptive fraud intelligence that learns from confirmed fraud patterns and adjusts models in near-real-time; zero false-negative target for high-value fraud; cyber threat intelligence feeds are integrated with fraud and security operations; operational risk management is fully integrated with risk appetite framework and capital planning; predictive KRI models anticipate operational risk events before they materialise; regulatory fraud reporting is real-time via API"
+                    }
+                }
+            ]
+        }
+    ]
+}

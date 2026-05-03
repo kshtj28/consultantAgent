@@ -83,6 +83,20 @@ export interface GapItem {
     priority: number;
 }
 
+export interface BankingKpiValue {
+    current: number | null;
+    target: number | null;
+    unit: string;
+    label: string;
+}
+
+export interface BankingKpis {
+    avgCycleTimeDays: BankingKpiValue;
+    costPerLoan:      BankingKpiValue;
+    stpRate:          BankingKpiValue;
+    npaRatio:         BankingKpiValue;
+}
+
 export interface GapReportERPEvidence {
     connectorId: string;
     connectorName: string;
@@ -101,6 +115,7 @@ export interface GapReport {
     generatedAt: Date;
     executiveSummary: string;
     erpEvidence?: GapReportERPEvidence[] | null;
+    bankingKpis?: BankingKpis | null;
     gaps: GapItem[];
     quickWins: GapItem[];
     roadmap: {
@@ -157,6 +172,7 @@ export interface ConsolidatedReport {
     gaps: GapItem[];
     quickWins: GapItem[];
     erpEvidence?: GapReportERPEvidence[] | null;
+    bankingKpis?: BankingKpis | null;
     roadmap: {
         phase: string;
         duration: string;
@@ -301,7 +317,8 @@ export async function generateGapReport(sessionId: string, modelId?: string): Pr
         answerContext,
         session.conversationContext.identifiedGaps.join(', '),
         session.conversationContext.painPoints.join(', '),
-        projectCtx.erpPath || ''
+        projectCtx.erpPath || '',
+        session.domainId === 'banking'
     )}${kbContext}${erpEvidenceBlock}`;
 
     const response = await generateCompletion(modelId || null, [
@@ -502,6 +519,7 @@ export async function generateGapReport(sessionId: string, modelId?: string): Pr
         generatedAt: new Date(),
         executiveSummary: parsed.executiveSummary || 'Gap analysis completed.',
         erpEvidence: erpEvidenceData.length > 0 ? erpEvidenceData : null,
+        bankingKpis: parsed.bankingKpis ?? null,
         gaps: sortedGaps,
         quickWins,
         roadmap: parsed.roadmap || [],
@@ -573,6 +591,7 @@ export async function generateConsolidatedReport(sessionId: string, modelId?: st
         roadmap: gap.roadmap,
         riskAssessment: gap.riskAssessment,
         erpEvidence: gap.erpEvidence,
+        bankingKpis: gap.bankingKpis ?? null,
         chartData: {
             pieChart: readiness.chartData.pieChart,
             maturityRadar: gap.chartData.maturityRadar,

@@ -3,8 +3,11 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Install pnpm
-RUN npm install -g pnpm
+# Install pnpm using corepack (more robust than npm install -g)
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+# Fix for "SELF_SIGNED_CERT_IN_CHAIN" error in environments with SSL-inspecting proxies
+RUN npm config set strict-ssl false && pnpm config set strict-ssl false
 
 # Copy package files
 COPY package*.json pnpm-lock.yaml ./
@@ -27,8 +30,11 @@ FROM node:20-alpine AS production
 
 WORKDIR /app
 
-# Install pnpm
-RUN npm install -g pnpm
+# Install pnpm using corepack
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+# Fix for SSL certificate errors
+RUN npm config set strict-ssl false && pnpm config set strict-ssl false
 
 # Copy package files
 COPY package*.json pnpm-lock.yaml ./
