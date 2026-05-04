@@ -37,12 +37,12 @@ COPY nginx.conf /etc/nginx/templates/default.conf.template
 # Copy built files
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Expose port (can be overridden by PORT env var)
-EXPOSE $PORT
+# Expose port
+EXPOSE 80
 
-# Health check (uses localhost:PORT)
+# Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:$PORT || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost:80 || exit 1
 
 # Start nginx (alpine image automatically processes templates on startup)
 CMD ["nginx", "-g", "daemon off;"]
