@@ -1,15 +1,19 @@
 import { Client } from '@opensearch-project/opensearch';
 import { env } from './env';
 
-// OpenSearch client configuration
+// OpenSearch client configuration — only send auth when credentials are explicitly set
+const hasExplicitAuth = env.OPENSEARCH_USERNAME !== 'admin' || env.OPENSEARCH_PASSWORD !== 'admin';
+
 export const opensearchClient = new Client({
   node: env.OPENSEARCH_NODE,
-  auth: {
-    username: env.OPENSEARCH_USERNAME,
-    password: env.OPENSEARCH_PASSWORD,
-  },
+  ...(hasExplicitAuth ? {
+    auth: {
+      username: env.OPENSEARCH_USERNAME,
+      password: env.OPENSEARCH_PASSWORD,
+    },
+  } : {}),
   ssl: {
-    rejectUnauthorized: false, // For development - set to true in production
+    rejectUnauthorized: false,
   },
 });
 
