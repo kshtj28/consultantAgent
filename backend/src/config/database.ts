@@ -1,15 +1,34 @@
 import { Client } from '@opensearch-project/opensearch';
 import { env } from './env';
 
-// OpenSearch client configuration — only send auth when credentials are explicitly set
-const hasExplicitAuth = env.OPENSEARCH_USERNAME !== 'admin' || env.OPENSEARCH_PASSWORD !== 'admin';
+let nodeUrl = env.OPENSEARCH_NODE;
+let authUsername = env.OPENSEARCH_USERNAME;
+let authPassword = env.OPENSEARCH_PASSWORD;
+
+// Extract credentials from URL if present (common for Bonsai)
+try {
+  const urlObj = new URL(nodeUrl);
+  if (urlObj.username && urlObj.password) {
+    authUsername = urlObj.username;
+    authPassword = urlObj.password;
+    // Remove credentials from the node URL to prevent conflicts
+    urlObj.username = '';
+    urlObj.password = '';
+    nodeUrl = urlObj.toString();
+  }
+} catch (e) {
+  // Invalid URL, let the client handle the error
+}
+
+// OpenSearch client configuration
+const hasExplicitAuth = authUsername !== 'admin' || authPassword !== 'admin';
 
 export const opensearchClient = new Client({
-  node: env.OPENSEARCH_NODE,
+  node: nodeUrl,
   ...(hasExplicitAuth ? {
     auth: {
-      username: env.OPENSEARCH_USERNAME,
-      password: env.OPENSEARCH_PASSWORD,
+      username: authUsername,
+      password: authPassword,
     },
   } : {}),
   ssl: {
