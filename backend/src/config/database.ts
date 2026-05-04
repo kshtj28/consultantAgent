@@ -1,9 +1,14 @@
 import { Client } from '@opensearch-project/opensearch';
 import { env } from './env';
 
-let nodeUrl = env.OPENSEARCH_NODE;
-let authUsername = env.OPENSEARCH_USERNAME;
-let authPassword = env.OPENSEARCH_PASSWORD;
+let nodeUrl = env.OPENSEARCH_NODE ? env.OPENSEARCH_NODE.replace(/^["']|["']$/g, '').trim() : '';
+let authUsername = env.OPENSEARCH_USERNAME ? env.OPENSEARCH_USERNAME.replace(/^["']|["']$/g, '').trim() : '';
+let authPassword = env.OPENSEARCH_PASSWORD ? env.OPENSEARCH_PASSWORD.replace(/^["']|["']$/g, '').trim() : '';
+
+// Add https:// if missing to ensure URL parsing works
+if (nodeUrl && !nodeUrl.startsWith('http')) {
+  nodeUrl = 'https://' + nodeUrl;
+}
 
 // Extract credentials from URL if present (common for Bonsai)
 try {
@@ -17,14 +22,14 @@ try {
     nodeUrl = urlObj.toString();
   }
 } catch (e) {
-  // Invalid URL, let the client handle the error
+  console.warn('❌ Failed to parse OPENSEARCH_NODE URL:', e.message);
 }
 
-// OpenSearch client configuration
-const hasExplicitAuth = authUsername !== 'admin' || authPassword !== 'admin';
+// Only send explicit auth if we actually have valid credentials
+const hasExplicitAuth = Boolean(authUsername && authPassword && authUsername !== 'admin' && authPassword !== 'admin');
 
 export const opensearchClient = new Client({
-  node: nodeUrl,
+  node: nodeUrl || 'http://localhost:9200',
   ...(hasExplicitAuth ? {
     auth: {
       username: authUsername,
