@@ -27,17 +27,22 @@ RUN pnpm run build
 # Production stage - serve with nginx
 FROM nginx:alpine AS production
 
-# Copy custom nginx config
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Default environment variables
+ENV PORT=80
+ENV BACKEND_URL=http://backend:3001
+
+# Copy custom nginx config to templates directory so envsubst can process it
+COPY nginx.conf /etc/nginx/templates/default.conf.template
 
 # Copy built files
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Expose port
-EXPOSE 80
+# Expose port (can be overridden by PORT env var)
+EXPOSE $PORT
 
-# Health check
+# Health check (uses localhost:PORT)
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:80 || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost:$PORT || exit 1
 
+# Start nginx (alpine image automatically processes templates on startup)
 CMD ["nginx", "-g", "daemon off;"]
