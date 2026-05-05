@@ -1,5 +1,5 @@
 import { getInterviewSession } from './interviewService';
-import { getSubArea } from './domainService';
+import { getSubArea, getActiveDomainId } from './domainService';
 import { generateCompletion } from './llmService';
 import { buildReadinessReportPrompt, buildGapReportPrompt } from '../prompts/report.prompt';
 import { getLanguageInstructions } from './languageService';
@@ -318,7 +318,7 @@ export async function generateGapReport(sessionId: string, modelId?: string): Pr
         session.conversationContext.identifiedGaps.join(', '),
         session.conversationContext.painPoints.join(', '),
         projectCtx.erpPath || '',
-        session.domainId === 'banking'
+        (session.domainId || getActiveDomainId()) === 'banking'
     )}${kbContext}${erpEvidenceBlock}`;
 
     const response = await generateCompletion(modelId || null, [

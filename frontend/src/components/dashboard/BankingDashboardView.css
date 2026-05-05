@@ -3,7 +3,7 @@
     flex-direction: column;
     gap: 24px;
     padding: 24px;
-    background: #f8fafc;
+    background: transparent;
     min-height: 100%;
 }
 
@@ -18,14 +18,14 @@
     margin: 0;
     font-size: 1.5rem;
     font-weight: 700;
-    color: #0f172a;
+    color: var(--text, #0f172a);
     letter-spacing: -0.02em;
 }
 
 .banking-dashboard__subtitle {
     margin: 4px 0 0;
     font-size: 0.9rem;
-    color: #64748b;
+    color: var(--text-secondary, #64748b);
     font-weight: 500;
 }
 
@@ -33,11 +33,11 @@
     display: inline-flex;
     flex-direction: column;
     align-items: flex-end;
-    background: #ecfdf5;
-    border: 1px solid #a7f3d0;
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.3);
     padding: 10px 16px;
     border-radius: 8px;
-    color: #065f46;
+    color: var(--success, #065f46);
 }
 
 .banking-dashboard__savings-val {
@@ -62,11 +62,11 @@
 }
 
 .banking-kpi-card {
-    background: #ffffff;
+    background: var(--surface, #ffffff);
     border-radius: 12px;
     padding: 20px;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.025);
-    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--border, #e2e8f0);
     position: relative;
     overflow: hidden;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
@@ -74,7 +74,7 @@
 
 .banking-kpi-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+    box-shadow: var(--shadow-lg);
 }
 
 /* Card Accent Top Borders */
@@ -93,7 +93,7 @@
 .banking-kpi-title {
     font-size: 0.85rem;
     font-weight: 600;
-    color: #475569;
+    color: var(--text-secondary, #475569);
 }
 
 .banking-kpi-icon {
@@ -121,22 +121,22 @@
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: #94a3b8;
+    color: var(--text-secondary, #94a3b8);
     margin-bottom: 2px;
 }
 
 .banking-kpi-value {
     font-size: 1.75rem;
     font-weight: 800;
-    color: #0f172a;
+    color: var(--text, #0f172a);
     line-height: 1;
 }
 .banking-kpi-value--tobe {
-    color: #3b82f6;
+    color: var(--primary, #3b82f6);
 }
 
 .banking-kpi-arrow {
-    color: #cbd5e1;
+    color: var(--text-secondary, #cbd5e1);
     font-size: 1.25rem;
 }
 
@@ -147,25 +147,26 @@
     padding: 4px 0;
     margin-top: 8px;
 }
-.banking-kpi-delta--good { color: #10b981; }
-.banking-kpi-delta--bad { color: #ef4444; }
-.banking-kpi-delta--neutral { color: #64748b; }
+.banking-kpi-delta--good { color: var(--success, #10b981); }
+.banking-kpi-delta--bad { color: var(--error, #ef4444); }
+.banking-kpi-delta--neutral { color: var(--text-secondary, #64748b); }
 
 .banking-kpi-divider {
     height: 2px;
     width: 100%;
     margin-top: 4px;
     border-radius: 2px;
+    opacity: 0.5;
 }
-.banking-kpi-card--cycle .banking-kpi-divider { background: #bfdbfe; }
-.banking-kpi-card--cost .banking-kpi-divider { background: #a7f3d0; }
-.banking-kpi-card--error .banking-kpi-divider { background: #fecaca; }
-.banking-kpi-card--automation .banking-kpi-divider { background: #ddd6fe; }
+.banking-kpi-card--cycle .banking-kpi-divider { background: #3b82f6; }
+.banking-kpi-card--cost .banking-kpi-divider { background: #10b981; }
+.banking-kpi-card--error .banking-kpi-divider { background: #ef4444; }
+.banking-kpi-card--automation .banking-kpi-divider { background: #8b5cf6; }
 
 /* ── SAMA Compliance Banner ── */
 .banking-sama-banner {
-    background: #ecfdf5;
-    border: 1px solid #a7f3d0;
+    background: rgba(16, 185, 129, 0.05);
+    border: 1px solid rgba(16, 185, 129, 0.3);
     border-radius: 12px;
     padding: 16px 24px;
     display: flex;
@@ -192,14 +193,14 @@
 
 .banking-sama-title {
     font-weight: 700;
-    color: #064e3b;
+    color: var(--text, #064e3b);
     font-size: 1rem;
     margin-bottom: 2px;
 }
 
 .banking-sama-subtitle {
     font-size: 0.8rem;
-    color: #047857;
+    color: var(--text-secondary, #047857);
     opacity: 0.9;
 }
 
@@ -216,9 +217,9 @@
 }
 
 .banking-sama-badge {
-    background: white;
-    border: 1px solid #6ee7b7;
-    color: #065f46;
+    background: var(--surface-light, white);
+    border: 1px solid var(--border-light, #6ee7b7);
+    color: var(--text, #065f46);
     padding: 4px 10px;
     border-radius: 100px;
     font-size: 0.7rem;
@@ -252,17 +253,17 @@
 }
 
 .banking-chart-card {
-    background: #ffffff;
+    background: var(--surface, #ffffff);
     border-radius: 12px;
     padding: 24px;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.025);
-    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--border, #e2e8f0);
 }
 
 .banking-chart-title {
     font-size: 1rem;
     font-weight: 600;
-    color: #1e293b;
+    color: var(--text, #1e293b);
     margin: 0 0 20px 0;
 }
 
@@ -280,7 +281,7 @@
     font-weight: 700;
     font-size: 0.85rem;
     margin-bottom: 8px;
-    color: #cbd5e1;
+    color: var(--text-secondary, #cbd5e1);
     text-transform: uppercase;
 }
 

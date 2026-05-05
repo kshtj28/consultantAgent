@@ -3,6 +3,7 @@ import { opensearchClient, INDICES } from '../config/database';
 import { AuthRequest } from '../middleware/auth';
 import { addReportSSEClient, broadcastReportStatus } from '../services/reportSseService';
 import { generateRTM } from '../services/rtmService';
+import { getActiveDomainId } from '../services/domainService';
 
 const router = Router();
 
@@ -90,6 +91,9 @@ router.get('/', async (req: Request, res: Response) => {
 
         // Build query
         const must: any[] = [];
+
+        // Always scope to active domain
+        must.push({ term: { domainId: getActiveDomainId() } });
 
         if (type) {
             must.push({ term: { type } });

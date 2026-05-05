@@ -47,10 +47,15 @@ router.get('/stats', async (req: Request, res: Response) => {
             try {
                 const reportIndexExists = await opensearchClient.indices.exists({ index: INDICES.REPORTS });
                 if (reportIndexExists.body) {
+                    const domainId = getActiveDomainId();
                     const gapRes = await opensearchClient.search({
                         index: INDICES.REPORTS,
                         body: {
-                            query: { bool: { must: [{ term: { status: 'ready' } }, userFilter] } },
+                            query: { bool: { must: [
+                                { term: { status: 'ready' } },
+                                { term: { domainId } },
+                                userFilter,
+                            ] } },
                             size: 200,
                             _source: ['content.gaps'],
                         },
@@ -194,9 +199,11 @@ router.get('/executive-summary', async (req: Request, res: Response) => {
 
         const indexExists = await opensearchClient.indices.exists({ index: INDICES.REPORTS });
         if (indexExists.body) {
+            const domainId = getActiveDomainId();
             const reportsFilter: any[] = [
                 { term: { type: 'broad_area' } },
                 { term: { status: 'ready' } },
+                { term: { domainId } },
             ];
             if (uid) {
                 reportsFilter.push({ bool: { should: [
@@ -307,9 +314,11 @@ router.get('/cumulative-gaps', async (req: Request, res: Response) => {
         }
 
         // Fetch all ready broad_area reports with content
+        const domainId = getActiveDomainId();
         const gapsFilter: any[] = [
             { term: { type: 'broad_area' } },
             { term: { status: 'ready' } },
+            { term: { domainId } },
         ];
         if (uid) {
             gapsFilter.push({ bool: { should: [
@@ -418,10 +427,12 @@ router.get('/maturity-trend', async (req: Request, res: Response) => {
             return res.json({ days, points: [], baseline: null, current: null, deltaPct: 0, sampleCount: 0 });
         }
 
+        const trendDomainId = getActiveDomainId();
         const trendMust: any[] = [
             { term: { type: 'broad_area' } },
             { term: { status: 'ready' } },
             { range: { createdAt: { gte: since } } },
+            { term: { domainId: trendDomainId } },
         ];
         if (uid) {
             trendMust.push({ bool: { should: [
@@ -485,23 +496,26 @@ router.get('/banking-kpis', async (req: Request, res: Response) => {
         const indexExists = await opensearchClient.indices.exists({ index: INDICES.REPORTS });
         if (!indexExists.body) return res.json({ available: true, kpis: null });
 
+        // content is stored with enabled:false so sub-field exists queries don't work.
+        // Instead fetch recent ready banking-domain reports and find the first with bankingKpis.
         const result = await opensearchClient.search({
             index: INDICES.REPORTS,
             body: {
                 query: { bool: { must: [
                     { term: { status: 'ready' } },
-                    { exists: { field: 'content.bankingKpis' } },
+                    { term: { domainId: 'banking' } },
                 ] } },
-                size: 1,
+                size: 10,
                 sort: [{ createdAt: { order: 'desc' } }],
                 _source: ['content.bankingKpis'],
             },
         });
 
-        const hit = (result.body.hits.hits as any[])[0];
+        const hits = (result.body.hits.hits as any[]);
+        const hit = hits.find(h => h._source?.content?.bankingKpis != null);
         if (!hit) return res.json({ available: true, kpis: null });
 
-        return res.json({ available: true, kpis: hit._source?.content?.bankingKpis ?? null });
+        return res.json({ available: true, kpis: hit._source.content.bankingKpis });
     } catch (err: any) {
         console.error('Error fetching banking KPIs:', err.message);
         return res.status(500).json({ error: err.message });

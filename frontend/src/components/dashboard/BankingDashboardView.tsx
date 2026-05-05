@@ -1,5 +1,6 @@
 
-import { Shield, CheckCircle2, ArrowRight, Activity, DollarSign, AlertTriangle, Zap, TrendingUp } from 'lucide-react';
+import { useState } from 'react';
+import { Shield, CheckCircle2, ArrowRight, Activity, DollarSign, AlertTriangle, Zap, TrendingUp, X } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from 'recharts';
 import type { BankingKpis } from '../../services/api';
 import './BankingDashboardView.css';
@@ -7,6 +8,14 @@ import './BankingDashboardView.css';
 interface BankingDashboardViewProps {
     kpis: BankingKpis | null;
 }
+
+const SAMA_COMPLIANCE_ITEMS = [
+    { label: 'Data Residency', badge: 'Residency', status: 'Compliant', detail: 'All customer data and processing remains within Saudi Arabia in accordance with SAMA Cloud Computing Regulatory Framework and PDPL Article 29.' },
+    { label: 'Cybersecurity Framework', badge: 'CSF', status: 'Compliant', detail: 'Controls mapped to SAMA Cybersecurity Framework (CSF) domains: Governance, Defence, Resilience, and Third-Party. Annual NCA assessment completed.' },
+    { label: 'Audit Trails', badge: 'Audit', status: 'Compliant', detail: 'Immutable audit logs retained for 10 years per SAMA record-keeping requirements. All user actions, data access, and model decisions are logged.' },
+    { label: 'Multi-Factor Authentication', badge: 'MFA/RBAC', status: 'Compliant', detail: 'MFA enforced for all users. Role-Based Access Control (RBAC) limits data access by department and seniority. Reviewed quarterly.' },
+    { label: 'Ethical AI', badge: 'Ethical AI', status: 'Compliant', detail: 'AI models include explainability outputs for credit decisions in line with SAMA Model Risk Management Guidelines. No prohibited use cases (facial recognition, discriminatory scoring) are implemented.' },
+];
 
 const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
@@ -26,25 +35,40 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export default function BankingDashboardView({ kpis }: BankingDashboardViewProps) {
+    const [showCompliance, setShowCompliance] = useState(false);
+
     if (!kpis) {
         return (
             <div className="banking-dashboard" style={{ alignItems: 'center', justifyContent: 'center', minHeight: '80vh' }}>
-                <div style={{ textAlign: 'center', maxWidth: 400, padding: 40, background: 'white', borderRadius: 16, boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01)', border: '1px solid #e2e8f0' }}>
-                    <div style={{ background: '#f1f5f9', width: 64, height: 64, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
-                        <Activity size={28} color="#64748b" />
+                <div style={{ textAlign: 'center', maxWidth: 440, padding: 40, background: 'var(--surface, white)', borderRadius: 16, boxShadow: 'var(--shadow-lg)', border: '1px solid var(--border, #e2e8f0)' }}>
+                    <div style={{ background: 'var(--surface-light, #f1f5f9)', width: 64, height: 64, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+                        <Activity size={28} color="var(--text-secondary, #64748b)" />
                     </div>
-                    <h2 style={{ margin: '0 0 12px', fontSize: '1.25rem', color: '#0f172a', fontWeight: 700 }}>No Assessment Data</h2>
-                    <p style={{ margin: '0 0 24px', fontSize: '0.9rem', color: '#64748b', lineHeight: 1.5 }}>
-                        Complete a Loan Origination process assessment with an SME to populate this dashboard with intelligent AS-IS vs TO-BE metrics.
+                    <h2 style={{ margin: '0 0 12px', fontSize: '1.25rem', color: 'var(--text, #0f172a)', fontWeight: 700 }}>No KPI Data Yet</h2>
+                    <p style={{ margin: '0 0 8px', fontSize: '0.9rem', color: 'var(--text-secondary, #64748b)', lineHeight: 1.5 }}>
+                        Complete a banking interview, then <strong style={{ color: 'var(--text, #0f172a)' }}>generate a Gap Report</strong> from that session.
                     </p>
-                    <button 
-                        onClick={() => window.location.href = '/chat'}
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#3b82f6', color: 'white', padding: '10px 20px', borderRadius: 8, fontSize: '0.9rem', fontWeight: 600, border: 'none', cursor: 'pointer', transition: 'background 0.2s' }}
-                        onMouseOver={(e) => e.currentTarget.style.background = '#2563eb'}
-                        onMouseOut={(e) => e.currentTarget.style.background = '#3b82f6'}
-                    >
-                        Start Assessment <ArrowRight size={16} />
-                    </button>
+                    <p style={{ margin: '0 0 24px', fontSize: '0.82rem', color: 'var(--text-secondary, #94a3b8)', lineHeight: 1.5 }}>
+                        The dashboard reads from report data — completing the interview alone is not enough.
+                    </p>
+                    <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+                        <button
+                            onClick={() => window.location.href = '/process-analysis'}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#3b82f6', color: 'white', padding: '10px 20px', borderRadius: 8, fontSize: '0.9rem', fontWeight: 600, border: 'none', cursor: 'pointer', transition: 'background 0.2s' }}
+                            onMouseOver={(e) => e.currentTarget.style.background = '#2563eb'}
+                            onMouseOut={(e) => e.currentTarget.style.background = '#3b82f6'}
+                        >
+                            Start Interview <ArrowRight size={16} />
+                        </button>
+                        <button
+                            onClick={() => window.location.href = '/reports'}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'transparent', color: 'var(--primary, #3b82f6)', padding: '10px 20px', borderRadius: 8, fontSize: '0.9rem', fontWeight: 600, border: '1px solid var(--primary, #3b82f6)', cursor: 'pointer' }}
+                            onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)'; }}
+                            onMouseOut={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                        >
+                            Go to Reports <ArrowRight size={16} />
+                        </button>
+                    </div>
                 </div>
             </div>
         );
@@ -72,7 +96,7 @@ export default function BankingDashboardView({ kpis }: BankingDashboardViewProps
         },
         {
             key: 'error',
-            label: 'Error Rate',
+            label: 'NPL Ratio',
             metric: kpis.npaRatio,
             icon: <AlertTriangle size={18} />,
             lowerIsBetter: true,
@@ -101,15 +125,15 @@ export default function BankingDashboardView({ kpis }: BankingDashboardViewProps
             'AS-IS': kpis.avgCycleTimeDays.current || 0, 
             'TO-BE': kpis.avgCycleTimeDays.target || 0 
         },
-        { 
-            name: 'Cost ($00s)', 
-            'AS-IS': (kpis.costPerLoan.current || 0) / 100, 
-            'TO-BE': (kpis.costPerLoan.target || 0) / 100 
+        {
+            name: 'Cost (SAR 00s)',
+            'AS-IS': (kpis.costPerLoan.current || 0) / 100,
+            'TO-BE': (kpis.costPerLoan.target || 0) / 100
         },
-        { 
-            name: 'Error Rate (%×10)', 
-            'AS-IS': (kpis.npaRatio.current || 0) * 10, 
-            'TO-BE': (kpis.npaRatio.target || 0) * 10 
+        {
+            name: 'NPL Ratio (%×10)',
+            'AS-IS': (kpis.npaRatio.current || 0) * 10,
+            'TO-BE': (kpis.npaRatio.target || 0) * 10
         },
         { 
             name: 'Automation (%)', 
@@ -133,8 +157,8 @@ export default function BankingDashboardView({ kpis }: BankingDashboardViewProps
             {/* ── Header ── */}
             <div className="banking-dashboard__header">
                 <div>
-                    <h1 className="banking-dashboard__title">Process Transformation Overview</h1>
-                    <p className="banking-dashboard__subtitle">Loan Origination · AS-IS vs TO-BE · Last updated: {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
+                    <h1 className="banking-dashboard__title">Banking Process Transformation</h1>
+                    <p className="banking-dashboard__subtitle">AS-IS vs TO-BE · Last updated: {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
                 </div>
                 <div className="banking-dashboard__savings-badge">
                     <span className="banking-dashboard__savings-val">
@@ -210,9 +234,44 @@ export default function BankingDashboardView({ kpis }: BankingDashboardViewProps
                         <span className="banking-sama-badge"><CheckCircle2 size={12} color="#10b981" /> MFA/RBAC</span>
                         <span className="banking-sama-badge"><CheckCircle2 size={12} color="#10b981" /> Ethical AI</span>
                     </div>
-                    <button className="banking-sama-btn">View details <ArrowRight size={14} /></button>
+                    <button className="banking-sama-btn" onClick={() => setShowCompliance(true)}>View details <ArrowRight size={14} /></button>
                 </div>
             </div>
+
+            {/* ── SAMA Compliance Modal ── */}
+            {showCompliance && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }} onClick={() => setShowCompliance(false)}>
+                    <div style={{ background: 'var(--surface)', border: '1px solid var(--border-light)', borderRadius: 16, padding: 32, maxWidth: 560, width: '100%', boxShadow: 'var(--shadow-lg)' }} onClick={e => e.stopPropagation()}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                <div style={{ background: '#059669', width: 36, height: 36, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    <Shield size={20} color="white" />
+                                </div>
+                                <div>
+                                    <div style={{ fontWeight: 700, color: 'var(--text)', fontSize: '1rem' }}>SAMA Compliance Posture</div>
+                                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>96% overall · 5 of 5 domains compliant</div>
+                                </div>
+                            </div>
+                            <button onClick={() => setShowCompliance(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: 4 }}>
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                            {SAMA_COMPLIANCE_ITEMS.map(item => (
+                                <div key={item.badge} style={{ background: 'var(--surface-light)', border: '1px solid var(--border)', borderRadius: 10, padding: '14px 16px' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                                        <span style={{ fontWeight: 600, color: 'var(--text)', fontSize: '0.9rem' }}>{item.label}</span>
+                                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'rgba(16,185,129,0.15)', color: '#10b981', borderRadius: 100, padding: '2px 10px', fontSize: '0.75rem', fontWeight: 700 }}>
+                                            <CheckCircle2 size={12} /> {item.status}
+                                        </span>
+                                    </div>
+                                    <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>{item.detail}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* ── Charts Grid ── */}
             <div className="banking-charts-grid">
@@ -221,10 +280,10 @@ export default function BankingDashboardView({ kpis }: BankingDashboardViewProps
                     <div style={{ width: '100%', height: 300 }}>
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={barData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12, fontWeight: 500 }} dy={10} />
-                                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
-                                <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: '#f1f5f9' }} />
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-light, #e2e8f0)" />
+                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary, #64748b)', fontSize: 12, fontWeight: 500 }} dy={10} />
+                                <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary, #94a3b8)', fontSize: 12 }} />
+                                <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: 'var(--surface-hover, #f1f5f9)' }} />
                                 <Legend wrapperStyle={{ paddingTop: 20 }} iconType="circle" />
                                 <Bar dataKey="AS-IS" fill="#ef4444" radius={[4, 4, 0, 0]} maxBarSize={50} />
                                 <Bar dataKey="TO-BE" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={50} />
@@ -238,8 +297,8 @@ export default function BankingDashboardView({ kpis }: BankingDashboardViewProps
                     <div style={{ width: '100%', height: 300 }}>
                         <ResponsiveContainer width="100%" height="100%">
                             <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
-                                <PolarGrid stroke="#e2e8f0" />
-                                <PolarAngleAxis dataKey="subject" tick={{ fill: '#64748b', fontSize: 11, fontWeight: 500 }} />
+                                <PolarGrid stroke="var(--border-light, #e2e8f0)" />
+                                <PolarAngleAxis dataKey="subject" tick={{ fill: 'var(--text-secondary, #64748b)', fontSize: 11, fontWeight: 500 }} />
                                 <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
                                 <Radar name="AS-IS" dataKey="AS-IS" stroke="#ef4444" fill="#ef4444" fillOpacity={0.2} strokeWidth={2} />
                                 <Radar name="TO-BE" dataKey="TO-BE" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.4} strokeWidth={2} />

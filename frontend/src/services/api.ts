@@ -361,10 +361,15 @@ export async function getActiveDomain(): Promise<{ domain: Domain; broadAreas: B
 }
 
 export async function setActiveDomain(domainId: string): Promise<{ success: boolean; domain: Domain }> {
-    return request('/api/interview/config/domain', {
+    const result = await request<{ success: boolean; domain: Domain }>('/api/interview/config/domain', {
         method: 'PUT',
         body: JSON.stringify({ domainId }),
     });
+    // Persist locally so Dashboard shows the correct domain instantly on next load
+    localStorage.setItem('activeDomainId', domainId);
+    // Notify all mounted components (Dashboard, Sidebar, etc.) to re-fetch with new domain
+    window.dispatchEvent(new CustomEvent('domain-changed', { detail: { domainId } }));
+    return result;
 }
 
 export async function fetchModels() {
@@ -599,7 +604,11 @@ export async function fetchBankingKpis() {
 }
 
 export async function fetchActiveDomain() {
-    return request<{ domain: { id: string; name: string; description: string }; broadAreas?: any[] }>(`${API_BASE}/interview/config/domain`);
+    const result = await request<{ domain: { id: string; name: string; description: string }; broadAreas?: any[] }>(`${API_BASE}/interview/config/domain`);
+    if (result?.domain?.id) {
+        localStorage.setItem('activeDomainId', result.domain.id);
+    }
+    return result;
 }
 
 export interface ExecutiveSummary {

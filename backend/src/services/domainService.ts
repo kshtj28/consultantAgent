@@ -62,7 +62,7 @@ function readPersistedDomain(): DomainId {
             if (domainId) return domainId as DomainId;
         }
     } catch { /* fall through to default */ }
-    return 'finance';
+    return 'banking';
 }
 
 function persistActiveDomain(domainId: DomainId): void {

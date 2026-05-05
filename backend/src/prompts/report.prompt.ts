@@ -217,18 +217,18 @@ Return JSON:
     { "category": "Process Area Name", "score": 45, "benchmark": 80 }
   ]${isBanking ? `,
   "bankingKpis": {
-    "avgCycleTimeDays": { "current": null, "target": null, "unit": "days", "label": "Avg Loan Cycle Time" },
-    "costPerLoan":      { "current": null, "target": null, "unit": "₹",    "label": "Cost per Loan" },
+    "avgCycleTimeDays": { "current": null, "target": null, "unit": "days", "label": "Avg Financing Cycle Time" },
+    "costPerLoan":      { "current": null, "target": null, "unit": "SAR",  "label": "Cost per Financing" },
     "stpRate":          { "current": null, "target": null, "unit": "%",    "label": "STP Rate" },
-    "npaRatio":         { "current": null, "target": null, "unit": "%",    "label": "NPA Ratio" }
+    "npaRatio":         { "current": null, "target": null, "unit": "%",    "label": "NPL Ratio" }
   }` : ''}
 }${isBanking ? `
 
 ### BANKING KPI EXTRACTION
 Populate "bankingKpis" in the JSON using interview data:
-- avgCycleTimeDays: avg days from loan application to disbursement/account activation — estimate from maturity if not stated
-- costPerLoan: cost in ₹ to process one loan end-to-end (operations + tech + staff cost)
+- avgCycleTimeDays: avg days from financing application to disbursement/account activation — estimate from maturity if not stated
+- costPerLoan: cost in SAR to process one financing facility end-to-end (operations + tech + staff cost)
 - stpRate: % of transactions processed end-to-end without manual intervention
-- npaRatio: gross NPA ratio (%) of the loan book
+- npaRatio: gross NPL (Non-Performing Loan) ratio (%) of the financing book under SAMA prudential standards
 Use null only if there is genuinely no basis for estimation even from maturity context.` : ''}`;
 }

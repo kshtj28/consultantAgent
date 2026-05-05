@@ -15,6 +15,25 @@ import BankingDashboardView from '../components/dashboard/BankingDashboardView';
 import { useLanguage } from '../i18n/LanguageContext';
 import './Dashboard.css';
 
+// Module-level cache — survives component unmount/remount during navigation
+const _cache: {
+    sessions: SessionSummary[];
+    stats: DashboardStats | null;
+    cumulativeGaps: CumulativeGapData | null;
+    execSummary: ExecutiveSummary | null;
+    maturityTrend: MaturityTrend | null;
+    bankingKpis: BankingKpis | null;
+    activeDomainId: string;
+} = {
+    sessions: [],
+    stats: null,
+    cumulativeGaps: null,
+    execSummary: null,
+    maturityTrend: null,
+    bankingKpis: null,
+    activeDomainId: 'banking',
+};
+
 /* ── Overall Readiness Score Ring ── */
 function ReadinessRing({ score }: { score: number }) {
     const r = 54;
@@ -155,45 +174,92 @@ function CircularProgress({ pct, color }: { pct: number; color: string }) {
 export default function Dashboard() {
     const { t } = useLanguage();
     const navigate = useNavigate();
-    const [sessions, setSessions] = useState<SessionSummary[]>([]);
-    const [stats, setStats] = useState<DashboardStats | null>(null);
-    const [cumulativeGaps, setCumulativeGaps] = useState<CumulativeGapData | null>(null);
-    const [execSummary, setExecSummary] = useState<ExecutiveSummary | null>(null);
-    const [maturityTrend, setMaturityTrend] = useState<MaturityTrend | null>(null);
-    const [bankingKpis, setBankingKpis] = useState<BankingKpis | null>(null);
-    const [activeDomainId, setActiveDomainId] = useState<string>('finance');
-    const [loading, setLoading] = useState(true);
+    const [sessions, setSessions] = useState<SessionSummary[]>(_cache.sessions);
+    const [stats, setStats] = useState<DashboardStats | null>(_cache.stats);
+    const [cumulativeGaps, setCumulativeGaps] = useState<CumulativeGapData | null>(_cache.cumulativeGaps);
+    const [execSummary, setExecSummary] = useState<ExecutiveSummary | null>(_cache.execSummary);
+    const [maturityTrend, setMaturityTrend] = useState<MaturityTrend | null>(_cache.maturityTrend);
+    const [bankingKpis, setBankingKpis] = useState<BankingKpis | null>(_cache.bankingKpis);
+    // Seed from localStorage first — avoids wrong-domain flash on page refresh
+    const [activeDomainId, setActiveDomainId] = useState<string>(
+        localStorage.getItem('activeDomainId') || _cache.activeDomainId
+    );
+    // Only show the full skeleton on the very first load (no cached data yet)
+    const [loading, setLoading] = useState(_cache.stats === null);
+    // Incrementing this triggers a full data re-fetch (used when domain changes)
+    const [dataVersion, setDataVersion] = useState(0);
     const esRef = useRef<EventSource | null>(null);
 
     const goToReports = (severity?: string, areaId?: string) =>
         navigate('/reports', { state: { scrollToGaps: true, severity, areaId } });
 
+    // Listen for domain changes triggered by Settings — re-fetch everything with the new domain
     useEffect(() => {
+        const handler = (e: Event) => {
+            const domainId = (e as CustomEvent).detail?.domainId;
+            if (!domainId) return;
+            setActiveDomainId(domainId);
+            _cache.activeDomainId = domainId;
+            // Clear stale cache so re-fetch shows fresh data
+            _cache.stats = null;
+            _cache.sessions = [];
+            _cache.cumulativeGaps = null;
+            _cache.execSummary = null;
+            _cache.maturityTrend = null;
+            _cache.bankingKpis = null;
+            setLoading(true);
+            setDataVersion(v => v + 1);
+        };
+        window.addEventListener('domain-changed', handler);
+        return () => window.removeEventListener('domain-changed', handler);
+    }, []);
+
+    // Fetch all dashboard data — re-runs whenever dataVersion increments (domain change)
+    useEffect(() => {
+        // Fetch domain independently — data failures must not block the domain switch
+        fetchActiveDomain()
+            .then(domainData => {
+                const newDomainId = domainData?.domain?.id;
+                if (newDomainId) {
+                    setActiveDomainId(newDomainId);
+                    _cache.activeDomainId = newDomainId;
+                    localStorage.setItem('activeDomainId', newDomainId);
+                }
+            })
+            .catch(() => {});
+
+        // Each call catches its own error so Promise.all always resolves
         Promise.all([
-            fetchSessions(),
-            fetchDashboardStats(),
-            fetchCumulativeGaps(),
-            fetchExecutiveSummary(),
+            fetchSessions().catch(() => ({ sessions: [] as SessionSummary[] })),
+            fetchDashboardStats().catch(() => null),
+            fetchCumulativeGaps().catch(() => null),
+            fetchExecutiveSummary().catch(() => null),
             fetchMaturityTrend(90).catch(() => null),
-            fetchActiveDomain().catch(() => null),
             fetchBankingKpis().catch(() => null),
         ])
-            .then(([sessRes, dashStats, gapData, execData, trendData, domainData, kpiData]) => {
-                setSessions(sessRes.sessions || []);
-                setStats(dashStats);
-                setCumulativeGaps(gapData);
-                setExecSummary(execData);
-                setMaturityTrend(trendData);
-                if (domainData) setActiveDomainId(domainData.domain?.id);
-                if (kpiData?.available && kpiData.kpis) setBankingKpis(kpiData.kpis);
+            .then(([sessRes, dashStats, gapData, execData, trendData, kpiData]) => {
+                const newSessions = (sessRes as any).sessions || [];
+                const newKpis = (kpiData as any)?.available && (kpiData as any).kpis ? (kpiData as any).kpis : null;
+
+                setSessions(newSessions);
+                if (dashStats) setStats(dashStats as DashboardStats);
+                if (gapData) setCumulativeGaps(gapData as CumulativeGapData);
+                if (execData) setExecSummary(execData as ExecutiveSummary);
+                setMaturityTrend((trendData as MaturityTrend | null) ?? null);
+                setBankingKpis(newKpis);
+
+                _cache.sessions = newSessions;
+                if (dashStats) _cache.stats = dashStats as DashboardStats;
+                if (gapData) _cache.cumulativeGaps = gapData as CumulativeGapData;
+                if (execData) _cache.execSummary = execData as ExecutiveSummary;
+                _cache.maturityTrend = (trendData as MaturityTrend | null) ?? null;
+                _cache.bankingKpis = newKpis;
             })
-            .catch(() => {})
             .finally(() => setLoading(false));
 
         const es = subscribeToDashboardStream(
             (updatedStats) => {
                 setStats(updatedStats);
-                // Refresh executive summary when stats update
                 fetchExecutiveSummary().then(setExecSummary).catch(() => {});
             },
             () => {},
@@ -203,7 +269,8 @@ export default function Dashboard() {
         return () => {
             es.close();
         };
-    }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [dataVersion]);
 
     const trendArrow = (trend: string | undefined) =>
         trend === 'up' ? '\u2191' : trend === 'down' ? '\u2193' : '';

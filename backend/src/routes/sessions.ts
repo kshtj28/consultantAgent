@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { opensearchClient, INDICES } from '../config/database';
 import { AuthRequest } from '../middleware/auth';
+import { getActiveDomainId } from '../services/domainService';
 
 const router = Router();
 
@@ -68,7 +69,14 @@ router.get('/sessions/all', async (req: Request, res: Response) => {
 
         // --- Interview sessions (stored in consultant_conversations, tagged with sessionType) ---
         try {
-            const interviewMust: any[] = [{ match: { sessionType: 'interview_session' } }];
+            const activeDomainId = getActiveDomainId();
+            const interviewMust: any[] = [
+                { match: { sessionType: 'interview_session' } },
+                { bool: { should: [
+                    { term: { domainId: activeDomainId } },
+                    { term: { 'domainId.keyword': activeDomainId } },
+                ], minimum_should_match: 1 } },
+            ];
             if (!isAdmin && userId) {
                 interviewMust.push({ bool: { should: [
                     { term: { userId } },

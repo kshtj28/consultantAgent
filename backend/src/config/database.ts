@@ -266,11 +266,18 @@ export async function initializeIndices(): Promise<void> {
               pendingRegeneration: { type: 'boolean' },
               previousContent: { type: 'object', enabled: false },
               updatedAt: { type: 'date' },
+              domainId: { type: 'keyword' },
             },
           },
         },
       });
       console.log('✅ Created reports index');
+    } else {
+      // Patch domainId field into existing reports index (safe no-op if already present)
+      await opensearchClient.indices.putMapping({
+        index: INDICES.REPORTS,
+        body: { properties: { domainId: { type: 'keyword' } } },
+      }).catch(() => {});
     }
 
     // Dashboard metrics index
