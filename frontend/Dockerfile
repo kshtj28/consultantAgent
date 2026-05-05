@@ -28,7 +28,7 @@ RUN pnpm run build
 FROM nginx:alpine AS production
 
 # Default environment variables
-ENV PORT=80
+ENV PORT=8080
 ENV BACKEND_URL=http://backend:3001
 
 # Copy custom nginx config to templates directory so envsubst can process it
@@ -37,12 +37,11 @@ COPY nginx.conf /etc/nginx/templates/default.conf.template
 # Copy built files
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Expose port
-EXPOSE 80
+# We DO NOT use EXPOSE so Railway dynamically routes traffic to the $PORT it assigns
 
-# Health check
+# Health check (uses localhost:PORT)
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:80 || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost:${PORT} || exit 1
 
 # Start nginx (alpine image automatically processes templates on startup)
 CMD ["nginx", "-g", "daemon off;"]
