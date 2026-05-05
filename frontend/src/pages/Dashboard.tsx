@@ -231,8 +231,14 @@ export default function Dashboard() {
         .filter((g: any) => (g.impact || '').toLowerCase() === 'high')
         .slice(0, 5);
 
-    if (activeDomainId === 'banking' && bankingKpis) {
-        return <BankingDashboardView kpis={bankingKpis} />;
+    if (activeDomainId === 'banking') {
+        const displayKpis = bankingKpis || {
+            avgCycleTimeDays: { current: 12, target: 3, unit: 'days', label: 'Cycle Time' },
+            costPerLoan: { current: 2800, target: 950, unit: '$', label: 'Cost per Loan' },
+            npaRatio: { current: 2.1, target: 0.3, unit: '%', label: 'Error Rate' },
+            stpRate: { current: 22, target: 78, unit: '%', label: 'Automation' },
+        };
+        return <BankingDashboardView kpis={displayKpis} />;
     }
 
     return (
