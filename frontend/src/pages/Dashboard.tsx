@@ -184,7 +184,7 @@ export default function Dashboard() {
                 setCumulativeGaps(gapData);
                 setExecSummary(execData);
                 setMaturityTrend(trendData);
-                if (domainData) setActiveDomainId(domainData.domain?.id || domainData.id);
+                if (domainData) setActiveDomainId(domainData.domain?.id);
                 if (kpiData?.available && kpiData.kpis) setBankingKpis(kpiData.kpis);
             })
             .catch(() => {})
