@@ -12,7 +12,7 @@ export function authenticateToken(req: Request, res: Response, next: NextFunctio
     const token = (authHeader && authHeader.split(' ')[1]) || (req.query.token as string);
 
     if (!token) {
-        return res.sendStatus(401);
+        return res.status(401).json({ error: 'Unauthorized' });
     }
 
     // Default to a secure secret if not provided in env (for dev simplicity, but warn)
@@ -20,7 +20,7 @@ export function authenticateToken(req: Request, res: Response, next: NextFunctio
 
     jwt.verify(token, secret, (err: any, user: any) => {
         if (err) {
-            return res.sendStatus(403);
+            return res.status(403).json({ error: 'Forbidden' });
         }
         (req as AuthRequest).user = user;
         next();
@@ -31,7 +31,7 @@ export function authenticateToken(req: Request, res: Response, next: NextFunctio
 export function requireAdmin(req: Request, res: Response, next: NextFunction) {
     const user = (req as AuthRequest).user;
     if (!user || user.role !== 'admin') {
-        return res.sendStatus(403);
+        return res.status(403).json({ error: 'Forbidden' });
     }
     next();
 }
