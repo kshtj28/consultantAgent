@@ -5,7 +5,7 @@ import type { BankingKpis } from '../../services/api';
 import './BankingDashboardView.css';
 
 interface BankingDashboardViewProps {
-    kpis: BankingKpis;
+    kpis: BankingKpis | null;
 }
 
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -26,6 +26,30 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export default function BankingDashboardView({ kpis }: BankingDashboardViewProps) {
+    if (!kpis) {
+        return (
+            <div className="banking-dashboard" style={{ alignItems: 'center', justifyContent: 'center', minHeight: '80vh' }}>
+                <div style={{ textAlign: 'center', maxWidth: 400, padding: 40, background: 'white', borderRadius: 16, boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01)', border: '1px solid #e2e8f0' }}>
+                    <div style={{ background: '#f1f5f9', width: 64, height: 64, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+                        <Activity size={28} color="#64748b" />
+                    </div>
+                    <h2 style={{ margin: '0 0 12px', fontSize: '1.25rem', color: '#0f172a', fontWeight: 700 }}>No Assessment Data</h2>
+                    <p style={{ margin: '0 0 24px', fontSize: '0.9rem', color: '#64748b', lineHeight: 1.5 }}>
+                        Complete a Loan Origination process assessment with an SME to populate this dashboard with intelligent AS-IS vs TO-BE metrics.
+                    </p>
+                    <button 
+                        onClick={() => window.location.href = '/chat'}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#3b82f6', color: 'white', padding: '10px 20px', borderRadius: 8, fontSize: '0.9rem', fontWeight: 600, border: 'none', cursor: 'pointer', transition: 'background 0.2s' }}
+                        onMouseOver={(e) => e.currentTarget.style.background = '#2563eb'}
+                        onMouseOut={(e) => e.currentTarget.style.background = '#3b82f6'}
+                    >
+                        Start Assessment <ArrowRight size={16} />
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
     // Top KPI Cards Data Mapping
     const cards = [
         {
