@@ -599,7 +599,7 @@ export async function fetchBankingKpis() {
 }
 
 export async function fetchActiveDomain() {
-    return request<{ id: string; name: string; broadAreas?: any[] }>(`${API_BASE}/interview/config/domain`);
+    return request<{ domain: { id: string; name: string; description: string }; broadAreas?: any[] }>(`${API_BASE}/interview/config/domain`);
 }
 
 export interface ExecutiveSummary {
