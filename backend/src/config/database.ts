@@ -22,7 +22,7 @@ try {
     nodeUrl = urlObj.toString();
   }
 } catch (e) {
-  console.warn('❌ Failed to parse OPENSEARCH_NODE URL:', e.message);
+  console.warn('❌ Failed to parse OPENSEARCH_NODE URL:', e instanceof Error ? e.message : String(e));
 }
 
 // Only send explicit auth if we actually have valid credentials
