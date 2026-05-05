@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { Shield, CheckCircle2, ArrowRight, Activity, DollarSign, AlertTriangle, Zap, TrendingUp } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from 'recharts';
 import type { BankingKpis } from '../../services/api';
