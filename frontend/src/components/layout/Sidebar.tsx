@@ -15,6 +15,7 @@ import {
   MessageSquare,
   ChevronDown,
   GitMerge,
+  Network,
 } from 'lucide-react';
 import { getInitials, getRoleLabel } from '../../utils/format';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -55,7 +56,10 @@ const Sidebar = ({ user, onLogout }: SidebarProps) => {
 
   const smeChildren = [
     { path: '/sme-engagement', label: t('nav.smeEngagement'), icon: MessageSquare },
-    ...(isAdmin ? [{ path: '/sme/consolidation', label: t('nav.multiSMEConsolidation'), icon: GitMerge }] : []),
+    ...(isAdmin ? [
+      { path: '/sme/consolidation', label: t('nav.multiSMEConsolidation'), icon: GitMerge },
+      { path: '/bpmn/loan-origination', label: 'BPMN Diagrams', icon: Network },
+    ] : []),
   ];
 
   return (

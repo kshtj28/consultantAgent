@@ -13,14 +13,12 @@ import {
   Loader2,
   RefreshCw,
 } from 'lucide-react';
-import BpmnViewerModal from '../components/BpmnViewerModal';
 import {
   fetchMultiSMEConsolidation,
   regenerateMultiSMEConsolidation,
   acceptConsolidationStep,
   editConsolidationStep,
   inviteSMEToConsolidation,
-  generateUnifiedBPMN,
   subscribeToConsolidationStream,
   listConsolidationProcesses,
   type MultiSMEConsolidation,
@@ -217,7 +215,6 @@ export default function MultiSMEConsolidationPage() {
   const [generating, setGenerating] = useState(false);
   const [processes, setProcesses] = useState<AvailableProcess[]>([]);
   const [generateError, setGenerateError] = useState<string | null>(null);
-  const [showBpmn, setShowBpmn] = useState(false);
 
   const navigate = useNavigate();
   const params = useParams<{ processId?: string }>();
@@ -347,25 +344,7 @@ export default function MultiSMEConsolidationPage() {
 
   async function handleGenerateBPMN() {
     if (!consolidation) return;
-    setShowBpmn(true);
-  }
-
-  async function handleDownloadBpmnXml() {
-    if (!consolidation) return;
-    try {
-      const res = await generateUnifiedBPMN(consolidation.consolidationId);
-      if (res?.bpmnXml) {
-        const blob = new Blob([res.bpmnXml], { type: 'application/xml' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${consolidation.processId}-bpmn.xml`;
-        a.click();
-        URL.revokeObjectURL(url);
-      }
-    } catch (err) {
-      console.error('Download BPMN failed:', err);
-    }
+    navigate(`/bpmn/${encodeURIComponent(processId)}`);
   }
 
   async function handleRegenerate() {
@@ -609,20 +588,6 @@ export default function MultiSMEConsolidationPage() {
       </div>
 
       {renderContent()}
-
-      {showBpmn && consolidation && (
-        <BpmnViewerModal
-          steps={consolidation.steps}
-          processName={consolidation.processName}
-          note={
-            consolidation.steps.filter(s => s.accepted).length < 2
-              ? 'Fewer than 2 steps accepted — showing all steps. Accept steps to refine the diagram.'
-              : 'Showing all consolidated steps. Accepted steps are highlighted.'
-          }
-          onDownloadXml={handleDownloadBpmnXml}
-          onClose={() => setShowBpmn(false)}
-        />
-      )}
     </div>
   );
 }

@@ -11,6 +11,7 @@ import Reports from './pages/Reports';
 import SettingsPage from './pages/SettingsPage';
 import KnowledgeBase from './pages/KnowledgeBase';
 import Connectors from './pages/Connectors';
+import BpmnDashboard from './pages/BpmnDashboard';
 import CreateUser from './pages/admin/CreateUser';
 import AuditLogs from './pages/admin/AuditLogs';
 import UserManagement from './pages/admin/UserManagement';
@@ -93,6 +94,7 @@ function AppRoutes() {
                 <Route path="/sme-engagement" element={<SMEEngagement />} />
                 <Route path="/sme/consolidation" element={<RequireAdmin><MultiSMEConsolidation /></RequireAdmin>} />
                 <Route path="/sme/consolidation/:processId" element={<RequireAdmin><MultiSMEConsolidation /></RequireAdmin>} />
+                <Route path="/bpmn/:processId" element={<RequireAdmin><BpmnDashboard /></RequireAdmin>} />
                 <Route path="/reports" element={<Reports />} />
                 <Route path="/knowledge-base" element={<KnowledgeBase />} />
                 <Route path="/connectors" element={<RequireAdmin><Connectors /></RequireAdmin>} />

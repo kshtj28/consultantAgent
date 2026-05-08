@@ -1,0 +1,81 @@
+.bpmn-js-wrapper {
+  background: var(--surface-low);
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+
+/* Base Canvas Styling */
+.bpmn-js-container {
+  background-color: var(--surface-low) !important;
+  background-image: 
+    radial-gradient(circle, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    radial-gradient(circle, rgba(255, 255, 255, 0.05) 1px, transparent 1px) !important;
+  background-size: 20px 20px !important;
+  background-position: 0 0, 10px 10px !important;
+}
+
+.bpmn-js-container .djs-container svg {
+  background: transparent !important;
+}
+
+/* Shapes (Tasks, Events, etc.) */
+.bpmn-js-container .djs-shape .djs-visual rect,
+.bpmn-js-container .djs-shape .djs-visual circle,
+.bpmn-js-container .djs-shape .djs-visual polygon,
+.bpmn-js-container .djs-shape .djs-visual path {
+  fill: var(--surface);
+  stroke: var(--primary);
+  stroke-width: 2px;
+}
+
+/* Connections (Arrows) */
+.bpmn-js-container .djs-connection .djs-visual path {
+  stroke: var(--text-secondary) !important;
+  stroke-width: 2px !important;
+}
+
+/* Arrows heads - bpmn-js uses markers */
+.bpmn-js-container .djs-visual [marker-end] {
+  stroke: var(--text-secondary) !important;
+}
+
+/* Labels */
+.bpmn-js-container .djs-label {
+  fill: var(--text) !important;
+  font-family: 'Inter', sans-serif !important;
+  font-weight: 500 !important;
+  font-size: 12px !important;
+}
+
+/* Subprocess / Group boxes */
+.bpmn-js-container .djs-shape .djs-visual rect[width][height][rx] {
+  fill: rgba(255, 255, 255, 0.02) !important;
+  stroke: var(--primary-low) !important;
+  stroke-dasharray: 6 !important;
+}
+
+/* Hover effects */
+.bpmn-js-container .djs-element:hover .djs-visual rect,
+.bpmn-js-container .djs-element:hover .djs-visual circle {
+  stroke: var(--primary-light, #60a5fa) !important;
+  filter: drop-shadow(0 0 4px var(--primary));
+  transition: all 0.2s ease;
+}
+
+/* Navigation controls */
+.bpmn-js-toolbar {
+  backdrop-filter: blur(8px);
+  background: rgba(30, 41, 59, 0.8) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.bpmn-js-toolbar button {
+  transition: all 0.2s ease;
+}
+
+.bpmn-js-toolbar button:hover {
+  color: var(--primary) !important;
+  transform: scale(1.1);
+}

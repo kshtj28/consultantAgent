@@ -142,7 +142,8 @@ router.post('/:id/invite-sme', async (req: Request, res: Response) => {
 router.post('/:id/generate-bpmn', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const result = await generateUnifiedBPMN(id);
+    const { targetState } = req.body || {};
+    const result = await generateUnifiedBPMN(id, !!targetState);
     if (!result) return res.status(404).json({ error: 'Consolidation not found' });
     return res.json(result);
   } catch (err: any) {

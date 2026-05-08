@@ -1196,11 +1196,12 @@ export async function inviteSMEToConsolidation(
 }
 
 export async function generateUnifiedBPMN(
-    consolidationId: string
+    consolidationId: string,
+    targetState: boolean = false
 ): Promise<{ bpmnXml: string; note: string }> {
     return request(
         `${API_BASE}/multi-sme-consolidation/${encodeURIComponent(consolidationId)}/generate-bpmn`,
-        { method: 'POST' }
+        { method: 'POST', body: JSON.stringify({ targetState }) }
     );
 }
 

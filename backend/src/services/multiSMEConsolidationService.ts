@@ -1303,16 +1303,18 @@ export async function inviteSMEToConsolidation(
   return consolidation;
 }
 
-export async function generateUnifiedBPMN(consolidationId: string): Promise<{ bpmnXml: string; note: string } | null> {
+export async function generateUnifiedBPMN(consolidationId: string, targetState: boolean = false): Promise<{ bpmnXml: string; note: string } | null> {
   const consolidation = await getConsolidationById(consolidationId);
   if (!consolidation) return null;
 
   // Use accepted steps first; fall back to ALL steps if fewer than 2 are accepted
-  const stepsToRender = consolidation.steps.filter(s => s.accepted).length >= 2
+  let stepsToRender = consolidation.steps.filter(s => s.accepted).length >= 2
     ? consolidation.steps.filter(s => s.accepted)
     : [...consolidation.steps].sort((a, b) => a.order - b.order);
 
-  const bpmnXml = buildBpmnXml(consolidation.processId, consolidation.processName, stepsToRender);
+  // In target state, we might want to highlight AI-augmented steps or simplify
+  // For now, we'll pass the targetState flag to the builder to handle styling
+  const bpmnXml = buildBpmnXml(consolidation.processId, consolidation.processName, stepsToRender, targetState);
   const note = stepsToRender.length === consolidation.steps.length && consolidation.steps.filter(s => s.accepted).length < 2
     ? 'Fewer than 2 steps are accepted — showing all steps. Accept steps in the Consolidated Process Flow to refine the diagram.'
     : 'Showing accepted steps only. Accept more steps in the Consolidated Process Flow to expand the diagram.';
@@ -1331,7 +1333,7 @@ export async function generateUnifiedBPMN(consolidationId: string): Promise<{ bp
  * Phase grouping: every PHASE_SIZE steps become one SubProcess. A sub-process
  * expands horizontally inside the main pool lane.
  */
-function buildBpmnXml(processId: string, processName: string, steps: ConsolidatedStep[]): string {
+function buildBpmnXml(processId: string, processName: string, steps: ConsolidatedStep[], targetState: boolean = false): string {
   const PHASE_SIZE = 4;                    // steps per subprocess
   const TASK_W = 140, TASK_H = 60;
   const TASK_GAP_X = 20, TASK_GAP_Y = 20;
@@ -1358,7 +1360,7 @@ function buildBpmnXml(processId: string, processName: string, steps: Consolidate
   interface PhaseLayout {
     spId: string;
     spX: number; spY: number; spW: number; spH: number;
-    tasks: Array<{ taskId: string; label: string; x: number; y: number; w: number; h: number }>;
+    tasks: Array<{ taskId: string; label: string; x: number; y: number; w: number; h: number; isAi: boolean }>;
     inFlowId: string;
     outFlowId: string;
   }
@@ -1378,6 +1380,7 @@ function buildBpmnXml(processId: string, processName: string, steps: Consolidate
       y: spY + SP_PAD_Y,
       w: TASK_W,
       h: TASK_H,
+      isAi: !!step.aiProposedMerge,
     }));
     phaseLayouts.push({
       spId, spX: cursorX, spY, spW, spH,
@@ -1463,7 +1466,10 @@ function buildBpmnXml(processId: string, processName: string, steps: Consolidate
     diagramLines.push(`      </bpmndi:BPMNShape>`);
 
     pl.tasks.forEach(t => {
-      diagramLines.push(`      <bpmndi:BPMNShape id="${t.taskId}_di" bpmnElement="${t.taskId}">`);
+      const colorAttr = (targetState && t.isAi) 
+        ? ' bioc:stroke="#10b981" bioc:fill="#ecfdf5"' 
+        : '';
+      diagramLines.push(`      <bpmndi:BPMNShape id="${t.taskId}_di" bpmnElement="${t.taskId}"${colorAttr}>`);
       diagramLines.push(`        <dc:Bounds x="${t.x}" y="${t.y}" width="${t.w}" height="${t.h}" />`);
       diagramLines.push(`      </bpmndi:BPMNShape>`);
     });
@@ -1533,6 +1539,7 @@ function buildBpmnXml(processId: string, processName: string, steps: Consolidate
     `  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"`,
     `  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"`,
     `  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"`,
+    `  xmlns:bioc="http://bpmn.io/schema/bpmn/biocolor/1.0"`,
     `  id="${defId}"`,
     `  targetNamespace="http://bpmn.io/schema/bpmn"`,
     `  exporter="ERP Gap Analyzer" exporterVersion="1.0">`,
