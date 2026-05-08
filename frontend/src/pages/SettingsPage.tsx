@@ -68,58 +68,60 @@ export default function SettingsPage() {
     });
 
     useEffect(() => {
-        Promise.all([
+        Promise.allSettled([
             fetchLanguages(), fetchDomains(), getActiveDomain(),
             fetchModels(), fetchProjectSettings(), getERPConnectionSettings(),
         ])
             .then(([langRes, domRes, domainRes, modelRes, settingsRes, erpRes]) => {
-                setLanguages(langRes.languages || []);
-                setDomains(domRes.domains || []);
-                if (domainRes.domain) {
-                    setCurrentDomain(domainRes.domain);
-                    setSelectedDomainId(domainRes.domain.id);
+                if (langRes.status === 'fulfilled') setLanguages(langRes.value.languages || []);
+                if (domRes.status === 'fulfilled') setDomains(domRes.value.domains || []);
+                if (domainRes.status === 'fulfilled' && domainRes.value.domain) {
+                    setCurrentDomain(domainRes.value.domain);
+                    setSelectedDomainId(domainRes.value.domain.id);
                 }
-                setModels(modelRes.models || []);
-                if (modelRes.defaultModel) {
-                    setSelectedModel(
-                        typeof modelRes.defaultModel === 'string'
-                            ? modelRes.defaultModel
-                            : modelRes.defaultModel.id || '',
-                    );
+                if (modelRes.status === 'fulfilled') {
+                    setModels(modelRes.value.models || []);
+                    if (modelRes.value.defaultModel) {
+                        setSelectedModel(
+                            typeof modelRes.value.defaultModel === 'string'
+                                ? modelRes.value.defaultModel
+                                : modelRes.value.defaultModel.id || '',
+                        );
+                    }
                 }
-                if (settingsRes) {
-                    setProjectName(settingsRes.projectName || '');
-                    setClientName(settingsRes.clientName || '');
-                    setErpPath(settingsRes.erpPath || '');
-                    setAssessmentPeriod(settingsRes.assessmentPeriod || '');
-                    setTimeZone(settingsRes.timeZone || 'UTC+0');
-                    if (settingsRes.notifications) {
+                if (settingsRes.status === 'fulfilled' && settingsRes.value) {
+                    const s = settingsRes.value;
+                    setProjectName(s.projectName || '');
+                    setClientName(s.clientName || '');
+                    setErpPath(s.erpPath || '');
+                    setAssessmentPeriod(s.assessmentPeriod || '');
+                    setTimeZone(s.timeZone || 'UTC+0');
+                    if (s.notifications) {
                         setToggles({
-                            criticalRiskAlerts: settingsRes.notifications.criticalRiskAlerts ?? true,
-                            smeResponseUpdates: settingsRes.notifications.smeResponseUpdates ?? true,
-                            weeklySummary: settingsRes.notifications.weeklySummary ?? false,
+                            criticalRiskAlerts: s.notifications.criticalRiskAlerts ?? true,
+                            smeResponseUpdates: s.notifications.smeResponseUpdates ?? true,
+                            weeklySummary: s.notifications.weeklySummary ?? false,
                         });
                     }
-                    if (settingsRes.sessionTimeout) {
-                        const mins = settingsRes.sessionTimeout;
+                    if (s.sessionTimeout) {
+                        const mins = s.sessionTimeout;
                         if (mins <= 15) setSessionTimeout('15 minutes');
                         else if (mins <= 30) setSessionTimeout('30 minutes');
                         else setSessionTimeout('1 hour');
                     }
                 }
-                // ERP connection
-                if (erpRes?.config) {
-                    setErpConnectorId(erpRes.config.activeConnectorId || 'sap_s4hana');
-                    setErpMode(erpRes.config.mode || 'demo');
-                    setErpBaseUrl(erpRes.config.baseUrl || '');
-                    setErpUsername(erpRes.config.username || '');
-                    setErpPassword(erpRes.config.password || '');
-                }
-                if (erpRes?.availableConnectors) {
-                    setAvailableConnectors(erpRes.availableConnectors);
+                if (erpRes.status === 'fulfilled') {
+                    const erp = erpRes.value;
+                    if (erp?.config) {
+                        setErpConnectorId(erp.config.activeConnectorId || 'sap_s4hana');
+                        setErpMode(erp.config.mode || 'demo');
+                        setErpBaseUrl(erp.config.baseUrl || '');
+                        setErpUsername(erp.config.username || '');
+                        setErpPassword(erp.config.password || '');
+                    }
+                    if (erp?.availableConnectors) setAvailableConnectors(erp.availableConnectors);
                 }
             })
-            .catch(() => {})
             .finally(() => setLoading(false));
     }, []);
 
