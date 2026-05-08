@@ -27,23 +27,27 @@ RUN pnpm run build
 # Production stage - serve with nginx
 FROM nginx:alpine AS production
 
-# Default environment variables
-# PORT=3000 matches Railway's default network target — set matching PORT in Railway env vars
-ENV PORT=3000
+# BACKEND_URL default — override in Railway with the real backend URL.
+# The entrypoint script auto-adds https:// if the scheme is omitted.
 ENV BACKEND_URL=http://localhost:3001
 
-# Copy nginx config template
+# Replace base nginx.conf with a non-root-safe version (no "user nginx;" directive)
+COPY nginx-main.conf /etc/nginx/nginx.conf
+
+# Copy nginx server-block template (port hardcoded to 3000 inside the file)
 COPY nginx.conf /etc/nginx/nginx.conf.template
+
+# Copy and enable the entrypoint script
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
 
 # Copy built files
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# EXPOSE tells Railway which port to route traffic to (must match PORT above)
+# Railway routes traffic to port 3000 — nginx listens on 3000 (hardcoded in nginx.conf)
 EXPOSE 3000
 
-# Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:${PORT:-3000}/ || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
 
-# Explicitly run envsubst on only our two vars, then start nginx
-CMD ["/bin/sh", "-c", "envsubst '${PORT} ${BACKEND_URL}' < /etc/nginx/nginx.conf.template > /etc/nginx/conf.d/default.conf && exec nginx -g 'daemon off;'"]
+CMD ["/docker-entrypoint.sh"]
