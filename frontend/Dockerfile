@@ -4,7 +4,7 @@ FROM node:22-alpine AS builder
 WORKDIR /app
 
 # Install pnpm using corepack
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@10 --activate
 
 # Fix for "SELF_SIGNED_CERT_IN_CHAIN" error in environments with SSL-inspecting proxies
 RUN npm config set strict-ssl false && pnpm config set strict-ssl false
