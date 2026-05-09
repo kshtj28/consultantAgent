@@ -229,7 +229,9 @@ router.post('/:sessionId/answer', async (req: Request, res: Response) => {
 
         const targetSubArea = subAreaId || categoryId;
 
-        await submitInterviewAnswer(session, {
+        // submitInterviewAnswer runs the audit-defensibility classifier on
+        // narrative answers and attaches the result to the persisted answer.
+        const submitResult = await submitInterviewAnswer(session, {
             questionId,
             question,
             answer,
@@ -238,7 +240,9 @@ router.post('/:sessionId/answer', async (req: Request, res: Response) => {
             subAreaId: targetSubArea,
             aiConfident: aiConfident || false,
             attachments: Array.isArray(attachments) ? attachments : undefined,
+            modelId: model,
         });
+        const sufficiency = submitResult.sufficiency;
 
         const progress = getInterviewProgress(session);
         const readinessScore = calculateReadinessScore(session);
@@ -253,19 +257,54 @@ router.post('/:sessionId/answer', async (req: Request, res: Response) => {
                 console.error('Pipeline trigger failed on completion:', err)
             );
 
-            return res.json({ progress, currentSubArea: session.currentSubArea, completed: true, readinessScore });
+            return res.json({
+                progress,
+                currentSubArea: session.currentSubArea,
+                completed: true,
+                readinessScore,
+                sufficiency,
+            });
         }
 
-        // Detect vague open-ended answers and generate a targeted follow-up
-        const answerText = typeof answer === 'string' ? answer : null;
-        const vagueCheck = (type === 'open_ended' && answerText)
-            ? detectVagueAnswer(answerText)
-            : { isVague: false, reason: '' };
+        // When the classifier says the answer fell short, route the next
+        // question as a targeted dimensional probe (Pattern 1). For
+        // structured (non-narrative) answer types we have no classifier
+        // output — keep the legacy regex check as a backstop.
+        let vagueContext;
+        let isFollowUp = false;
+        let vagueWarning: string | undefined;
 
-        const vagueContext = vagueCheck.isVague ? { question, answer: answerText!, reason: vagueCheck.reason } : undefined;
-        // If vague, stay on same sub-area so the follow-up probes the same topic
+        if (sufficiency && !sufficiency.passed) {
+            isFollowUp = true;
+            const dim = sufficiency.missingDimension;
+            vagueContext = {
+                question,
+                answer: typeof answer === 'string' ? answer : String(answer),
+                reason: sufficiency.reasoning || 'Insufficient process detail to document.',
+                missingDimension: dim ?? undefined,
+                recommendedProbe: sufficiency.recommendedProbe,
+                overallScore: sufficiency.overall,
+            };
+            vagueWarning = dim
+                ? `Your answer needs more detail on **${dim}** to be audit-ready. The next question will probe that specifically.`
+                : `Your answer needs more detail to be audit-ready (sufficiency ${sufficiency.overall}/100). The next question will probe for specifics.`;
+        } else if (!sufficiency) {
+            // Narrative classifier didn't run (structured-type answer or
+            // skipped). Fall back to the regex heuristic so non-narrative
+            // free text still gets some scrutiny.
+            const answerText = typeof answer === 'string' ? answer : null;
+            const vagueCheck = (type === 'open_ended' && answerText)
+                ? detectVagueAnswer(answerText)
+                : { isVague: false, reason: '' };
+            if (vagueCheck.isVague && answerText) {
+                isFollowUp = true;
+                vagueContext = { question, answer: answerText, reason: vagueCheck.reason };
+                vagueWarning = `Your answer needs more detail — ${vagueCheck.reason.toLowerCase()}.`;
+            }
+        }
+
+        // If we're following up, keep the next question on the same sub-area.
         const nextSubAreaHint = vagueContext ? (targetSubArea || session.currentSubArea || undefined) : undefined;
-
         const nextQuestion = await generateNextInterviewQuestion(session, nextSubAreaHint, model, vagueContext);
         const updatedProgress = getInterviewProgress(session);
 
@@ -274,10 +313,9 @@ router.post('/:sessionId/answer', async (req: Request, res: Response) => {
             progress: updatedProgress,
             currentSubArea: session.currentSubArea,
             readinessScore,
-            isFollowUp: vagueCheck.isVague,
-            vagueWarning: vagueCheck.isVague
-                ? `Your answer needs more detail — ${vagueCheck.reason.toLowerCase()}. The follow-up question will help gather the specifics needed for a useful assessment.`
-                : undefined,
+            isFollowUp,
+            vagueWarning,
+            sufficiency,
         });
     } catch (err: any) {
         if (err instanceof LLMWarmingUpError) {

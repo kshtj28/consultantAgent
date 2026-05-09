@@ -106,12 +106,52 @@ export interface BroadAreaInfo {
     subAreas: { id: string; name: string; description: string }[];
 }
 
+// ─── Audit-defensibility (Pattern 1: Sufficiency Classifier) ────────────────
+
+export type SufficiencyDimensionKey =
+    | 'actor'
+    | 'action'
+    | 'input'
+    | 'output'
+    | 'decisionCriteria'
+    | 'sla';
+
+export interface DimensionScore {
+    score: number | null;
+    applicable: boolean;
+    evidence: string;
+}
+
+export interface SufficiencyAssessment {
+    overall: number;
+    passed: boolean;
+    threshold: number;
+    dimensions: Record<SufficiencyDimensionKey, DimensionScore>;
+    missingDimension: SufficiencyDimensionKey | null;
+    recommendedProbe: string;
+    reasoning: string;
+    classifiedAt: string;
+    modelId: string;
+    errored: boolean;
+    errorReason?: string;
+}
+
+export interface SufficiencyAggregate {
+    avgScore: number;
+    passedCount: number;
+    classifiedCount: number;
+    answeredCount: number;
+    dimensionsCovered: SufficiencyDimensionKey[];
+    weakestDimension: SufficiencyDimensionKey | null;
+}
+
 export interface SubAreaCoverage {
     subAreaId: string;
     name: string;
     questionsAnswered: number;
     aiConfident: boolean;
     status: 'not_started' | 'in_progress' | 'covered';
+    sufficiency?: SufficiencyAggregate;
 }
 
 export interface BroadAreaProgressInfo {

@@ -20,6 +20,14 @@ import { getLanguageInstructions, getYesNoOptions, isValidLanguage, LanguageCode
 import { getProjectContext, getEffectiveModel } from './settingsService';
 import { searchKnowledgeBase, searchSessionAttachments } from './knowledgeBase';
 import { getSubAreaERPEvidence } from './erpEnrichmentService';
+import {
+    classifyAnswer,
+    shouldClassifyAnswer,
+    aggregateSufficiency,
+    SufficiencyAssessment,
+    SufficiencyAggregate,
+} from './sufficiencyClassifier';
+import { SufficiencyDimensionKey, DIMENSION_LABELS } from '../prompts/sufficiency.prompt';
 
 /** Retrieve top KB chunks for `query` and format them as a prompt block.
  *  Returns '' on any failure so callers can safely concat unconditionally. */
@@ -96,6 +104,10 @@ export interface InterviewAnswer {
     mode: QuestionMode;
     timestamp: Date;
     attachments?: AnswerAttachment[];
+    /** Audit-defensibility assessment — present when the classifier ran on
+     *  this answer (currently narrative answer types only). See
+     *  sufficiencyClassifier.ts for schema. */
+    sufficiency?: SufficiencyAssessment;
 }
 
 // ─── Broad Area / Sub-Area Coverage Types ───────────────────────────
@@ -106,6 +118,11 @@ export interface SubAreaCoverage {
     questionsAnswered: number;
     aiConfident: boolean;
     status: 'not_started' | 'in_progress' | 'covered';
+    /** Audit-defensibility roll-up — only present once at least one
+     *  narrative answer has been classified. Used by the UI to render
+     *  per-sub-area sufficiency badges and by the report stage to flag
+     *  thin coverage. */
+    sufficiency?: SufficiencyAggregate;
 }
 
 export interface BroadAreaProgress {
@@ -136,6 +153,9 @@ export interface InterviewSession {
         questionsAnswered: number;
         aiConfident: boolean;
         status: 'not_started' | 'in_progress' | 'covered';
+        /** Rolled-up audit-defensibility metrics across answers in this
+         *  sub-area. Updated on every submitInterviewAnswer call. */
+        sufficiency?: SufficiencyAggregate;
     }>;
     conversationHistory: Array<{ role: string; content: string }>;
     conversationContext?: {
@@ -262,6 +282,7 @@ export function getInterviewProgress(session: InterviewSession): BroadAreaProgre
                 questionsAnswered: cov?.questionsAnswered || (session.responses[sub.id]?.length || 0),
                 aiConfident: cov?.aiConfident || false,
                 status: cov?.status || (session.responses[sub.id]?.length ? 'in_progress' : 'not_started'),
+                sufficiency: cov?.sufficiency,
             };
         });
 
@@ -364,12 +385,22 @@ export function calculateReadinessScore(session: InterviewSession): number {
     const covered = allIds.filter(id => session.coverage[id]?.status === 'covered').length;
     const inProgress = allIds.filter(id => session.coverage[id]?.status === 'in_progress').length;
     const totalAnswers = Object.values(session.responses).flat().length;
-    // LLM-confident covered sub-areas drive 80% of score; in-progress gets 30% partial credit
-    const coverageScore = ((covered + inProgress * 0.3) / allIds.length) * 80;
-    // Volume bonus: 20%, target is 2 answers per sub-area
+    // LLM-confident covered sub-areas drive 70% of score; in-progress gets 30% partial credit.
+    const coverageScore = ((covered + inProgress * 0.3) / allIds.length) * 70;
+    // Audit-defensibility weight: 15% — average sufficiency across classified
+    // answers. A session with broad coverage but thin/vague answers loses
+    // these points (Pattern 1: honest coverage beats fake completeness).
+    const sufficiencyAverages = allIds
+        .map(id => session.coverage[id]?.sufficiency)
+        .filter((s): s is SufficiencyAggregate => !!s && s.classifiedCount > 0)
+        .map(s => s.avgScore);
+    const sufficiencyScore = sufficiencyAverages.length > 0
+        ? (sufficiencyAverages.reduce((a, b) => a + b, 0) / sufficiencyAverages.length) * 0.15
+        : 0;
+    // Volume bonus: 15%, target is 2 answers per sub-area.
     const target = Math.max(allIds.length * 2, 4);
-    const answerScore = Math.min(20, (totalAnswers / target) * 20);
-    return Math.round(Math.min(100, coverageScore + answerScore));
+    const answerScore = Math.min(15, (totalAnswers / target) * 15);
+    return Math.round(Math.min(100, coverageScore + sufficiencyScore + answerScore));
 }
 
 // ─── KPI Probing Guidance ────────────────────────────────────────────
@@ -415,11 +446,24 @@ function buildKPIGuidance(broadAreaName: string, subAreaName: string): string {
 
 // ─── Dynamic Question Generation ─────────────────────────────────────
 
+/** Context passed to question generation when the previous answer fell short.
+ *  When `missingDimension` is set we route the next question as a targeted
+ *  dimensional probe (Pattern 1 — Sufficiency Classifier). The legacy
+ *  `reason` field is kept so older callers without a classifier still work. */
+export interface InsufficientAnswerContext {
+    question: string;
+    answer: string;
+    reason: string;
+    missingDimension?: SufficiencyDimensionKey;
+    recommendedProbe?: string;
+    overallScore?: number;
+}
+
 export async function generateNextInterviewQuestion(
     session: InterviewSession,
     subAreaId?: string,
     modelId?: string,
-    vagueContext?: { question: string; answer: string; reason: string }
+    vagueContext?: InsufficientAnswerContext
 ): Promise<GeneratedInterviewQuestion & { aiConfident?: boolean }> {
     // Determine which sub-area to target
     const targetSubAreaId = subAreaId || determineNextSubArea(session) || session.currentSubArea;
@@ -541,17 +585,20 @@ Do NOT ask generic questions that ignore the migration context. Every question s
 ` : ''}
 
 ${vagueContext ? `## ⚠ FOLLOW-UP REQUIRED — PREVIOUS ANSWER WAS INSUFFICIENT
-The SME's last answer was too vague to extract useful process data.
+The SME's last answer did not pass the audit-defensibility sufficiency check.
 
 Previous question: "${vagueContext.question}"
 SME's response: "${vagueContext.answer}"
-Why it's insufficient: ${vagueContext.reason}
+Why it's insufficient: ${vagueContext.reason}${vagueContext.overallScore !== undefined ? ` (sufficiency score ${vagueContext.overallScore}/100)` : ''}
+${vagueContext.missingDimension ? `Missing dimension to probe: **${DIMENSION_LABELS[vagueContext.missingDimension]}** — this is the single audit-critical gap.` : ''}
+${vagueContext.recommendedProbe ? `Suggested probe (you may rephrase or restructure as a multi-choice/scale where it fits): "${vagueContext.recommendedProbe}"` : ''}
 
 MANDATORY: Stay on this same topic. Do NOT ask a new question. Your follow-up MUST:
-1. Open by briefly referencing what they said ("You mentioned X..." or "Building on that...")
-2. Ask for exactly ONE concrete detail: a named system/tool, headcount, volume, cycle time, error rate, or a specific example
-3. Offer answer options (single_choice or multi_choice) wherever plausible to make it easy
-4. Keep subAreaCovered = false — we do not yet have enough data
+1. Open by briefly referencing what the SME said ("You mentioned X..." or "Building on that...")
+2. Target ONLY the missing dimension above${vagueContext.missingDimension ? ` (${DIMENSION_LABELS[vagueContext.missingDimension]})` : ''} — do not branch into other topics
+3. Ask for exactly ONE concrete detail: a named role/system, threshold, document name, headcount, cycle time, or specific example tied to that dimension
+4. Offer answer options (single_choice or multi_choice) wherever plausible to make it easy for the SME
+5. Keep subAreaCovered = false — we do not yet have enough data
 ` : ''}## CONSTRAINTS
 IMPORTANT: Stay focused ONLY on "${subArea.name}" topics within the "${broadAreaName}" broad area. Do NOT ask about other sub-areas.
 ${maturityBenchmarks}
@@ -662,8 +709,11 @@ export async function submitInterviewAnswer(
         subAreaId?: string;
         aiConfident?: boolean;
         attachments?: AnswerAttachment[];
+        /** LLM model override for the sufficiency classifier. Defaults to
+         *  the system effective model (resolved by generateCompletion). */
+        modelId?: string;
     }
-): Promise<void> {
+): Promise<{ sufficiency?: SufficiencyAssessment }> {
     const targetId = answer.subAreaId || answer.categoryId || session.currentSubArea || session.currentCategory;
 
     if (!targetId) {
@@ -674,6 +724,31 @@ export async function submitInterviewAnswer(
         session.responses[targetId] = [];
     }
 
+    // Run the audit-defensibility classifier on narrative answers.
+    // Skipped for structured answer types (single_choice / multi_choice / scale
+    // / yes_no) since their option sets already enforce specificity.
+    let sufficiency: SufficiencyAssessment | undefined;
+    if (shouldClassifyAnswer(answer.type, answer.answer)) {
+        const subArea = getSubArea(targetId);
+        const broadArea = getBroadAreaForSubArea(targetId);
+        try {
+            sufficiency = await classifyAnswer({
+                question: answer.question,
+                answer: String(answer.answer),
+                subAreaName: subArea?.name ?? targetId,
+                broadAreaName: broadArea?.name ?? 'Process Discovery',
+                language: (session.language as LanguageCode) ?? 'en',
+                processCalibration: 'regulated',
+                attachmentFilenames: (answer.attachments ?? []).map(a => a.filename),
+                modelId: answer.modelId,
+            });
+        } catch (err) {
+            // classifyAnswer is supposed to fail soft, but defend the
+            // interview flow against any unexpected throw.
+            console.warn('[interviewService] sufficiency classifier threw unexpectedly:', err);
+        }
+    }
+
     session.responses[targetId].push({
         questionId: answer.questionId,
         question: answer.question,
@@ -682,6 +757,7 @@ export async function submitInterviewAnswer(
         mode: answer.mode,
         timestamp: new Date(),
         attachments: answer.attachments && answer.attachments.length > 0 ? answer.attachments : undefined,
+        sufficiency,
     });
 
     const answerText = Array.isArray(answer.answer) ? answer.answer.join(', ') : String(answer.answer);
@@ -705,14 +781,26 @@ export async function submitInterviewAnswer(
         cov.aiConfident = answer.aiConfident;
     }
 
+    // Roll up sufficiency across every classified answer in this sub-area.
+    cov.sufficiency = aggregateSufficiency(
+        (session.responses[targetId] ?? []).map(a => a.sufficiency)
+    );
+
     // Coverage status: 'covered' when questionsAnswered >= 2 AND aiConfident === true
-    if (cov.questionsAnswered >= 2 && cov.aiConfident) {
+    // AND, if any answers were classified, the average sufficiency is at least
+    // 50/100 — otherwise the sub-area is "in_progress" until SMEs add detail.
+    const sufficiencyOk = !cov.sufficiency || cov.sufficiency.classifiedCount === 0
+        ? true
+        : cov.sufficiency.avgScore >= 50;
+
+    if (cov.questionsAnswered >= 2 && cov.aiConfident && sufficiencyOk) {
         cov.status = 'covered';
     } else if (cov.questionsAnswered > 0) {
         cov.status = 'in_progress';
     }
 
     await updateInterviewSession(session);
+    return { sufficiency };
 }
 
 // ─── Legacy: Process free-text interview message ─────────────────────
@@ -893,6 +981,17 @@ async function summarizeCategoryForGap(
 
     const qaText = truncated.map(({ q, a }) => `• Q: ${q}\n  A: ${a}`).join('\n');
 
+    // Pattern 1 surfaces: tell the synthesis prompt which dimensions are thin
+    // so the report can flag "needs verification" rather than overstating.
+    const sufficiencyAgg = aggregateSufficiency(answers.map(a => a.sufficiency));
+    const sufficiencyBlock = sufficiencyAgg.classifiedCount > 0
+        ? `\nAUDIT-DEFENSIBILITY ROLL-UP for this category:\n` +
+          `  Avg sufficiency: ${sufficiencyAgg.avgScore}/100 (${sufficiencyAgg.passedCount}/${sufficiencyAgg.classifiedCount} answers passed the threshold)\n` +
+          `  Dimensions adequately covered: ${sufficiencyAgg.dimensionsCovered.length > 0 ? sufficiencyAgg.dimensionsCovered.map(d => DIMENSION_LABELS[d]).join(', ') : 'none yet'}\n` +
+          `  Weakest dimension across answers: ${sufficiencyAgg.weakestDimension ? DIMENSION_LABELS[sufficiencyAgg.weakestDimension] : 'n/a'}\n` +
+          `When findings or gaps in this category rely on dimensions that scored low, flag them in the "verificationNotes" field below — do NOT smooth over the gap.\n`
+        : '';
+
     const languageInstructions = getLanguageInstructions(language);
     const langEnumNote = language !== 'en'
         ? `\nIMPORTANT: Write descriptive text fields (keyFindings, painPoints, gap, currentState, targetState, standard) in the same language as the interview. However, keep ALL enum values EXACTLY as specified in English: maturityLevel must be one of "basic|developing|defined|managed|optimized", type must be "process|technology|capability|data", impact/effort must be "high|medium|low", fit must be "gap|partial|fit". JSON keys must remain in English.\n`
@@ -904,13 +1003,14 @@ ${langEnumNote}
 Category: ${categoryName}
 Interview Q&A (${answers.length} questions):
 ${qaText}
-
+${sufficiencyBlock}
 Output ONLY valid JSON with this exact schema:
 {
   "category": "${categoryName}",
   "keyFindings": ["2-4 findings about the current state"],
   "painPoints": ["2-3 pain points or inefficiencies"],
   "maturityLevel": "basic|developing|defined|managed|optimized",
+  "verificationNotes": "1-2 sentences flagging any findings that are based on low-sufficiency answers and need follow-up verification, or empty string when coverage is solid",
   "gaps": [
     {
       "gap": "Short gap title",
@@ -932,7 +1032,21 @@ Output ONLY valid JSON with this exact schema:
 
     try {
         const match = completion.content.match(/\{[\s\S]*\}/);
-        return JSON.parse(match ? match[0] : completion.content);
+        const parsed = JSON.parse(match ? match[0] : completion.content);
+        // Attach the deterministic sufficiency roll-up so the synthesis stage
+        // gets a quantitative signal rather than only the LLM's narrative.
+        return {
+            ...parsed,
+            sufficiency: sufficiencyAgg.classifiedCount > 0
+                ? {
+                    avgScore: sufficiencyAgg.avgScore,
+                    passedCount: sufficiencyAgg.passedCount,
+                    classifiedCount: sufficiencyAgg.classifiedCount,
+                    weakestDimension: sufficiencyAgg.weakestDimension,
+                    dimensionsCovered: sufficiencyAgg.dimensionsCovered,
+                }
+                : undefined,
+        };
     } catch {
         return { category: categoryName, keyFindings: [], painPoints: [], gaps: [] };
     }

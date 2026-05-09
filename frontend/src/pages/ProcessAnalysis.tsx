@@ -40,8 +40,10 @@ import {
     BroadAreaProgressInfo,
     type SessionSummary, type GeneratedQuestion,
     type DashboardStats,
+    type SufficiencyAssessment,
 } from '../services/api';
 import { useLanguage } from '../i18n/LanguageContext';
+import SufficiencyBadge from '../components/SufficiencyBadge';
 import './ProcessAnalysis.css';
 
 const PIE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4'];
@@ -67,7 +69,13 @@ export default function ProcessAnalysis() {
     const [progress, setProgress] = useState<BroadAreaProgressInfo[]>([]);
     const [currentQuestion, setCurrentQuestion] = useState<GeneratedQuestion | null>(null);
     const [answer, setAnswer] = useState<string | string[] | number>('');
-    const [chatHistory, setChatHistory] = useState<{ question: GeneratedQuestion; answer: string | string[] | number }[]>([]);
+    const [chatHistory, setChatHistory] = useState<{
+        question: GeneratedQuestion;
+        answer: string | string[] | number;
+        sufficiency?: SufficiencyAssessment;
+    }[]>([]);
+    // Most recent classifier output — drives the targeted-probe banner.
+    const [latestSufficiency, setLatestSufficiency] = useState<SufficiencyAssessment | null>(null);
     const [questionLoading, setQuestionLoading] = useState(false);
     const [submitLoading, setSubmitLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -253,6 +261,7 @@ export default function ProcessAnalysis() {
             setSubmitLoading(true);
             setError(null);
             setVagueWarning(null);
+            setLatestSufficiency(null);
             const submittedAnswer = answer;
             const res = await submitInterviewAnswer(sessionId, {
                 questionId: currentQuestion.id,
@@ -265,7 +274,13 @@ export default function ProcessAnalysis() {
                 language,
                 attachments: pendingAttachments.length > 0 ? pendingAttachments : undefined,
             });
-            setChatHistory(prev => [...prev, { question: currentQuestion, answer: submittedAnswer }]);
+            const submittedSufficiency: SufficiencyAssessment | undefined = res.sufficiency;
+            setChatHistory(prev => [...prev, {
+                question: currentQuestion,
+                answer: submittedAnswer,
+                sufficiency: submittedSufficiency,
+            }]);
+            setLatestSufficiency(submittedSufficiency ?? null);
             setProgress(res.progress || []);
             if (res.readinessScore !== undefined) setReadinessScore(res.readinessScore);
             if (res.vagueWarning) setVagueWarning(res.vagueWarning);
@@ -310,6 +325,7 @@ export default function ProcessAnalysis() {
         try {
             setQuestionLoading(true);
             setVagueWarning(null);
+            setLatestSufficiency(null);
             await switchSubArea(sessionId, subAreaId);
             const qRes = await getNextInterviewQuestion(sessionId, undefined, language);
             setCurrentQuestion(qRes.question);
@@ -575,9 +591,21 @@ export default function ProcessAnalysis() {
                                     <div className="pa-chat-bubble pa-chat-bubble--answer">
                                         <span className="pa-chat-label">A</span>
                                         <p>{Array.isArray(entry.answer) ? entry.answer.join(', ') : String(entry.answer)}</p>
+                                        {entry.sufficiency && (
+                                            <div style={{ marginTop: 6 }}>
+                                                <SufficiencyBadge assessment={entry.sufficiency} variant="compact" />
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             ))}
+
+                            {/* Audit-defensibility breakdown for the most recent answer.
+                                Only shown when the classifier ran and either failed the
+                                threshold or surfaced a missing dimension worth probing. */}
+                            {latestSufficiency && !latestSufficiency.passed && !latestSufficiency.errored && (
+                                <SufficiencyBadge assessment={latestSufficiency} variant="full" />
+                            )}
 
                             {/* Vague answer notice */}
                             {vagueWarning && (
