@@ -158,7 +158,6 @@ export default function BpmnDashboard() {
   const [loading, setLoading] = useState(true);
   const [consolidation, setConsolidation] = useState<MultiSMEConsolidation | null>(null);
   const [asIsXml, setAsIsXml] = useState<string>('');
-  const [toBeXml, setToBeXml] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
 
   // AI Analysis state
@@ -177,12 +176,8 @@ export default function BpmnDashboard() {
         const res = await fetchMultiSMEConsolidation(processId!);
         if (res?.consolidation) {
           setConsolidation(res.consolidation);
-          const [asIs, toBe] = await Promise.all([
-            generateUnifiedBPMN(res.consolidation.consolidationId, false),
-            generateUnifiedBPMN(res.consolidation.consolidationId, true),
-          ]);
+          const asIs = await generateUnifiedBPMN(res.consolidation.consolidationId, false);
           setAsIsXml(asIs?.bpmnXml || '');
-          setToBeXml(toBe?.bpmnXml || '');
         } else {
           setError('No consolidation data found for this process.');
         }
@@ -301,9 +296,23 @@ export default function BpmnDashboard() {
   // ── Metrics ────────────────────────────────────────────────────────────────
 
   const totalSteps = consolidation.steps.length;
-  const acceptedSteps = consolidation.steps.filter(s => s.accepted).length;
-  const asIsMetrics = { duration: `${totalSteps * 2.5} Days`, manualTasks: totalSteps, aiTasks: 0, handoffs: Math.max(0, totalSteps - 2) };
-  const toBeMetrics = { duration: `${Math.max(1, Math.round(totalSteps * 0.8))} Days`, manualTasks: totalSteps - acceptedSteps, aiTasks: acceptedSteps, handoffs: Math.max(0, totalSteps - 2 - Math.floor(acceptedSteps / 2)) };
+  const asIsMetrics ={ duration: `${totalSteps * 2.5} Days`, manualTasks: totalSteps, aiTasks: 0, handoffs: Math.max(0, totalSteps - 2) };
+
+  // TO-BE metrics: use AI-generated values when available, otherwise fall back to crude estimates
+  const toBeMetrics = aiMetrics
+    ? {
+        duration: aiMetrics.timeSavings?.tobe || '—',
+        manualTasks: `↓ ${aiMetrics.efficiencyGain?.percentage || '—'}`,
+        aiTasks: aiMetrics.automationRate?.tobe || '—',
+        handoffs: `↓ ${aiMetrics.costReduction?.percentage || '—'}`,
+      }
+    : {
+        duration: '—',
+        manualTasks: '—',
+        aiTasks: '—',
+        handoffs: '—',
+      };
+
   const metrics = activeTab === 'asis' ? asIsMetrics : toBeMetrics;
 
   const isRunning = analysisPhase !== 'idle' && analysisPhase !== 'done' && analysisPhase !== 'error';
@@ -374,67 +383,96 @@ export default function BpmnDashboard() {
       {/* Metrics row */}
       <div className="bpmn-metrics-row">
         <div className="bpmn-metric-card">
-          <span className="bpmn-metric-card__label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Clock size={14} /> Total Duration</span>
-          <span className="bpmn-metric-card__value">{metrics.duration}</span>
+          <span className="bpmn-metric-card__label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Clock size={14} /> {activeTab === 'asis' ? 'Total Duration' : 'Target Duration'}
+          </span>
+          <span className="bpmn-metric-card__value" style={{ color: activeTab === 'tobe' && aiMetrics ? '#10b981' : undefined }}>
+            {metrics.duration}
+          </span>
         </div>
         <div className="bpmn-metric-card">
-          <span className="bpmn-metric-card__label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Hand size={14} /> Manual Tasks</span>
-          <span className="bpmn-metric-card__value">{metrics.manualTasks}</span>
+          <span className="bpmn-metric-card__label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Hand size={14} /> {activeTab === 'asis' ? 'Manual Tasks' : 'Efficiency Gain'}
+          </span>
+          <span className="bpmn-metric-card__value" style={{ color: activeTab === 'tobe' && aiMetrics ? '#10b981' : undefined }}>
+            {metrics.manualTasks}
+          </span>
         </div>
         <div className="bpmn-metric-card">
-          <span className="bpmn-metric-card__label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Sparkles size={14} /> AI-Augmented</span>
-          <span className="bpmn-metric-card__value">{metrics.aiTasks}</span>
+          <span className="bpmn-metric-card__label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Sparkles size={14} /> {activeTab === 'asis' ? 'AI-Augmented' : 'Automation Rate'}
+          </span>
+          <span className="bpmn-metric-card__value" style={{ color: activeTab === 'tobe' && aiMetrics ? 'var(--primary)' : undefined }}>
+            {metrics.aiTasks}
+          </span>
         </div>
         <div className="bpmn-metric-card">
-          <span className="bpmn-metric-card__label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}><ArrowRightLeft size={14} /> Handoffs</span>
-          <span className="bpmn-metric-card__value">{metrics.handoffs}</span>
+          <span className="bpmn-metric-card__label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <ArrowRightLeft size={14} /> {activeTab === 'asis' ? 'Handoffs' : 'Cost Reduction'}
+          </span>
+          <span className="bpmn-metric-card__value" style={{ color: activeTab === 'tobe' && aiMetrics ? '#10b981' : undefined }}>
+            {metrics.handoffs}
+          </span>
         </div>
       </div>
 
       {/* BPMN diagram */}
       <div className="bpmn-diagram-area" style={{ position: 'relative', minHeight: 360 }}>
-        {(activeTab === 'asis' ? asIsXml : toBeXml) ? (
-          <>
-            <BpmnJsViewer xml={activeTab === 'asis' ? asIsXml : toBeXml} />
-            <div style={{ position: 'absolute', top: 12, left: 12, zIndex: 5, fontSize: '0.73rem', color: 'var(--text-secondary)', background: 'rgba(15,23,42,0.75)', padding: '4px 10px', borderRadius: 4 }}>
-              <Info size={11} style={{ verticalAlign: 'middle', marginRight: 4 }} />
-              {activeTab === 'asis' ? 'AS-IS — derived from SME interview answers' : 'TO-BE — shows accepted/AI-merged steps'}
-            </div>
-          </>
+        {activeTab === 'asis' ? (
+          asIsXml ? (
+            <>
+              <BpmnJsViewer xml={asIsXml} />
+              <div style={{ position: 'absolute', top: 12, left: 12, zIndex: 5, fontSize: '0.73rem', color: 'var(--text-secondary)', background: 'rgba(15,23,42,0.75)', padding: '4px 10px', borderRadius: 4 }}>
+                <Info size={11} style={{ verticalAlign: 'middle', marginRight: 4 }} />
+                AS-IS — current process derived from SME interviews
+              </div>
+            </>
+          ) : (
+            <div className="bpmn-empty">No AS-IS BPMN generated.</div>
+          )
         ) : (
-          <div className="bpmn-empty">No BPMN XML generated.</div>
+          /* TO-BE tab: show AI-optimized diagram if available, else prompt */
+          aiTobeBpmn ? (
+            <>
+              <BpmnJsViewer xml={aiTobeBpmn} />
+              <div style={{ position: 'absolute', top: 12, left: 12, zIndex: 5, fontSize: '0.73rem', color: 'var(--text-secondary)', background: 'rgba(15,23,42,0.75)', padding: '4px 10px', borderRadius: 4 }}>
+                <Sparkles size={11} style={{ verticalAlign: 'middle', marginRight: 4 }} />
+                TO-BE — AI-optimized using industry best practices
+              </div>
+            </>
+          ) : isRunning ? (
+            <div className="bpmn-empty">
+              <Loader2 size={28} className="animate-spin" style={{ color: 'var(--primary)', marginBottom: 8 }} />
+              <span>Generating optimized TO-BE process...</span>
+            </div>
+          ) : (
+            <div className="bpmn-empty" style={{ flexDirection: 'column', gap: 12 }}>
+              <Sparkles size={32} style={{ color: 'var(--primary)', opacity: 0.5 }} />
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontWeight: 600, marginBottom: 4, color: 'var(--text)' }}>TO-BE diagram not yet generated</div>
+                <div style={{ fontSize: '0.82rem' }}>Click "Run AI Analysis" to generate the industry best-practice optimized process</div>
+              </div>
+            </div>
+          )
         )}
       </div>
 
-      {/* Original pain points / infusion section */}
-      <div className="bpmn-insights-area">
-        <div className="bpmn-insights-header">
-          {activeTab === 'asis'
-            ? <><AlertTriangle size={18} color="var(--error)" /> Pain Points in AS-IS</>
-            : <><Sparkles size={18} color="var(--success)" /> AI Infusion Points in TO-BE</>}
-        </div>
-        <div className="bpmn-insights-grid">
-          {activeTab === 'asis'
-            ? consolidation.steps.slice(0, 4).map(step => (
+      {/* Pain points section — only shown on AS-IS tab (TO-BE uses AI Analysis section below) */}
+      {activeTab === 'asis' && (
+        <div className="bpmn-insights-area">
+          <div className="bpmn-insights-header">
+            <AlertTriangle size={18} color="var(--error)" /> Pain Points in AS-IS
+          </div>
+          <div className="bpmn-insights-grid">
+            {consolidation.steps.slice(0, 4).map(step => (
               <div key={step.stepId} className="bpmn-insight-card">
                 <div className="bpmn-insight-card__title">Manual: {step.label}</div>
                 <div className="bpmn-insight-card__desc">Requires manual intervention — increases cycle time. Confidence: {step.confidence}%</div>
               </div>
-            ))
-            : consolidation.steps.filter(s => s.accepted).slice(0, 4).map(step => (
-              <div key={step.stepId} className="bpmn-insight-card to-be">
-                <div className="bpmn-insight-card__title">AI Automated: {step.label}</div>
-                <div className="bpmn-insight-card__desc">{step.aiProposedMerge?.rationale || 'Step optimized and merged using AI.'}</div>
-              </div>
-            ))
-          }
-          {activeTab === 'tobe' && consolidation.steps.filter(s => s.accepted).length === 0 && (
-            <div style={{ color: 'var(--text-secondary)', fontStyle: 'italic', padding: '1rem' }}>
-              Accept steps in the Multi-SME Consolidation view to see AI Infusion Points here.
-            </div>
-          )}
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* ── AI Analysis Section ─────────────────────────────────────────────── */}
       {analysisPhase !== 'idle' && (
@@ -477,19 +515,6 @@ export default function BpmnDashboard() {
                     })}
                   </div>
                   {issues.map(issue => <IssueCard key={issue.id} issue={issue} />)}
-                </div>
-              )}
-            </AnalysisCard>
-
-            {/* TO-BE BPMN */}
-            <AnalysisCard
-              title="Optimized TO-BE Process Map (Industry Best Practices)"
-              icon={<CheckCircle2 size={16} />}
-              status={!atOrPast(analysisPhase, 'tobe_start') ? 'waiting' : !atOrPast(analysisPhase, 'tobe') ? 'loading' : 'ready'}
-            >
-              {aiTobeBpmn && (
-                <div style={{ height: 400 }}>
-                  <BpmnJsViewer xml={aiTobeBpmn} />
                 </div>
               )}
             </AnalysisCard>

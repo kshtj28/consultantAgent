@@ -1,81 +1,138 @@
+/* ── Wrapper ─────────────────────────────────────────────────────────────────── */
+
 .bpmn-js-wrapper {
-  background: var(--surface-low);
-  border-radius: 12px;
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow-lg);
+  background: #080f1e;
+  border-radius: 10px;
+  border: 1px solid #1e293b;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255,255,255,0.04);
   overflow: hidden;
 }
 
-/* Base Canvas Styling */
+/* ── Canvas ──────────────────────────────────────────────────────────────────── */
+
 .bpmn-js-container {
-  background-color: var(--surface-low) !important;
-  background-image: 
-    radial-gradient(circle, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
-    radial-gradient(circle, rgba(255, 255, 255, 0.05) 1px, transparent 1px) !important;
-  background-size: 20px 20px !important;
-  background-position: 0 0, 10px 10px !important;
+  background-color: #080f1e !important;
+  /* subtle blue dot grid */
+  background-image:
+    radial-gradient(circle, rgba(59, 130, 246, 0.12) 1px, transparent 1px) !important;
+  background-size: 28px 28px !important;
+  background-position: 14px 14px !important;
 }
 
 .bpmn-js-container .djs-container svg {
   background: transparent !important;
 }
 
-/* Shapes (Tasks, Events, etc.) */
-.bpmn-js-container .djs-shape .djs-visual rect,
-.bpmn-js-container .djs-shape .djs-visual circle,
-.bpmn-js-container .djs-shape .djs-visual polygon,
-.bpmn-js-container .djs-shape .djs-visual path {
-  fill: var(--surface);
-  stroke: var(--primary);
-  stroke-width: 2px;
-}
+/* ── Text / Labels ───────────────────────────────────────────────────────────── */
 
-/* Connections (Arrows) */
-.bpmn-js-container .djs-connection .djs-visual path {
-  stroke: var(--text-secondary) !important;
-  stroke-width: 2px !important;
-}
-
-/* Arrows heads - bpmn-js uses markers */
-.bpmn-js-container .djs-visual [marker-end] {
-  stroke: var(--text-secondary) !important;
-}
-
-/* Labels */
-.bpmn-js-container .djs-label {
-  fill: var(--text) !important;
-  font-family: 'Inter', sans-serif !important;
+/* All text inside the diagram */
+.bpmn-js-container text,
+.bpmn-js-container tspan {
+  fill: #e2e8f0 !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  font-size: 11px !important;
   font-weight: 500 !important;
-  font-size: 12px !important;
+  letter-spacing: 0.01em !important;
 }
 
-/* Subprocess / Group boxes */
-.bpmn-js-container .djs-shape .djs-visual rect[width][height][rx] {
-  fill: rgba(255, 255, 255, 0.02) !important;
-  stroke: var(--primary-low) !important;
-  stroke-dasharray: 6 !important;
+/* Sequence-flow labels (slightly dimmer) */
+.bpmn-js-container .djs-connection text,
+.bpmn-js-container .djs-connection tspan {
+  fill: #94a3b8 !important;
+  font-size: 10px !important;
 }
 
-/* Hover effects */
-.bpmn-js-container .djs-element:hover .djs-visual rect,
-.bpmn-js-container .djs-element:hover .djs-visual circle {
-  stroke: var(--primary-light, #60a5fa) !important;
-  filter: drop-shadow(0 0 4px var(--primary));
-  transition: all 0.2s ease;
+/* ── Connections (sequence flows) ────────────────────────────────────────────── */
+
+.bpmn-js-container .djs-connection .djs-visual path {
+  stroke: #475569 !important;
+  stroke-width: 1.5px !important;
+  fill: none !important;
 }
 
-/* Navigation controls */
+/* Arrowhead markers */
+.bpmn-js-container svg defs marker path,
+.bpmn-js-container svg defs marker polygon {
+  fill: #475569 !important;
+  stroke: #475569 !important;
+}
+
+/* ── Shape outlines / selection ──────────────────────────────────────────────── */
+
+/* Hover outline — bpmn-js draws a .djs-outline rect on hover */
+.bpmn-js-container .djs-element:hover .djs-outline {
+  display: block !important;
+  stroke: #3b82f6 !important;
+  stroke-width: 2px !important;
+  stroke-dasharray: none !important;
+  fill: transparent !important;
+  opacity: 0.8;
+}
+
+/* Selected */
+.bpmn-js-container .djs-element.selected .djs-outline {
+  display: block !important;
+  stroke: #60a5fa !important;
+  stroke-width: 2.5px !important;
+}
+
+/* ── Toolbar ─────────────────────────────────────────────────────────────────── */
+
 .bpmn-js-toolbar {
+  position: absolute;
+  bottom: 14px;
+  right: 14px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: rgba(15, 23, 42, 0.9);
   backdrop-filter: blur(8px);
-  background: rgba(30, 41, 59, 0.8) !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 5px 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
 }
 
 .bpmn-js-toolbar button {
-  transition: all 0.2s ease;
+  background: transparent;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s, background 0.15s;
 }
 
 .bpmn-js-toolbar button:hover {
-  color: var(--primary) !important;
-  transform: scale(1.1);
+  color: #3b82f6;
+  background: rgba(59, 130, 246, 0.1);
 }
+
+.bpmn-js-toolbar-divider {
+  width: 1px;
+  height: 16px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 0 4px;
+}
+
+.bpmn-js-zoom-label {
+  font-size: 0.7rem;
+  color: #475569;
+  font-family: 'Inter', monospace;
+  min-width: 32px;
+  text-align: center;
+  padding: 0 2px;
+}
+
+/* ── ScrollBar (bpmn-js scrollbars if any) ───────────────────────────────────── */
+
+.bpmn-js-container ::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+.bpmn-js-container ::-webkit-scrollbar-track { background: transparent; }
+.bpmn-js-container ::-webkit-scrollbar-thumb { background: #334155; border-radius: 2px; }
