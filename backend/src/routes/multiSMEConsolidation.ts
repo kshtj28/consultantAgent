@@ -8,10 +8,165 @@ import {
   inviteSMEToConsolidation,
   generateUnifiedBPMN,
   listAvailableProcesses,
+  type MultiSMEConsolidation,
 } from '../services/multiSMEConsolidationService';
 import { addConsolidationSSEClient, broadcastConsolidationUpdate } from '../services/reportSseService';
+import { getEffectiveModel } from '../services/settingsService';
+import { generateCompletion, LLMMessage } from '../services/llmService';
 
 const router = Router();
+
+// ── AI Analysis Helpers ───────────────────────────────────────────────────────
+
+interface FlatStep {
+  id: string;
+  type: 'startEvent' | 'endEvent' | 'task' | 'userTask' | 'serviceTask' | 'exclusiveGateway' | 'parallelGateway';
+  label: string;
+}
+interface FlatFlow { from: string; to: string; label?: string; }
+interface FlatProcess { name: string; steps: FlatStep[]; flows: FlatFlow[]; }
+
+function buildFlatBpmnXml(proc: FlatProcess): string {
+  const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const { steps, flows } = proc;
+
+  // BFS level assignment
+  const adj = new Map<string, string[]>();
+  const inDeg = new Map<string, number>();
+  for (const s of steps) { adj.set(s.id, []); inDeg.set(s.id, 0); }
+  for (const f of flows) {
+    adj.get(f.from)?.push(f.to);
+    inDeg.set(f.to, (inDeg.get(f.to) || 0) + 1);
+  }
+  const levels = new Map<string, number>();
+  const queue = steps.filter(s => (inDeg.get(s.id) || 0) === 0).map(s => s.id);
+  queue.forEach(id => levels.set(id, 0));
+  const visited = new Set<string>();
+  let qi = 0;
+  while (qi < queue.length) {
+    const cur = queue[qi++];
+    if (visited.has(cur)) continue;
+    visited.add(cur);
+    const lv = levels.get(cur) || 0;
+    for (const next of (adj.get(cur) || [])) {
+      if (!levels.has(next) || levels.get(next)! < lv + 1) levels.set(next, lv + 1);
+      if (!visited.has(next)) queue.push(next);
+    }
+  }
+  const maxLv = Math.max(0, ...Array.from(levels.values()));
+  for (const s of steps) if (!levels.has(s.id)) levels.set(s.id, maxLv + 1);
+
+  const byLevel = new Map<number, string[]>();
+  for (const [id, lv] of levels) {
+    if (!byLevel.has(lv)) byLevel.set(lv, []);
+    byLevel.get(lv)!.push(id);
+  }
+
+  const dim = (t: string) => (t === 'startEvent' || t === 'endEvent') ? { w: 36, h: 36 }
+    : (t === 'exclusiveGateway' || t === 'parallelGateway') ? { w: 50, h: 50 }
+    : { w: 110, h: 80 };
+
+  const STEP_X = 190, STEP_Y = 130, START_X = 80, CENTER_Y = 220;
+  const pos = new Map<string, { x: number; y: number; w: number; h: number }>();
+  for (const [lv, ids] of byLevel) {
+    ids.forEach((id, idx) => {
+      const step = steps.find(s => s.id === id)!;
+      const d = dim(step.type);
+      const offsetY = (idx - (ids.length - 1) / 2) * STEP_Y;
+      pos.set(id, { x: START_X + lv * STEP_X, y: CENTER_Y + offsetY - d.h / 2, w: d.w, h: d.h });
+    });
+  }
+
+  let procXml = '', diagXml = '';
+  for (const s of steps) {
+    const p = pos.get(s.id)!;
+    const label = esc(s.label);
+    const tag = s.type === 'exclusiveGateway' ? 'exclusiveGateway'
+      : s.type === 'parallelGateway' ? 'parallelGateway'
+      : s.type === 'startEvent' ? 'startEvent'
+      : s.type === 'endEvent' ? 'endEvent' : 'task';
+    procXml += `\n    <bpmn2:${tag} id="${s.id}" name="${label}" />`;
+    const isGw = tag.includes('Gateway');
+    diagXml += `\n      <bpmndi:BPMNShape id="${s.id}_di" bpmnElement="${s.id}"${isGw ? ' isMarkerVisible="true"' : ''}>
+        <dc:Bounds x="${p.x}" y="${p.y}" width="${p.w}" height="${p.h}" />
+        <bpmndi:BPMNLabel><dc:Bounds x="${p.x - 10}" y="${p.y + p.h + 4}" width="${p.w + 20}" height="20" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>`;
+  }
+
+  flows.forEach((f, i) => {
+    const fid = `flow_${i + 1}`;
+    const src = pos.get(f.from), tgt = pos.get(f.to);
+    if (!src || !tgt) return;
+    const lbl = f.label ? esc(f.label) : '';
+    procXml += `\n    <bpmn2:sequenceFlow id="${fid}" sourceRef="${f.from}" targetRef="${f.to}"${lbl ? ` name="${lbl}"` : ''} />`;
+    const sx = src.x + src.w, sy = src.y + src.h / 2;
+    const tx = tgt.x, ty = tgt.y + tgt.h / 2;
+    const mx = (sx + tx) / 2;
+    const wp = Math.abs(sy - ty) < 4
+      ? `<di:waypoint x="${sx}" y="${sy}" /><di:waypoint x="${tx}" y="${ty}" />`
+      : `<di:waypoint x="${sx}" y="${sy}" /><di:waypoint x="${mx}" y="${sy}" /><di:waypoint x="${mx}" y="${ty}" /><di:waypoint x="${tx}" y="${ty}" />`;
+    diagXml += `\n      <bpmndi:BPMNEdge id="${fid}_di" bpmnElement="${fid}">
+        ${wp}${lbl ? `\n        <bpmndi:BPMNLabel><dc:Bounds x="${mx - 15}" y="${(sy + ty) / 2 - 10}" width="60" height="20" /></bpmndi:BPMNLabel>` : ''}
+      </bpmndi:BPMNEdge>`;
+  });
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+  id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn2:process id="Process_1" name="${esc(proc.name)}" isExecutable="false">${procXml}
+  </bpmn2:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">${diagXml}
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn2:definitions>`;
+}
+
+async function llmJson<T>(modelId: string, system: string, user: string): Promise<T> {
+  const msgs: LLMMessage[] = [{ role: 'system', content: system }, { role: 'user', content: user }];
+  const res = await generateCompletion(modelId, msgs);
+  const raw = res.content.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+  return JSON.parse(raw) as T;
+}
+
+async function analyzeIssues(c: MultiSMEConsolidation, modelId: string): Promise<any[]> {
+  const stepList = c.steps.map(s => `${s.order}. ${s.label}: ${s.description}`).join('\n');
+  const conflicts = c.steps.filter(s => s.status === 'conflict').map(s => s.label).join(', ');
+  const system = `You are a banking process excellence expert. Identify key inefficiencies in the process from SME interview data.
+Return ONLY a valid JSON array — no markdown, no explanation.
+Each element: {"id":"issue_N","title":"...","description":"...","severity":"high"|"medium"|"low","category":"efficiency"|"risk"|"compliance"|"automation"|"cost"|"customer_experience","impact":"specific measurable impact","rootCause":"underlying cause"}
+Include 5-8 impactful issues based on banking industry standards.`;
+  return llmJson<any[]>(modelId, system,
+    `Process: ${c.processName} (${c.department})\n\nSME-identified steps:\n${stepList}\n\nConflict areas (SMEs disagreed): ${conflicts || 'None'}\n\nIdentify the key process issues.`);
+}
+
+const FLAT_BPMN_SCHEMA = `{"name":"...","steps":[{"id":"start_1","type":"startEvent","label":"Start"},{"id":"task_1","type":"task","label":"Step"},{"id":"gw_1","type":"exclusiveGateway","label":"Decision?"},{"id":"end_1","type":"endEvent","label":"End"}],"flows":[{"from":"start_1","to":"task_1"},{"from":"gw_1","to":"task_2","label":"Yes"}]}`;
+
+async function generateOptimizedBpmn(c: MultiSMEConsolidation, issues: any[], modelId: string): Promise<{ json: FlatProcess; xml: string }> {
+  const issueList = issues.map(i => `- [${i.severity}] ${i.title}: ${i.description}`).join('\n');
+  const currentSteps = c.steps.map(s => s.label).join(', ');
+  const system = `You are a BPMN2 process optimization expert for banking/financial services. Design an industry best-practice optimized process.
+Return ONLY valid JSON matching this schema exactly — no markdown, no explanation:
+${FLAT_BPMN_SCHEMA}
+Valid types: startEvent, endEvent, task, userTask, serviceTask, exclusiveGateway, parallelGateway.
+IDs: unique snake_case. One startEvent, one or more endEvents. Labels ≤5 words.
+Optimize using: STP (Straight-Through Processing), digital automation, parallel processing, risk-based routing, and regulatory compliance best practices.`;
+  const json = await llmJson<FlatProcess>(modelId, system,
+    `Process: ${c.processName}\nDepartment: ${c.department}\n\nCurrent steps: ${currentSteps}\n\nIssues to resolve:\n${issueList}\n\nGenerate the optimized to-be process. Append "(Optimized)" to the name.`);
+  return { json, xml: buildFlatBpmnXml(json) };
+}
+
+async function generateComparison(c: MultiSMEConsolidation, tobe: FlatProcess, issues: any[], modelId: string): Promise<any> {
+  const system = `You are a banking process efficiency analyst. Calculate realistic improvement metrics.
+Return ONLY valid JSON — no markdown:
+{"timeSavings":{"asis":"X days","tobe":"Y days","reduction":"Z%","detail":"..."},"costReduction":{"percentage":"...","detail":"..."},"efficiencyGain":{"percentage":"...","detail":"..."},"automationRate":{"asis":"...","tobe":"...","detail":"..."},"riskReduction":{"percentage":"...","detail":"..."},"customerExperience":{"improvement":"...","detail":"..."},"keyImprovements":["..."]}`;
+  return llmJson<any>(modelId, system,
+    `Process: ${c.processName}\nAs-is: ${c.steps.length} steps, ${c.metrics.conflicts} conflict areas, ${c.metrics.consensusPct}% SME consensus\nTo-be: ${tobe.steps.length} steps (optimized)\nIssues resolved: ${issues.map(i => i.title).join(', ')}\nCalculate expected improvements.`);
+}
 
 // GET /api/multi-sme-consolidation/processes — list every interviewable process and how much SME data exists
 router.get('/processes', async (_req: Request, res: Response) => {
@@ -150,6 +305,58 @@ router.post('/:id/generate-bpmn', async (req: Request, res: Response) => {
     console.error('Generate unified BPMN error:', err);
     return res.status(500).json({ error: 'Failed to generate BPMN' });
   }
+});
+
+// POST /api/multi-sme-consolidation/:processId/ai-analysis — SSE stream: issues → TO-BE BPMN → comparison
+router.post('/:processId/ai-analysis', async (req: Request, res: Response) => {
+  const { processId } = req.params;
+
+  let consolidation: MultiSMEConsolidation | null = null;
+  try {
+    consolidation = await fetchMultiSMEConsolidation(processId);
+  } catch {}
+
+  if (!consolidation && processId === 'loan-origination') {
+    try {
+      consolidation = await generateMultiSMEConsolidation({ processId, forceMock: true });
+    } catch {}
+  }
+
+  if (!consolidation) {
+    return res.status(404).json({ error: 'No consolidation data found. Complete at least one interview first.' });
+  }
+
+  const modelConfig = await getEffectiveModel();
+  if (!modelConfig) {
+    return res.status(400).json({ error: 'No AI model configured' });
+  }
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+
+  const send = (d: object) => res.write(`data: ${JSON.stringify(d)}\n\n`);
+
+  try {
+    send({ phase: 'issues_start' });
+    const issues = await analyzeIssues(consolidation, modelConfig.id);
+    send({ phase: 'issues', issues });
+
+    send({ phase: 'tobe_start' });
+    const { json: tobeJson, xml: tobeBpmn } = await generateOptimizedBpmn(consolidation, issues, modelConfig.id);
+    send({ phase: 'tobe', bpmnXml: tobeBpmn });
+
+    send({ phase: 'comparison_start' });
+    const metrics = await generateComparison(consolidation, tobeJson, issues, modelConfig.id);
+    send({ phase: 'comparison', metrics });
+
+    send({ phase: 'done' });
+  } catch (err: any) {
+    console.error('[ai-analysis]', err);
+    send({ phase: 'error', error: err.message || 'AI analysis failed' });
+  }
+
+  res.end();
 });
 
 // GET /api/multi-sme-consolidation/:processId/stream — SSE for real-time updates per process
