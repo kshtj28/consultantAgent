@@ -85,9 +85,10 @@ function applyThemeColors(viewer: NavigatedViewer) {
     });
 
     // Arrow markers in <defs>
-    const container = elementRegistry.getGraphics(elementRegistry.getAll()?.[0])?.ownerSVGElement;
+    const firstGfx = elementRegistry.getGraphics(elementRegistry.getAll()?.[0]) as SVGElement | null;
+    const container = firstGfx?.ownerSVGElement;
     if (container) {
-      container.querySelectorAll<SVGElement>('defs marker path, defs marker polygon').forEach(el => {
+      container.querySelectorAll<SVGElement>('defs marker path, defs marker polygon').forEach((el: SVGElement) => {
         el.style.fill = '#475569';
         el.style.stroke = '#475569';
       });
