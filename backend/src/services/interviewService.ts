@@ -337,6 +337,41 @@ function determineQuestionMode(
     return 'discovery';
 }
 
+// ─── Answer Quality Helpers ───────────────────────────────────────────
+
+const VAGUE_PATTERNS = /^(hmm+|uh+|um+|ok|okay|yes|no|maybe|sure|fine|good|alright|idk|i\s+don'?t\s+know|not\s+sure|correct|right|exactly|yeah|yep|nope|n\/a|none|nil|na|nothing|i'?ll?\s+check|let\s+me\s+check|possibly|probably|not\s+really|we'll\s+see|it\s+depends?|it\s+varies?|standard|normal|regular|typical|usual|same\s+as\s+before|manually|like\s+everyone)\.?\s*$/i;
+
+export function detectVagueAnswer(answer: string | string[] | number | boolean): { isVague: boolean; reason: string } {
+    if (typeof answer !== 'string') return { isVague: false, reason: '' };
+    const normalized = answer.trim();
+    if (!normalized) return { isVague: true, reason: 'No answer provided' };
+    if (normalized.length < 12) return { isVague: true, reason: 'Answer is too brief to extract meaningful process insights' };
+    if (VAGUE_PATTERNS.test(normalized.toLowerCase())) {
+        return { isVague: true, reason: 'Response does not contain specific process details' };
+    }
+    const words = normalized.toLowerCase().split(/\s+/).filter(w => w.length > 1);
+    const filler = new Set(['ok', 'okay', 'yes', 'no', 'maybe', 'sure', 'fine', 'good', 'right', 'correct', 'hmm', 'um', 'uh', 'same', 'normal', 'standard', 'typical', 'usual', 'manual', 'manually', 'not', 'is', 'are', 'we', 'it', 'the', 'a', 'an', 'just', 'only', 'and', 'or', 'but', 'so', 'well', 'like', 'do', 'does', 'have', 'has', 'use', 'used', 'using']);
+    if (words.length <= 7) {
+        const content = words.filter(w => !filler.has(w));
+        if (content.length <= 1) return { isVague: true, reason: 'Response lacks specific details about your process' };
+    }
+    return { isVague: false, reason: '' };
+}
+
+export function calculateReadinessScore(session: InterviewSession): number {
+    const allIds = Object.keys(session.coverage || {});
+    if (allIds.length === 0) return 0;
+    const covered = allIds.filter(id => session.coverage[id]?.status === 'covered').length;
+    const inProgress = allIds.filter(id => session.coverage[id]?.status === 'in_progress').length;
+    const totalAnswers = Object.values(session.responses).flat().length;
+    // LLM-confident covered sub-areas drive 80% of score; in-progress gets 30% partial credit
+    const coverageScore = ((covered + inProgress * 0.3) / allIds.length) * 80;
+    // Volume bonus: 20%, target is 2 answers per sub-area
+    const target = Math.max(allIds.length * 2, 4);
+    const answerScore = Math.min(20, (totalAnswers / target) * 20);
+    return Math.round(Math.min(100, coverageScore + answerScore));
+}
+
 // ─── KPI Probing Guidance ────────────────────────────────────────────
 
 function buildKPIGuidance(broadAreaName: string, subAreaName: string): string {
@@ -383,7 +418,8 @@ function buildKPIGuidance(broadAreaName: string, subAreaName: string): string {
 export async function generateNextInterviewQuestion(
     session: InterviewSession,
     subAreaId?: string,
-    modelId?: string
+    modelId?: string,
+    vagueContext?: { question: string; answer: string; reason: string }
 ): Promise<GeneratedInterviewQuestion & { aiConfident?: boolean }> {
     // Determine which sub-area to target
     const targetSubAreaId = subAreaId || determineNextSubArea(session) || session.currentSubArea;
@@ -400,7 +436,8 @@ export async function generateNextInterviewQuestion(
     const lastAnswer = answers[answers.length - 1]?.answer as string | undefined;
     const hasInsights = session.conversationHistory.length > 4;
 
-    const mode = determineQuestionMode(questionsAnswered, lastAnswer, hasInsights, DEPTH_THRESHOLDS[session.depth ?? 'standard']);
+    let mode = determineQuestionMode(questionsAnswered, lastAnswer, hasInsights, DEPTH_THRESHOLDS[session.depth ?? 'standard']);
+    if (vagueContext) mode = 'probing'; // force probing when the previous answer needs follow-up
 
     const previousQA = answers
         .map(a => `Q: ${a.question}\nA: ${JSON.stringify(a.answer)}`)
@@ -503,7 +540,19 @@ This assessment is for a migration to **${targetSystem}**. You MUST incorporate 
 Do NOT ask generic questions that ignore the migration context. Every question should help assess readiness for ${targetSystem} specifically.` : `\nTailor your questions to this specific context where appropriate.`}
 ` : ''}
 
-## CONSTRAINTS
+${vagueContext ? `## ⚠ FOLLOW-UP REQUIRED — PREVIOUS ANSWER WAS INSUFFICIENT
+The SME's last answer was too vague to extract useful process data.
+
+Previous question: "${vagueContext.question}"
+SME's response: "${vagueContext.answer}"
+Why it's insufficient: ${vagueContext.reason}
+
+MANDATORY: Stay on this same topic. Do NOT ask a new question. Your follow-up MUST:
+1. Open by briefly referencing what they said ("You mentioned X..." or "Building on that...")
+2. Ask for exactly ONE concrete detail: a named system/tool, headcount, volume, cycle time, error rate, or a specific example
+3. Offer answer options (single_choice or multi_choice) wherever plausible to make it easy
+4. Keep subAreaCovered = false — we do not yet have enough data
+` : ''}## CONSTRAINTS
 IMPORTANT: Stay focused ONLY on "${subArea.name}" topics within the "${broadAreaName}" broad area. Do NOT ask about other sub-areas.
 ${maturityBenchmarks}
 

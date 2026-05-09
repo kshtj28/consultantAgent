@@ -11,6 +11,8 @@ import {
     switchCategory,
     generateFinanceGapReport,
     getInterviewStartMessage,
+    detectVagueAnswer,
+    calculateReadinessScore,
     DEPTH_THRESHOLDS,
     CategoryId,
     InterviewDepth,
@@ -239,28 +241,43 @@ router.post('/:sessionId/answer', async (req: Request, res: Response) => {
         });
 
         const progress = getInterviewProgress(session);
+        const readinessScore = calculateReadinessScore(session);
         const allCovered = progress.every(ba => ba.overallStatus === 'covered');
 
         if (allCovered) {
             session.status = 'completed';
             await updateInterviewSession(session);
 
-            // Trigger data pipeline on completion
             const { triggerDataPipeline } = await import('../services/pipelineTriggerService');
             triggerDataPipeline(session).catch(err =>
                 console.error('Pipeline trigger failed on completion:', err)
             );
 
-            return res.json({ progress, currentSubArea: session.currentSubArea, completed: true });
+            return res.json({ progress, currentSubArea: session.currentSubArea, completed: true, readinessScore });
         }
 
-        const nextQuestion = await generateNextInterviewQuestion(session, undefined, model);
+        // Detect vague open-ended answers and generate a targeted follow-up
+        const answerText = typeof answer === 'string' ? answer : null;
+        const vagueCheck = (type === 'open_ended' && answerText)
+            ? detectVagueAnswer(answerText)
+            : { isVague: false, reason: '' };
+
+        const vagueContext = vagueCheck.isVague ? { question, answer: answerText!, reason: vagueCheck.reason } : undefined;
+        // If vague, stay on same sub-area so the follow-up probes the same topic
+        const nextSubAreaHint = vagueContext ? (targetSubArea || session.currentSubArea || undefined) : undefined;
+
+        const nextQuestion = await generateNextInterviewQuestion(session, nextSubAreaHint, model, vagueContext);
         const updatedProgress = getInterviewProgress(session);
 
         res.json({
             nextQuestion,
             progress: updatedProgress,
             currentSubArea: session.currentSubArea,
+            readinessScore,
+            isFollowUp: vagueCheck.isVague,
+            vagueWarning: vagueCheck.isVague
+                ? `Your answer needs more detail — ${vagueCheck.reason.toLowerCase()}. The follow-up question will help gather the specifics needed for a useful assessment.`
+                : undefined,
         });
     } catch (err: any) {
         if (err instanceof LLMWarmingUpError) {
@@ -433,12 +450,25 @@ router.post('/:sessionId/pause', async (req: Request, res: Response) => {
 });
 
 // Mark interview session as explicitly completed
+const MIN_READINESS_TO_COMPLETE = 15; // absolute floor — must have answered at least a few questions
+
 router.post('/:sessionId/complete', async (req: Request, res: Response) => {
     try {
         const { sessionId } = req.params;
+        const { force } = req.body || {};
         const session = await getInterviewSession(sessionId);
         if (!session) {
             return res.status(404).json({ error: 'Session not found' });
+        }
+
+        const readinessScore = calculateReadinessScore(session);
+
+        if (!force && readinessScore < MIN_READINESS_TO_COMPLETE) {
+            return res.status(400).json({
+                canComplete: false,
+                readinessScore,
+                error: `Assessment is too incomplete (${readinessScore}% readiness). Please answer at least a few more questions so the reports and BPMN diagrams will be meaningful.`,
+            });
         }
 
         if (session.status !== 'completed') {
@@ -446,7 +476,6 @@ router.post('/:sessionId/complete', async (req: Request, res: Response) => {
             session.updatedAt = new Date().toISOString();
             await updateInterviewSession(session);
 
-            // Trigger data pipeline on completion
             const { triggerDataPipeline } = await import('../services/pipelineTriggerService');
             triggerDataPipeline(session).catch(err =>
                 console.error('Pipeline trigger failed on explicit completion:', err)
@@ -458,7 +487,8 @@ router.post('/:sessionId/complete', async (req: Request, res: Response) => {
             message: 'Session completed successfully',
             progress,
             currentSubArea: session.currentSubArea,
-            completed: true
+            completed: true,
+            readinessScore,
         });
     } catch (err: any) {
         console.error('Complete session error:', err);

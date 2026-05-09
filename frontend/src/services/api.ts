@@ -865,10 +865,11 @@ export async function pauseInterviewSession(sessionId: string): Promise<any> {
 }
 
 // Complete interview session explicitly
-export async function completeInterviewSession(sessionId: string): Promise<any> {
+export async function completeInterviewSession(sessionId: string, force?: boolean): Promise<any> {
     return request(`${API_BASE}/interview/${sessionId}/complete`, {
         method: 'POST',
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ force: !!force }),
     });
 }
 

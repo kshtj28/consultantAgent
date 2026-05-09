@@ -74,6 +74,10 @@ export default function ProcessAnalysis() {
     // Files attached to the current pending answer (cleared after submit).
     const [pendingAttachments, setPendingAttachments] = useState<AnswerAttachment[]>([]);
     const [attachUploading, setAttachUploading] = useState(false);
+    // Assessment quality tracking
+    const [readinessScore, setReadinessScore] = useState(0);
+    const [vagueWarning, setVagueWarning] = useState<string | null>(null);
+    const [showFinishConfirm, setShowFinishConfirm] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const chatEndRef = useRef<HTMLDivElement>(null);
     const warmup = useGpuWarmup();
@@ -248,6 +252,7 @@ export default function ProcessAnalysis() {
         try {
             setSubmitLoading(true);
             setError(null);
+            setVagueWarning(null);
             const submittedAnswer = answer;
             const res = await submitInterviewAnswer(sessionId, {
                 questionId: currentQuestion.id,
@@ -260,9 +265,10 @@ export default function ProcessAnalysis() {
                 language,
                 attachments: pendingAttachments.length > 0 ? pendingAttachments : undefined,
             });
-            // Add Q&A to chat history before moving to next question
             setChatHistory(prev => [...prev, { question: currentQuestion, answer: submittedAnswer }]);
             setProgress(res.progress || []);
+            if (res.readinessScore !== undefined) setReadinessScore(res.readinessScore);
+            if (res.vagueWarning) setVagueWarning(res.vagueWarning);
             setAnswer('');
             setPendingAttachments([]);
             if (res.completed) {
@@ -303,6 +309,7 @@ export default function ProcessAnalysis() {
         if (!sessionId) return;
         try {
             setQuestionLoading(true);
+            setVagueWarning(null);
             await switchSubArea(sessionId, subAreaId);
             const qRes = await getNextInterviewQuestion(sessionId, undefined, language);
             setCurrentQuestion(qRes.question);
@@ -313,15 +320,23 @@ export default function ProcessAnalysis() {
         }
     };
 
-    const handleFinishAssessment = async () => {
+    const SOFT_READINESS_THRESHOLD = 45; // below this: show confirmation dialog
+
+    const handleFinishAssessment = async (force = false) => {
         if (!sessionId) return;
+        // Soft gate: if readiness is low and user hasn't confirmed, show dialog instead
+        if (!force && readinessScore < SOFT_READINESS_THRESHOLD && readinessScore > 0) {
+            setShowFinishConfirm(true);
+            return;
+        }
         try {
             setSubmitLoading(true);
             setError(null);
-            await completeInterviewSession(sessionId);
+            setShowFinishConfirm(false);
+            await completeInterviewSession(sessionId, force || readinessScore < SOFT_READINESS_THRESHOLD);
             setCurrentQuestion(null);
             setStep('complete');
-            fetchData(); // Refresh data to reflect completed status
+            fetchData();
         } catch (err: any) {
             setError(err.message || 'Failed to finish assessment');
         } finally {
@@ -438,8 +453,18 @@ export default function ProcessAnalysis() {
                         <h1 className="page-header__title">{t('pa.assessmentInterview')}</h1>
                         <p className="page-header__subtitle">{t('pa.answerQuestions')}</p>
                     </div>
-                    <div style={{ display: 'flex', gap: '1rem' }}>
-                        <button className="pa-btn pa-btn--primary" onClick={handleFinishAssessment} disabled={submitLoading || questionLoading}>
+                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                        {readinessScore > 0 && (
+                            <span style={{
+                                fontSize: '0.75rem', color: readinessScore >= 45 ? '#10b981' : readinessScore >= 20 ? '#f59e0b' : '#ef4444',
+                                fontWeight: 600, padding: '4px 10px', borderRadius: 6,
+                                background: readinessScore >= 45 ? 'rgba(16,185,129,0.1)' : readinessScore >= 20 ? 'rgba(245,158,11,0.1)' : 'rgba(239,68,68,0.1)',
+                                border: `1px solid ${readinessScore >= 45 ? 'rgba(16,185,129,0.3)' : readinessScore >= 20 ? 'rgba(245,158,11,0.3)' : 'rgba(239,68,68,0.3)'}`,
+                            }}>
+                                {readinessScore}% ready
+                            </span>
+                        )}
+                        <button className="pa-btn pa-btn--primary" onClick={() => handleFinishAssessment(false)} disabled={submitLoading || questionLoading}>
                             {t('pa.finishAssessment')}
                         </button>
                         <button className="pa-btn pa-btn--secondary" onClick={() => { warmup.cancel(); fetchData(); setStep('overview'); }}>
@@ -453,6 +478,27 @@ export default function ProcessAnalysis() {
                 <div className="pa-interview-layout">
                     <div className="pa-progress-sidebar">
                         <h4>{t('pa.coverage')}</h4>
+                        {/* Readiness meter */}
+                        <div style={{ marginBottom: '1rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-secondary)', marginBottom: 4 }}>
+                                <span>Assessment Readiness</span>
+                                <span style={{ fontWeight: 700, color: readinessScore >= 45 ? '#10b981' : readinessScore >= 20 ? '#f59e0b' : 'var(--text-secondary)' }}>
+                                    {readinessScore}%
+                                </span>
+                            </div>
+                            <div style={{ height: 6, borderRadius: 3, background: 'var(--border)', overflow: 'hidden' }}>
+                                <div style={{
+                                    height: '100%', borderRadius: 3, transition: 'width 0.5s ease',
+                                    width: `${readinessScore}%`,
+                                    background: readinessScore >= 45 ? '#10b981' : readinessScore >= 20 ? '#f59e0b' : '#ef4444',
+                                }} />
+                            </div>
+                            <div style={{ fontSize: '0.67rem', color: 'var(--text-secondary)', marginTop: 3 }}>
+                                {readinessScore < 20 ? 'Answer more questions to generate useful insights' :
+                                 readinessScore < 45 ? 'Good start — more coverage will improve report quality' :
+                                 readinessScore < 75 ? 'Good coverage — continue for deeper insights' : 'Excellent coverage'}
+                            </div>
+                        </div>
                         {progress.map((ba) => (
                             <div key={ba.broadAreaId} className="pa-sidebar-broad-area">
                                 <div className={`pa-sidebar-broad-area__header ${ba.overallStatus === 'covered' ? 'pa-sidebar-broad-area__header--done' : ''}`}>
@@ -476,7 +522,46 @@ export default function ProcessAnalysis() {
                         ))}
                     </div>
 
-                    <GpuWarmupOverlay warmup={warmup} onCancel={() => setStep('overview')} />
+                    {/* Low-readiness finish confirmation dialog */}
+                {showFinishConfirm && (
+                    <div style={{
+                        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                        <div style={{
+                            background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12,
+                            padding: '28px 32px', maxWidth: 440, width: '90%',
+                        }}>
+                            <div style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: 10, color: 'var(--text)' }}>
+                                Finish with low coverage?
+                            </div>
+                            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 20 }}>
+                                Assessment readiness is only <strong style={{ color: '#f59e0b' }}>{readinessScore}%</strong>.
+                                Finishing now will produce limited reports, a rough BPMN diagram, and incomplete gap analysis.
+                                <br /><br />
+                                Continue answering questions for much better insights. Alternatively, you can finish now and re-run analysis later.
+                            </div>
+                            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                                <button
+                                    className="pa-btn pa-btn--secondary"
+                                    onClick={() => setShowFinishConfirm(false)}
+                                >
+                                    Keep going
+                                </button>
+                                <button
+                                    className="pa-btn pa-btn--primary"
+                                    style={{ background: '#f59e0b', borderColor: '#f59e0b' }}
+                                    onClick={() => handleFinishAssessment(true)}
+                                    disabled={submitLoading}
+                                >
+                                    Finish anyway
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                <GpuWarmupOverlay warmup={warmup} onCancel={() => setStep('overview')} />
 
                     <div className="pa-question-area">
                         <div className="pa-chat-container">
@@ -493,6 +578,18 @@ export default function ProcessAnalysis() {
                                     </div>
                                 </div>
                             ))}
+
+                            {/* Vague answer notice */}
+                            {vagueWarning && (
+                                <div style={{
+                                    margin: '0.5rem 0', padding: '10px 14px', borderRadius: 8,
+                                    background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)',
+                                    display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: '0.8rem',
+                                }}>
+                                    <span style={{ color: '#f59e0b', flexShrink: 0, marginTop: 1 }}>⚠</span>
+                                    <span style={{ color: 'var(--text-secondary)', lineHeight: 1.5 }}>{vagueWarning}</span>
+                                </div>
+                            )}
 
                             {/* Current question */}
                             {questionLoading ? (
