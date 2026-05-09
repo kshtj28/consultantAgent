@@ -706,7 +706,11 @@ export default function ProcessAnalysis() {
                                 <Tooltip
                                     contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8, fontSize: '0.8rem' }}
                                     itemStyle={{ color: '#f8fafc' }}
-                                    formatter={(value: any, name: any) => [`${Number(value).toFixed(0)}%`, name]}
+                                    formatter={(value: any, name: any) => {
+                                        const total = pieData.reduce((sum, d) => sum + (d.value || 0), 0);
+                                        const pct = total > 0 ? ((Number(value) / total) * 100).toFixed(0) : '0';
+                                        return [`${pct}%`, name];
+                                    }}
                                 />
                             </PieChart>
                         </ResponsiveContainer>
@@ -746,11 +750,11 @@ export default function ProcessAnalysis() {
 
                 <SectionCard title={t('pa.processEfficiency')}>
                     <div className="process-analysis__chart-container">
-                        <div dir="ltr" style={{ width: '100%', height: '280px' }}>
+                        <div dir="ltr" style={{ width: '100%', height: '340px' }}>
                         <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={barData} margin={{ bottom: 40 }}>
+                            <BarChart data={barData} margin={{ bottom: 90, left: 10, right: 10 }}>
                                 <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                                <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 11 }} angle={-25} textAnchor="end" interval={0} />
+                                <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 9 }} angle={-45} textAnchor="end" interval={0} />
                                 <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} domain={[0, 100]} />
                                 <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8 }} itemStyle={{ color: '#f8fafc' }} />
                                 <Bar dataKey="efficiency" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Efficiency %" />
