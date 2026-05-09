@@ -22,6 +22,7 @@ import {
     SubAreaCoverage,
 } from '../services/interviewService';
 import { isValidLanguage, LanguageCode } from '../services/languageService';
+import { USER_FACING_DIMENSION_LABELS } from '../prompts/sufficiency.prompt';
 import { getBroadAreas, getSubAreasForBroadArea, getBroadArea, getActiveDomainConfig } from '../services/domainService';
 import { getInterviewCategories } from '../services/domainService';
 import { LLMWarmingUpError } from '../services/llmService';
@@ -288,7 +289,7 @@ router.post('/:sessionId/answer', async (req: Request, res: Response) => {
                 overallScore: sufficiency.overall,
             };
             vagueWarning = dim
-                ? `Your answer needs more detail on **${dim}** to be audit-ready. The next question will probe that specifically.`
+                ? `Your answer needs more detail on **${USER_FACING_DIMENSION_LABELS[dim]}** to be audit-ready. The next question will probe that specifically.`
                 : `Your answer needs more detail to be audit-ready (sufficiency ${sufficiency.overall}/100). The next question will probe for specifics.`;
         } else if (!sufficiency) {
             // Narrative classifier didn't run (structured-type answer or

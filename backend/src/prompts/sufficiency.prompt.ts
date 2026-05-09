@@ -34,6 +34,19 @@ export const DIMENSION_LABELS: Record<SufficiencyDimensionKey, string> = {
     sla: 'SLA / Timing',
 };
 
+/** Plain-English phrasings shown to SMEs in the interview UI banner.
+ *  The internal dimension keys ("actor", "decisionCriteria") are
+ *  framework jargon that confuses non-technical users — these strings
+ *  describe the missing detail in the SME's own language. */
+export const USER_FACING_DIMENSION_LABELS: Record<SufficiencyDimensionKey, string> = {
+    actor: 'who specifically performs this step',
+    action: 'what exactly is done',
+    input: 'what triggers or feeds this step',
+    output: 'what is produced or recorded',
+    decisionCriteria: 'the rules or thresholds that decide each path',
+    sla: 'how long this takes or when it has to be done',
+};
+
 /** Default pass threshold for the overall sufficiency score (0–100).
  *  Regulated banking processes use this floor; informal coordination steps
  *  may be lowered via `processCalibration` in `buildSufficiencyPrompt`. */

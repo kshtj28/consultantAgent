@@ -396,27 +396,75 @@ export function detectVagueAnswer(answer: string | string[] | number | boolean):
     return { isVague: false, reason: '' };
 }
 
+/**
+ * Quality-weighted readiness score (0–100).
+ *
+ * Three components:
+ *   - Coverage  (60%): fully-covered sub-areas + quality-weighted partial
+ *                     credit for in-progress sub-areas. A sub-area with
+ *                     all-vague answers earns near-zero partial credit
+ *                     instead of the flat 30% it used to get.
+ *   - Sufficiency (25%): average per-sub-area sufficiency across all
+ *                       classified answers. Drives most of the score
+ *                       once a session has any narrative input.
+ *   - Engagement (15%): only "passing" answers count. Failed-sufficiency
+ *                       answers no longer earn engagement points, so a
+ *                       user with two vague answers gets 0 here, not 5.
+ *
+ * Pattern 1 principle: honest 70% beats hallucinated 100%. A session
+ * with broad keystrokes but thin substance should score low.
+ */
 export function calculateReadinessScore(session: InterviewSession): number {
     const allIds = Object.keys(session.coverage || {});
     if (allIds.length === 0) return 0;
+
     const covered = allIds.filter(id => session.coverage[id]?.status === 'covered').length;
-    const inProgress = allIds.filter(id => session.coverage[id]?.status === 'in_progress').length;
-    const totalAnswers = Object.values(session.responses).flat().length;
-    // LLM-confident covered sub-areas drive 70% of score; in-progress gets 30% partial credit.
-    const coverageScore = ((covered + inProgress * 0.3) / allIds.length) * 70;
-    // Audit-defensibility weight: 15% — average sufficiency across classified
-    // answers. A session with broad coverage but thin/vague answers loses
-    // these points (Pattern 1: honest coverage beats fake completeness).
+
+    // In-progress credit: scaled by the sub-area's average sufficiency.
+    // No classifier data → neutral 50% factor (= 0.15 partial credit).
+    // Avg sufficiency 100 → full 0.30 partial credit.
+    // Avg sufficiency 10 → 0.03 partial credit.
+    const inProgressCredit = allIds.reduce((acc, id) => {
+        const cov = session.coverage[id];
+        if (!cov || cov.status !== 'in_progress') return acc;
+        const suf = cov.sufficiency;
+        const qualityFactor = !suf || suf.classifiedCount === 0
+            ? 0.5
+            : suf.avgScore / 100;
+        return acc + 0.3 * qualityFactor;
+    }, 0);
+
+    const coverageScore = ((covered + inProgressCredit) / allIds.length) * 60;
+
+    // Sufficiency component (25%) — average across sub-areas that have
+    // at least one classified answer. Sub-areas with no narrative
+    // answers are excluded so they don't dilute the score either way.
     const sufficiencyAverages = allIds
         .map(id => session.coverage[id]?.sufficiency)
         .filter((s): s is SufficiencyAggregate => !!s && s.classifiedCount > 0)
         .map(s => s.avgScore);
     const sufficiencyScore = sufficiencyAverages.length > 0
-        ? (sufficiencyAverages.reduce((a, b) => a + b, 0) / sufficiencyAverages.length) * 0.15
+        ? (sufficiencyAverages.reduce((a, b) => a + b, 0) / sufficiencyAverages.length) * 0.25
         : 0;
-    // Volume bonus: 15%, target is 2 answers per sub-area.
+
+    // Engagement component (15%) — only count answers that passed the
+    // sufficiency threshold. Answers with no classifier output (e.g.
+    // structured single-choice / yes-no) count at face value since we
+    // can't measure their quality.
+    let weightedAnswers = 0;
+    for (const arr of Object.values(session.responses ?? {})) {
+        for (const a of arr ?? []) {
+            if (!a.sufficiency) {
+                weightedAnswers += 1;
+            } else if (a.sufficiency.passed) {
+                weightedAnswers += 1;
+            }
+            // Failed-sufficiency narrative answers contribute 0.
+        }
+    }
     const target = Math.max(allIds.length * 2, 4);
-    const answerScore = Math.min(15, (totalAnswers / target) * 15);
+    const answerScore = Math.min(15, (weightedAnswers / target) * 15);
+
     return Math.round(Math.min(100, coverageScore + sufficiencyScore + answerScore));
 }
 

@@ -5,6 +5,7 @@ export {
     buildSufficiencyPrompt,
     SUFFICIENCY_DIMENSIONS,
     DIMENSION_LABELS,
+    USER_FACING_DIMENSION_LABELS,
     DEFAULT_SUFFICIENCY_THRESHOLD,
     FAST_PATH_DEFAULT_MISSING,
 } from './sufficiency.prompt';
