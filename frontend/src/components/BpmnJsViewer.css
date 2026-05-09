@@ -112,14 +112,14 @@
   background: rgba(59, 130, 246, 0.1);
 }
 
-.bpmn-js-toolbar-divider {
+.bpmn-js-toolbar-sep {
   width: 1px;
   height: 16px;
   background: rgba(255, 255, 255, 0.08);
   margin: 0 4px;
 }
 
-.bpmn-js-zoom-label {
+.bpmn-js-zoom-pct {
   font-size: 0.7rem;
   color: #475569;
   font-family: 'Inter', monospace;

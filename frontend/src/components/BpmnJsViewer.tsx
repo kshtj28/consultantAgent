@@ -7,25 +7,25 @@ interface BpmnJsViewerProps {
   xml: string;
 }
 
-// ── Theme colors per BPMN element type ───────────────────────────────────────
+// ── Type-specific colors ──────────────────────────────────────────────────────
 
-const SHAPE_COLORS: Record<string, { fill: string; stroke: string; strokeWidth?: string }> = {
-  'bpmn:StartEvent':        { fill: '#064e3b', stroke: '#10b981', strokeWidth: '2.5px' },
-  'bpmn:EndEvent':          { fill: '#7f1d1d', stroke: '#f87171', strokeWidth: '3px' },
-  'bpmn:Task':              { fill: '#1e3a5f', stroke: '#3b82f6', strokeWidth: '1.5px' },
-  'bpmn:UserTask':          { fill: '#2d1b69', stroke: '#8b5cf6', strokeWidth: '1.5px' },
-  'bpmn:ServiceTask':       { fill: '#0c4a6e', stroke: '#38bdf8', strokeWidth: '1.5px' },
-  'bpmn:ManualTask':        { fill: '#1e293b', stroke: '#64748b', strokeWidth: '1.5px' },
-  'bpmn:SendTask':          { fill: '#0c4a6e', stroke: '#38bdf8', strokeWidth: '1.5px' },
-  'bpmn:ReceiveTask':       { fill: '#0c4a6e', stroke: '#38bdf8', strokeWidth: '1.5px' },
-  'bpmn:ScriptTask':        { fill: '#1e293b', stroke: '#64748b', strokeWidth: '1.5px' },
-  'bpmn:ExclusiveGateway':  { fill: '#451a03', stroke: '#f59e0b', strokeWidth: '2px' },
-  'bpmn:ParallelGateway':   { fill: '#042f2e', stroke: '#14b8a6', strokeWidth: '2px' },
-  'bpmn:InclusiveGateway':  { fill: '#3b0764', stroke: '#a855f7', strokeWidth: '2px' },
-  'bpmn:EventBasedGateway': { fill: '#1c1917', stroke: '#78716c', strokeWidth: '2px' },
-  'bpmn:IntermediateCatchEvent': { fill: '#1e3a5f', stroke: '#60a5fa', strokeWidth: '2px' },
-  'bpmn:IntermediateThrowEvent': { fill: '#1e3a5f', stroke: '#60a5fa', strokeWidth: '2px' },
-  'bpmn:SubProcess':        { fill: 'rgba(15, 23, 42, 0.7)', stroke: '#334155', strokeWidth: '1px' },
+const SHAPE_COLORS: Record<string, { fill: string; stroke: string; sw?: string }> = {
+  'bpmn:StartEvent':             { fill: '#064e3b', stroke: '#10b981', sw: '2.5' },
+  'bpmn:EndEvent':               { fill: '#7f1d1d', stroke: '#f87171', sw: '3' },
+  'bpmn:Task':                   { fill: '#1e3a5f', stroke: '#3b82f6' },
+  'bpmn:UserTask':               { fill: '#2d1b69', stroke: '#8b5cf6' },
+  'bpmn:ServiceTask':            { fill: '#0c4a6e', stroke: '#38bdf8' },
+  'bpmn:ManualTask':             { fill: '#1e293b', stroke: '#64748b' },
+  'bpmn:SendTask':               { fill: '#0c4a6e', stroke: '#38bdf8' },
+  'bpmn:ReceiveTask':            { fill: '#0c4a6e', stroke: '#38bdf8' },
+  'bpmn:ScriptTask':             { fill: '#1c1917', stroke: '#78716c' },
+  'bpmn:ExclusiveGateway':       { fill: '#451a03', stroke: '#f59e0b', sw: '2' },
+  'bpmn:ParallelGateway':        { fill: '#042f2e', stroke: '#14b8a6', sw: '2' },
+  'bpmn:InclusiveGateway':       { fill: '#3b0764', stroke: '#a855f7', sw: '2' },
+  'bpmn:IntermediateCatchEvent': { fill: '#1e3a5f', stroke: '#60a5fa' },
+  'bpmn:IntermediateThrowEvent': { fill: '#1e3a5f', stroke: '#60a5fa' },
+  'bpmn:SubProcess':             { fill: '#0f172a', stroke: '#334155' },
+  'bpmn:CallActivity':           { fill: '#1e3a5f', stroke: '#3b82f6', sw: '3' },
 };
 
 function applyThemeColors(viewer: NavigatedViewer) {
@@ -33,88 +33,67 @@ function applyThemeColors(viewer: NavigatedViewer) {
     const elementRegistry = viewer.get('elementRegistry') as any;
 
     elementRegistry.forEach((element: any) => {
-      // Skip connections (sequence flows, message flows)
-      if (element.waypoints) return;
-      // Skip root canvas element
-      if (element.id === '__implicitroot') return;
+      // Skip connections and root
+      if (element.waypoints || element.id === '__implicitroot') return;
 
-      const gfx = element.gfx as SVGElement | null;
+      // ← correct API: getGraphics(element), not element.gfx
+      const gfx: SVGElement | null = elementRegistry.getGraphics(element);
       if (!gfx) return;
 
-      const visual = gfx.querySelector('.djs-visual') as SVGElement | null;
+      const visual = gfx.querySelector<SVGElement>('.djs-visual');
       if (!visual) return;
 
       const colors = SHAPE_COLORS[element.type];
+      if (!colors) return;
 
-      if (colors) {
-        const shapes = visual.querySelectorAll<SVGElement>('rect, circle, polygon, path, ellipse');
-        shapes.forEach(shape => {
-          shape.style.fill = colors.fill;
-          shape.style.stroke = colors.stroke;
-          shape.style.strokeWidth = colors.strokeWidth || '2px';
-        });
-
-        // Dashed border for SubProcess
+      // Apply fill/stroke as inline styles — beats CSS class selectors
+      const svgShapes = visual.querySelectorAll<SVGElement>('rect, circle, polygon, path, ellipse');
+      svgShapes.forEach(shape => {
+        shape.style.fill = colors.fill;
+        shape.style.stroke = colors.stroke;
+        shape.style.strokeWidth = `${colors.sw ?? '1.5'}px`;
         if (element.type === 'bpmn:SubProcess') {
-          shapes.forEach(shape => {
-            (shape as SVGRectElement).style.strokeDasharray = '8 4';
-            shape.style.strokeOpacity = '0.7';
-          });
+          shape.style.strokeDasharray = '8 4';
         }
-      }
+      });
 
-      // Text labels — always white/light
-      const texts = visual.querySelectorAll<SVGElement>('text, tspan');
-      texts.forEach(t => {
+      // White text inside every shape
+      visual.querySelectorAll<SVGElement>('text, tspan').forEach(t => {
         t.style.fill = '#e2e8f0';
-        t.style.fontFamily = "'Inter', -apple-system, sans-serif";
+        t.style.fontFamily = "'Inter', sans-serif";
         t.style.fontSize = '11px';
         t.style.fontWeight = '500';
       });
     });
 
-    // Style sequence flow arrows (connections)
+    // Style sequence-flow connections
     elementRegistry.forEach((element: any) => {
       if (!element.waypoints) return;
-      const gfx = element.gfx as SVGElement | null;
+      const gfx: SVGElement | null = elementRegistry.getGraphics(element);
       if (!gfx) return;
-      const visual = gfx.querySelector('.djs-visual') as SVGElement | null;
-      if (!visual) return;
 
-      const paths = visual.querySelectorAll<SVGElement>('path');
-      paths.forEach(p => {
+      gfx.querySelectorAll<SVGElement>('.djs-visual path').forEach(p => {
         p.style.stroke = '#475569';
         p.style.strokeWidth = '1.5px';
         p.style.fill = 'none';
       });
 
-      // Labels on sequence flows
-      const texts = gfx.querySelectorAll<SVGElement>('text, tspan');
-      texts.forEach(t => {
+      gfx.querySelectorAll<SVGElement>('text, tspan').forEach(t => {
         t.style.fill = '#94a3b8';
         t.style.fontSize = '10px';
       });
     });
 
-    // Style arrowhead markers in the SVG defs
-    const svgEl = (gfx: Element): SVGSVGElement | null => {
-      let el: Element | null = gfx;
-      while (el && el.tagName !== 'svg') el = el.parentElement;
-      return el as SVGSVGElement | null;
-    };
-    const firstGfx = (elementRegistry.getAll()[0] as any)?.gfx;
-    if (firstGfx) {
-      const svg = svgEl(firstGfx);
-      if (svg) {
-        svg.querySelectorAll<SVGElement>('defs marker path, defs marker polygon').forEach(el => {
-          el.style.fill = '#475569';
-          el.style.stroke = '#475569';
-        });
-      }
+    // Arrow markers in <defs>
+    const container = elementRegistry.getGraphics(elementRegistry.getAll()?.[0])?.ownerSVGElement;
+    if (container) {
+      container.querySelectorAll<SVGElement>('defs marker path, defs marker polygon').forEach(el => {
+        el.style.fill = '#475569';
+        el.style.stroke = '#475569';
+      });
     }
   } catch (err) {
-    // Non-fatal: just log and continue
-    console.warn('[BpmnJsViewer] applyThemeColors error:', err);
+    console.warn('[BpmnJsViewer] applyThemeColors failed (non-fatal):', err);
   }
 }
 
@@ -143,29 +122,23 @@ export default function BpmnJsViewer({ xml }: BpmnJsViewerProps) {
     if (!viewerRef.current || !xml) return;
     setError(null);
 
-    const importXML = async () => {
+    (async () => {
       try {
         await viewerRef.current!.importXML(xml);
-
         const canvas = viewerRef.current!.get('canvas') as any;
         canvas.zoom('fit-viewport', 'center');
         setZoom(canvas.zoom());
-
-        // Apply type-specific dark-theme colors
         applyThemeColors(viewerRef.current!);
       } catch (err: any) {
         console.error('[BpmnJsViewer] importXML failed:', err);
         setError(err?.message || 'Failed to render diagram');
       }
-    };
-
-    importXML();
+    })();
 
     if (containerRef.current) {
       const ro = new ResizeObserver(() => {
         if (viewerRef.current) {
-          const canvas = viewerRef.current.get('canvas') as any;
-          canvas.zoom('fit-viewport', 'center');
+          (viewerRef.current.get('canvas') as any).zoom('fit-viewport', 'center');
         }
       });
       ro.observe(containerRef.current);
@@ -173,52 +146,31 @@ export default function BpmnJsViewer({ xml }: BpmnJsViewerProps) {
     }
   }, [xml]);
 
-  const handleZoomIn = () => {
-    if (!viewerRef.current) return;
-    const canvas = viewerRef.current.get('canvas') as any;
-    canvas.zoom(zoom * 1.25);
-    setZoom(canvas.zoom());
-  };
+  const getCanvas = () => viewerRef.current?.get('canvas') as any;
 
-  const handleZoomOut = () => {
-    if (!viewerRef.current) return;
-    const canvas = viewerRef.current.get('canvas') as any;
-    canvas.zoom(zoom / 1.25);
-    setZoom(canvas.zoom());
-  };
-
-  const handleFit = () => {
-    if (!viewerRef.current) return;
-    const canvas = viewerRef.current.get('canvas') as any;
-    canvas.zoom('fit-viewport', 'center');
-    setZoom(canvas.zoom());
-  };
+  const handleZoomIn = () => { const c = getCanvas(); if (c) { c.zoom(zoom * 1.25); setZoom(c.zoom()); } };
+  const handleZoomOut = () => { const c = getCanvas(); if (c) { c.zoom(zoom / 1.25); setZoom(c.zoom()); } };
+  const handleFit = () => { const c = getCanvas(); if (c) { c.zoom('fit-viewport', 'center'); setZoom(c.zoom()); } };
 
   if (error) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 10, color: '#94a3b8', fontSize: '0.82rem' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 8, color: '#94a3b8', fontSize: '0.82rem' }}>
         <span style={{ color: '#ef4444' }}>Failed to render BPMN diagram</span>
-        <span style={{ fontSize: '0.75rem', opacity: 0.7 }}>{error}</span>
+        <span style={{ opacity: 0.6, fontSize: '0.72rem' }}>{error}</span>
       </div>
     );
   }
 
   return (
     <div className="bpmn-js-wrapper" style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
-      {/* Toolbar */}
       <div className="bpmn-js-toolbar">
-        <button onClick={handleZoomIn} title="Zoom In"><ZoomIn size={15} /></button>
-        <button onClick={handleFit} title="Fit to viewport"><Maximize2 size={15} /></button>
-        <button onClick={handleZoomOut} title="Zoom Out"><ZoomOut size={15} /></button>
-        <div className="bpmn-js-toolbar-divider" />
-        <span className="bpmn-js-zoom-label">{Math.round(zoom * 100)}%</span>
+        <button onClick={handleZoomIn} title="Zoom In"><ZoomIn size={14} /></button>
+        <button onClick={handleFit} title="Fit"><Maximize2 size={14} /></button>
+        <button onClick={handleZoomOut} title="Zoom Out"><ZoomOut size={14} /></button>
+        <div className="bpmn-js-toolbar-sep" />
+        <span className="bpmn-js-zoom-pct">{Math.round(zoom * 100)}%</span>
       </div>
-
-      <div
-        ref={containerRef}
-        className="bpmn-js-container"
-        style={{ flex: 1, borderRadius: 8, overflow: 'hidden' }}
-      />
+      <div ref={containerRef} className="bpmn-js-container" style={{ flex: 1, overflow: 'hidden' }} />
     </div>
   );
 }
