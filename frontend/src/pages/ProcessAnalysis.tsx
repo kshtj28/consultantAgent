@@ -37,6 +37,7 @@ import {
     subscribeToDashboardStream,
     translateInterviewHistory,
     submitWrapUpReflection,
+    pauseInterviewSession,
     BroadAreaInfo,
     BroadAreaProgressInfo,
     type SessionSummary, type GeneratedQuestion,
@@ -86,9 +87,13 @@ export default function ProcessAnalysis() {
     // Assessment quality tracking
     const [readinessScore, setReadinessScore] = useState(0);
     const [vagueWarning, setVagueWarning] = useState<string | null>(null);
-    // Wrap-up modal state — opens on every Finish click. Captures an
-    // optional "anything we missed?" reflection before completing.
+    // Wrap-up modal — opens on Finish, Save & Pause, and auto-completion.
+    // Captures an optional "anything we missed?" reflection before any
+    // exit path so SMEs always get a chance to surface tribal knowledge
+    // the structured questions didn't cover.
+    type WrapUpIntent = 'finish' | 'pause';
     const [showWrapUp, setShowWrapUp] = useState(false);
+    const [wrapUpIntent, setWrapUpIntent] = useState<WrapUpIntent>('finish');
     const [wrapUpText, setWrapUpText] = useState('');
     const [wrapUpSubmitting, setWrapUpSubmitting] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -292,8 +297,12 @@ export default function ProcessAnalysis() {
             setAnswer('');
             setPendingAttachments([]);
             if (res.completed) {
+                // Auto-complete: backend reports all sub-areas covered.
+                // Don't jump straight to the complete step — fire the
+                // wrap-up modal first so the SME still gets a chance to
+                // capture anything the structured questions missed.
                 setCurrentQuestion(null);
-                setStep('complete');
+                openWrapUp('finish');
             } else {
                 setCurrentQuestion(res.nextQuestion);
             }
@@ -343,23 +352,31 @@ export default function ProcessAnalysis() {
 
     const SOFT_READINESS_THRESHOLD = 45; // below this: show confirmation dialog
 
-    /** Click on "Finish Assessment" — always opens the wrap-up modal,
-     *  regardless of readiness. The modal handles the low-coverage
-     *  warning and the optional reflection capture. */
-    const handleFinishAssessment = () => {
+    /** Open the wrap-up modal with the given intent. Always shows —
+     *  this is the single chokepoint before any exit so the SME never
+     *  closes the interview without an opportunity to add anything we
+     *  missed. */
+    const openWrapUp = (intent: WrapUpIntent) => {
         if (!sessionId) return;
         setError(null);
         setWrapUpText('');
+        setWrapUpIntent(intent);
         setShowWrapUp(true);
     };
 
-    /** Submit & finish from inside the wrap-up modal. Persists the
-     *  reflection (if non-empty), then calls /complete. The backend
-     *  enforces an absolute floor (≥1 interview answer) — if the user
-     *  hasn't answered any questions, completion is blocked here. The
-     *  soft-floor (readiness < SOFT) is overridden via force=true since
-     *  the user has explicitly confirmed via the modal. */
-    const handleConfirmFinish = async () => {
+    /** "Finish Assessment" — wrap-up modal then /complete. */
+    const handleFinishAssessment = () => openWrapUp('finish');
+
+    /** "Save & Pause" — wrap-up modal then /pause. The session stays
+     *  in_progress and the user can resume from the overview later. */
+    const handleSavePause = () => openWrapUp('pause');
+
+    /** Confirm exit from inside the wrap-up modal. Persists the
+     *  reflection (if non-empty), then calls the backend exit endpoint
+     *  matching the user's intent. The /complete path enforces an
+     *  absolute floor (≥1 interview answer) on the backend; the /pause
+     *  path always succeeds. */
+    const handleConfirmExit = async () => {
         if (!sessionId) return;
         try {
             setWrapUpSubmitting(true);
@@ -370,15 +387,23 @@ export default function ProcessAnalysis() {
                 await submitWrapUpReflection(sessionId, reflection);
             }
 
-            await completeInterviewSession(sessionId, readinessScore < SOFT_READINESS_THRESHOLD);
-
-            setShowWrapUp(false);
-            setWrapUpText('');
-            setCurrentQuestion(null);
-            setStep('complete');
-            fetchData();
+            if (wrapUpIntent === 'pause') {
+                await pauseInterviewSession(sessionId);
+                setShowWrapUp(false);
+                setWrapUpText('');
+                warmup.cancel();
+                fetchData();
+                setStep('overview');
+            } else {
+                await completeInterviewSession(sessionId, readinessScore < SOFT_READINESS_THRESHOLD);
+                setShowWrapUp(false);
+                setWrapUpText('');
+                setCurrentQuestion(null);
+                setStep('complete');
+                fetchData();
+            }
         } catch (err: any) {
-            setError(err.message || 'Failed to finish assessment');
+            setError(err.message || `Failed to ${wrapUpIntent === 'pause' ? 'pause' : 'finish'} assessment`);
         } finally {
             setWrapUpSubmitting(false);
         }
@@ -507,7 +532,7 @@ export default function ProcessAnalysis() {
                         <button className="pa-btn pa-btn--primary" onClick={handleFinishAssessment} disabled={submitLoading || questionLoading}>
                             {t('pa.finishAssessment')}
                         </button>
-                        <button className="pa-btn pa-btn--secondary" onClick={() => { warmup.cancel(); fetchData(); setStep('overview'); }}>
+                        <button className="pa-btn pa-btn--secondary" onClick={handleSavePause} disabled={submitLoading || questionLoading}>
                             {t('pa.savePause')}
                         </button>
                     </div>
@@ -565,72 +590,84 @@ export default function ProcessAnalysis() {
                     {/* Wrap-up modal — opens for every Finish click. Captures
                         an optional "anything we missed?" reflection and
                         confirms with a low-coverage warning when relevant. */}
-                {showWrapUp && (
-                    <div style={{
-                        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}>
+                {showWrapUp && (() => {
+                    const isPause = wrapUpIntent === 'pause';
+                    const title = isPause ? 'Save and pause' : 'Wrap up the assessment';
+                    const subtitle = isPause
+                        ? 'Pausing keeps your progress — you can resume anytime from the overview.'
+                        : 'Last step before we generate your reports.';
+                    const submittingLabel = isPause ? 'Saving…' : 'Finishing…';
+                    const submitLabelWithText = isPause ? 'Save reflection & pause' : 'Submit & finish';
+                    const submitLabelEmpty = isPause ? 'Pause without notes' : 'Finish without notes';
+                    const cancelLabel = isPause ? 'Back to interview' : 'Keep going';
+
+                    return (
                         <div style={{
-                            background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12,
-                            padding: '28px 32px', maxWidth: 560, width: '90%',
+                            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
                         }}>
-                            <div style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: 6, color: 'var(--text)' }}>
-                                Wrap up the assessment
-                            </div>
-                            <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: 16 }}>
-                                Last step before we generate your reports.
-                            </div>
-
-                            {readinessScore < SOFT_READINESS_THRESHOLD && (
-                                <div style={{
-                                    margin: '0 0 16px 0', padding: '10px 14px', borderRadius: 8,
-                                    background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.3)',
-                                    fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.5,
-                                }}>
-                                    <span style={{ color: '#f59e0b', fontWeight: 600 }}>⚠ Coverage is limited ({readinessScore}%)</span>
-                                    <br />
-                                    Reports and BPMN diagrams will be thin. You can re-run analysis later after answering more questions.
+                            <div style={{
+                                background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12,
+                                padding: '28px 32px', maxWidth: 560, width: '90%',
+                            }}>
+                                <div style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: 6, color: 'var(--text)' }}>
+                                    {title}
                                 </div>
-                            )}
+                                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: 16 }}>
+                                    {subtitle}
+                                </div>
 
-                            <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text)', marginBottom: 6 }}>
-                                Anything we missed?
-                            </div>
-                            <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: 8, lineHeight: 1.5 }}>
-                                Tell us about workarounds, exceptions, edge cases, recent changes, or anything only certain people know about your process.
-                                We'll fold this into the gap report. Optional — leave blank if everything's covered.
-                            </div>
-                            <textarea
-                                className="pa-textarea"
-                                value={wrapUpText}
-                                onChange={(e) => setWrapUpText(e.target.value)}
-                                placeholder="e.g. There's a manual override for vendor onboarding when the entity is in a sanctioned country — Finance triggers a parallel review with Compliance that isn't documented anywhere."
-                                rows={5}
-                                style={{ width: '100%', marginBottom: 18 }}
-                                disabled={wrapUpSubmitting}
-                            />
+                                {!isPause && readinessScore < SOFT_READINESS_THRESHOLD && (
+                                    <div style={{
+                                        margin: '0 0 16px 0', padding: '10px 14px', borderRadius: 8,
+                                        background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.3)',
+                                        fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.5,
+                                    }}>
+                                        <span style={{ color: '#f59e0b', fontWeight: 600 }}>⚠ Coverage is limited ({readinessScore}%)</span>
+                                        <br />
+                                        Reports and BPMN diagrams will be thin. You can re-run analysis later after answering more questions.
+                                    </div>
+                                )}
 
-                            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-                                <button
-                                    className="pa-btn pa-btn--secondary"
-                                    onClick={() => { setShowWrapUp(false); setWrapUpText(''); }}
+                                <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text)', marginBottom: 6 }}>
+                                    Anything we missed?
+                                </div>
+                                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: 8, lineHeight: 1.5 }}>
+                                    Tell us about workarounds, exceptions, edge cases, recent changes, or anything only certain people know about your process.
+                                    We'll fold this into the gap report. Optional — leave blank if everything's covered.
+                                </div>
+                                <textarea
+                                    className="pa-textarea"
+                                    value={wrapUpText}
+                                    onChange={(e) => setWrapUpText(e.target.value)}
+                                    placeholder="e.g. There's a manual override for vendor onboarding when the entity is in a sanctioned country — Finance triggers a parallel review with Compliance that isn't documented anywhere."
+                                    rows={5}
+                                    style={{ width: '100%', marginBottom: 18 }}
                                     disabled={wrapUpSubmitting}
-                                >
-                                    Keep going
-                                </button>
-                                <button
-                                    className="pa-btn pa-btn--primary"
-                                    onClick={handleConfirmFinish}
-                                    disabled={wrapUpSubmitting}
-                                >
-                                    {wrapUpSubmitting
-                                        ? 'Finishing…'
-                                        : (wrapUpText.trim() ? 'Submit & finish' : 'Finish without notes')}
-                                </button>
+                                />
+
+                                <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                                    <button
+                                        className="pa-btn pa-btn--secondary"
+                                        onClick={() => { setShowWrapUp(false); setWrapUpText(''); }}
+                                        disabled={wrapUpSubmitting}
+                                    >
+                                        {cancelLabel}
+                                    </button>
+                                    <button
+                                        className="pa-btn pa-btn--primary"
+                                        onClick={handleConfirmExit}
+                                        disabled={wrapUpSubmitting}
+                                    >
+                                        {wrapUpSubmitting
+                                            ? submittingLabel
+                                            : (wrapUpText.trim() ? submitLabelWithText : submitLabelEmpty)}
+                                    </button>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                )}
+                    );
+                })()}
 
                 <GpuWarmupOverlay warmup={warmup} onCancel={() => setStep('overview')} />
 

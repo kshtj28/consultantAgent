@@ -12,6 +12,7 @@ import {
     type MaturityTrend, type BankingKpis,
 } from '../services/api';
 import BankingDashboardView from '../components/dashboard/BankingDashboardView';
+import RecomputeKpisButton from '../components/dashboard/RecomputeKpisButton';
 import { useLanguage } from '../i18n/LanguageContext';
 import './Dashboard.css';
 
@@ -298,12 +299,65 @@ export default function Dashboard() {
         .filter((g: any) => (g.impact || '').toLowerCase() === 'high')
         .slice(0, 5);
 
+    const triggerRefetch = () => setDataVersion(v => v + 1);
+
     if (activeDomainId === 'banking') {
-        return <BankingDashboardView kpis={bankingKpis} />;
+        return <BankingDashboardView kpis={bankingKpis} onRecomputed={triggerRefetch} />;
+    }
+
+    // Empty-state — no useful data has been computed yet. Common causes:
+    // sessions only ever paused (so the data pipeline never ran for them),
+    // or the pipeline ran but every sub-area was empty. The admin can
+    // force a recompute from existing data without replaying the LLM.
+    const hasNoData = !stats || (stats.totalSessions === 0 && (cumulativeGaps?.totalGaps ?? 0) === 0);
+    if (hasNoData) {
+        return (
+            <div className="dashboard">
+                <div style={{
+                    maxWidth: 580, margin: '4rem auto', padding: '32px 36px',
+                    background: 'var(--surface)', border: '1px solid var(--border)',
+                    borderRadius: 12, textAlign: 'center',
+                }}>
+                    <div style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text)', marginBottom: 10 }}>
+                        No KPI data yet
+                    </div>
+                    <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: 1.6, margin: '0 0 12px' }}>
+                        Dashboard KPIs are computed from generated gap reports — completing the
+                        interview alone is not enough. Finish (or pause) an assessment with at
+                        least a few substantive answers to trigger the data pipeline.
+                    </p>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.6, margin: '0 0 22px', opacity: 0.8 }}>
+                        If you've already finished a session and the dashboard still looks empty,
+                        the pipeline may have been interrupted. Admins can force a re-aggregation
+                        from existing session data below.
+                    </p>
+                    <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+                        <button
+                            onClick={() => navigate('/process-analysis')}
+                            style={{
+                                display: 'inline-flex', alignItems: 'center', gap: 8,
+                                background: '#3b82f6', color: 'white', padding: '10px 20px',
+                                borderRadius: 8, fontSize: '0.9rem', fontWeight: 600,
+                                border: 'none', cursor: 'pointer',
+                            }}
+                        >
+                            Start an assessment <ArrowRight size={15} />
+                        </button>
+                        <RecomputeKpisButton variant="prominent" onComplete={triggerRefetch} />
+                    </div>
+                </div>
+            </div>
+        );
     }
 
     return (
         <div className="dashboard">
+            {/* Admin toolbar — recompute KPIs from existing session/report data
+                without replaying the LLM. Hidden for non-admins. */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+                <RecomputeKpisButton variant="subtle" onComplete={triggerRefetch} />
+            </div>
+
             {/* ── Executive Health Banner ── */}
             {(stats || cumulativeGaps) && (
                 <div className="dashboard__exec-banner">
