@@ -13,6 +13,8 @@ import {
     getInterviewStartMessage,
     detectVagueAnswer,
     calculateReadinessScore,
+    submitWrapUpReflection,
+    getTotalAnswerCount,
     DEPTH_THRESHOLDS,
     CategoryId,
     InterviewDepth,
@@ -488,7 +490,8 @@ router.post('/:sessionId/pause', async (req: Request, res: Response) => {
 });
 
 // Mark interview session as explicitly completed
-const MIN_READINESS_TO_COMPLETE = 15; // absolute floor — must have answered at least a few questions
+const MIN_READINESS_TO_COMPLETE = 15; // soft floor — overridable with force=true
+const ABSOLUTE_MIN_ANSWERS = 1;       // hard floor — never overridable
 
 router.post('/:sessionId/complete', async (req: Request, res: Response) => {
     try {
@@ -500,6 +503,19 @@ router.post('/:sessionId/complete', async (req: Request, res: Response) => {
         }
 
         const readinessScore = calculateReadinessScore(session);
+        const totalAnswers = getTotalAnswerCount(session);
+
+        // HARD floor: at least one substantive answer is required to
+        // generate any report. force=true cannot bypass this — wrap-up
+        // reflections are explicitly excluded so an empty session can't
+        // be passed off as "complete" with only a free-text comment.
+        if (totalAnswers < ABSOLUTE_MIN_ANSWERS) {
+            return res.status(400).json({
+                canComplete: false,
+                readinessScore,
+                error: `You haven't answered any questions yet. Please answer at least ${ABSOLUTE_MIN_ANSWERS} interview question before finishing — wrap-up reflections alone are not enough to generate meaningful reports.`,
+            });
+        }
 
         if (!force && readinessScore < MIN_READINESS_TO_COMPLETE) {
             return res.status(400).json({
@@ -531,6 +547,37 @@ router.post('/:sessionId/complete', async (req: Request, res: Response) => {
     } catch (err: any) {
         console.error('Complete session error:', err);
         return res.status(500).json({ error: 'Failed to complete session' });
+    }
+});
+
+// Submit the wrap-up "anything we missed?" reflection. Optional step
+// invoked from the finish modal — captures free-text the structured
+// interview didn't surface. Stored on the session and injected into the
+// gap report synthesis.
+router.post('/:sessionId/wrap-up', async (req: Request, res: Response) => {
+    try {
+        const { sessionId } = req.params;
+        const { reflection, model } = req.body || {};
+
+        if (typeof reflection !== 'string' || !reflection.trim()) {
+            return res.status(400).json({ error: 'reflection text is required' });
+        }
+
+        const session = await getInterviewSession(sessionId);
+        if (!session) {
+            return res.status(404).json({ error: 'Session not found' });
+        }
+
+        const resolvedModel = await getEffectiveModel(model);
+        const saved = await submitWrapUpReflection(session, reflection, resolvedModel?.id);
+
+        return res.json({ wrapUpReflection: saved });
+    } catch (err: any) {
+        if (err instanceof LLMWarmingUpError) {
+            return res.status(503).json({ error: err.message, code: 'LLM_WARMING_UP' });
+        }
+        console.error('Failed to submit wrap-up reflection:', err);
+        return res.status(500).json({ error: 'Failed to save reflection' });
     }
 });
 

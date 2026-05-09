@@ -913,6 +913,20 @@ export async function completeInterviewSession(sessionId: string, force?: boolea
     });
 }
 
+// Save the SME's "anything we missed?" wrap-up reflection. Returns the
+// stored entry including any sufficiency assessment of the text.
+export async function submitWrapUpReflection(
+    sessionId: string,
+    reflection: string,
+    model?: string,
+): Promise<{ wrapUpReflection: { text: string; submittedAt: string; sufficiency?: SufficiencyAssessment } }> {
+    return request(`${API_BASE}/interview/${sessionId}/wrap-up`, {
+        method: 'POST',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reflection, model }),
+    });
+}
+
 // SME Engagement
 export async function fetchSMEEngagement(): Promise<{ users: any[] }> {
     return request(`${API_BASE}/sme-engagement`, {

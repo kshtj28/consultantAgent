@@ -135,6 +135,16 @@ export interface BroadAreaProgress {
 
 // ─── Session Types ───────────────────────────────────────────────────
 
+export interface WrapUpReflection {
+    /** Free-text "anything we missed?" content from the SME. */
+    text: string;
+    /** ISO timestamp of submission. */
+    submittedAt: string;
+    /** Optional sufficiency assessment of the reflection itself, mostly for
+     *  audit visibility — applicability is informal here. */
+    sufficiency?: SufficiencyAssessment;
+}
+
 export interface InterviewSession {
     sessionType: string;
     sessionId: string;
@@ -163,6 +173,13 @@ export interface InterviewSession {
         transformationOpportunities: string[];
         painPoints: string[];
     };
+    /** Final open-ended reflection captured at the wrap-up step. The SME
+     *  uses this to surface anything the structured interview missed —
+     *  edge cases, workarounds, recent changes, tribal knowledge. The
+     *  text is fed into the gap report synthesis as a separate context
+     *  block so it can influence findings without being attributed to
+     *  any one sub-area. */
+    wrapUpReflection?: WrapUpReflection;
     migratedFrom?: 'readiness';
 }
 
@@ -803,6 +820,62 @@ export async function submitInterviewAnswer(
     return { sufficiency };
 }
 
+// ─── Wrap-up reflection ───────────────────────────────────────────────
+
+/** Total count of substantive answers across all sub-areas. The
+ *  hard-floor completion gate uses this to block "finish with zero
+ *  answers" attempts even when force=true is passed. The wrap-up
+ *  reflection is intentionally NOT counted — it's a supplement, not a
+ *  substitute for engaging with the structured interview. */
+export function getTotalAnswerCount(session: InterviewSession): number {
+    return Object.values(session.responses ?? {}).reduce(
+        (acc, arr) => acc + (arr?.length ?? 0),
+        0,
+    );
+}
+
+/** Persist the SME's "anything we missed?" reflection. Runs the
+ *  sufficiency classifier with informal calibration so reviewers can
+ *  see how concrete the reflection was, but does NOT block submission
+ *  on a low score — wrap-up is qualitative. Returns the assessment so
+ *  the UI can render its badge if desired. */
+export async function submitWrapUpReflection(
+    session: InterviewSession,
+    text: string,
+    modelId?: string,
+): Promise<WrapUpReflection> {
+    const trimmed = (text ?? '').trim();
+    if (!trimmed) {
+        throw new Error('Reflection text is required');
+    }
+
+    let sufficiency: SufficiencyAssessment | undefined;
+    try {
+        sufficiency = await classifyAnswer({
+            question: 'Before we finish, is there anything we did not cover that is important to your process? (workarounds, exceptions, edge cases, recent changes, tribal knowledge)',
+            answer: trimmed,
+            subAreaName: 'Final Reflection',
+            broadAreaName: 'Wrap-up',
+            language: (session.language as LanguageCode) ?? 'en',
+            // Informal calibration — wrap-up text isn't a process step,
+            // so decisionCriteria/sla don't necessarily apply.
+            processCalibration: 'informal',
+            modelId,
+        });
+    } catch (err) {
+        console.warn('[interviewService] wrap-up classifier failed, persisting without assessment:', err);
+    }
+
+    session.wrapUpReflection = {
+        text: trimmed,
+        submittedAt: new Date().toISOString(),
+        sufficiency,
+    };
+
+    await updateInterviewSession(session);
+    return session.wrapUpReflection;
+}
+
 // ─── Legacy: Process free-text interview message ─────────────────────
 
 export async function processInterviewMessage(
@@ -1086,6 +1159,15 @@ export async function generateFinanceGapReport(session: InterviewSession, modelI
     // ── Stage 2 (Reduce): Synthesize all digests → final report ─────────────
     const digests = JSON.stringify(categorySummaries, null, 2);
 
+    // SME's free-text wrap-up reflection — items they explicitly called out
+    // as "the structured questions missed this". Included as a separate
+    // block so the synthesis can promote it into findings/risks/quick-wins
+    // even when no sub-area digest covered it.
+    const wrapUp = session.wrapUpReflection?.text?.trim();
+    const wrapUpBlock = wrapUp
+        ? `\n## SME FINAL REFLECTIONS (anything the structured interview missed)\nThe SME volunteered the following at wrap-up. Treat these as signals about edge cases, workarounds, exceptions, recent changes, or tribal knowledge that the structured questions did not surface. Promote any concrete items into the report's gaps, risks, or quickWins as appropriate, attributing them with "Source: SME wrap-up reflection".\n\n"""\n${wrapUp}\n"""\n`
+        : '';
+
     const synthesisLanguageInstructions = getLanguageInstructions(sessionLanguage);
     const synthesisEnumNote = sessionLanguage !== 'en'
         ? `\nIMPORTANT: Write ALL descriptive text (executiveSummary, gap titles, currentState, targetState, recommendations, risks, roadmap items, etc.) in the same language as the input digests. However, keep ALL enum/classification values EXACTLY in English as specified in the schema: category must be "process|technology|capability|data", impact/effort/likelihood must be "high|medium|low", fit must be "gap|partial|fit", priority must be "high|medium|low". JSON keys must remain in English.\n`
@@ -1097,6 +1179,7 @@ ${synthesisEnumNote}
 
 Category Digests:
 ${digests}
+${wrapUpBlock}
 
 Output ONLY valid JSON with this EXACT schema — do not omit any field:
 {

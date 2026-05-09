@@ -36,6 +36,7 @@ import {
     fetchSessions,
     subscribeToDashboardStream,
     translateInterviewHistory,
+    submitWrapUpReflection,
     BroadAreaInfo,
     BroadAreaProgressInfo,
     type SessionSummary, type GeneratedQuestion,
@@ -85,7 +86,11 @@ export default function ProcessAnalysis() {
     // Assessment quality tracking
     const [readinessScore, setReadinessScore] = useState(0);
     const [vagueWarning, setVagueWarning] = useState<string | null>(null);
-    const [showFinishConfirm, setShowFinishConfirm] = useState(false);
+    // Wrap-up modal state — opens on every Finish click. Captures an
+    // optional "anything we missed?" reflection before completing.
+    const [showWrapUp, setShowWrapUp] = useState(false);
+    const [wrapUpText, setWrapUpText] = useState('');
+    const [wrapUpSubmitting, setWrapUpSubmitting] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const chatEndRef = useRef<HTMLDivElement>(null);
     const warmup = useGpuWarmup();
@@ -338,25 +343,44 @@ export default function ProcessAnalysis() {
 
     const SOFT_READINESS_THRESHOLD = 45; // below this: show confirmation dialog
 
-    const handleFinishAssessment = async (force = false) => {
+    /** Click on "Finish Assessment" — always opens the wrap-up modal,
+     *  regardless of readiness. The modal handles the low-coverage
+     *  warning and the optional reflection capture. */
+    const handleFinishAssessment = () => {
         if (!sessionId) return;
-        // Soft gate: if readiness is low and user hasn't confirmed, show dialog instead
-        if (!force && readinessScore < SOFT_READINESS_THRESHOLD && readinessScore > 0) {
-            setShowFinishConfirm(true);
-            return;
-        }
+        setError(null);
+        setWrapUpText('');
+        setShowWrapUp(true);
+    };
+
+    /** Submit & finish from inside the wrap-up modal. Persists the
+     *  reflection (if non-empty), then calls /complete. The backend
+     *  enforces an absolute floor (≥1 interview answer) — if the user
+     *  hasn't answered any questions, completion is blocked here. The
+     *  soft-floor (readiness < SOFT) is overridden via force=true since
+     *  the user has explicitly confirmed via the modal. */
+    const handleConfirmFinish = async () => {
+        if (!sessionId) return;
         try {
-            setSubmitLoading(true);
+            setWrapUpSubmitting(true);
             setError(null);
-            setShowFinishConfirm(false);
-            await completeInterviewSession(sessionId, force || readinessScore < SOFT_READINESS_THRESHOLD);
+
+            const reflection = wrapUpText.trim();
+            if (reflection) {
+                await submitWrapUpReflection(sessionId, reflection);
+            }
+
+            await completeInterviewSession(sessionId, readinessScore < SOFT_READINESS_THRESHOLD);
+
+            setShowWrapUp(false);
+            setWrapUpText('');
             setCurrentQuestion(null);
             setStep('complete');
             fetchData();
         } catch (err: any) {
             setError(err.message || 'Failed to finish assessment');
         } finally {
-            setSubmitLoading(false);
+            setWrapUpSubmitting(false);
         }
     };
 
@@ -480,7 +504,7 @@ export default function ProcessAnalysis() {
                                 {readinessScore}% ready
                             </span>
                         )}
-                        <button className="pa-btn pa-btn--primary" onClick={() => handleFinishAssessment(false)} disabled={submitLoading || questionLoading}>
+                        <button className="pa-btn pa-btn--primary" onClick={handleFinishAssessment} disabled={submitLoading || questionLoading}>
                             {t('pa.finishAssessment')}
                         </button>
                         <button className="pa-btn pa-btn--secondary" onClick={() => { warmup.cancel(); fetchData(); setStep('overview'); }}>
@@ -538,39 +562,70 @@ export default function ProcessAnalysis() {
                         ))}
                     </div>
 
-                    {/* Low-readiness finish confirmation dialog */}
-                {showFinishConfirm && (
+                    {/* Wrap-up modal — opens for every Finish click. Captures
+                        an optional "anything we missed?" reflection and
+                        confirms with a low-coverage warning when relevant. */}
+                {showWrapUp && (
                     <div style={{
                         position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                     }}>
                         <div style={{
                             background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12,
-                            padding: '28px 32px', maxWidth: 440, width: '90%',
+                            padding: '28px 32px', maxWidth: 560, width: '90%',
                         }}>
-                            <div style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: 10, color: 'var(--text)' }}>
-                                Finish with low coverage?
+                            <div style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: 6, color: 'var(--text)' }}>
+                                Wrap up the assessment
                             </div>
-                            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 20 }}>
-                                Assessment readiness is only <strong style={{ color: '#f59e0b' }}>{readinessScore}%</strong>.
-                                Finishing now will produce limited reports, a rough BPMN diagram, and incomplete gap analysis.
-                                <br /><br />
-                                Continue answering questions for much better insights. Alternatively, you can finish now and re-run analysis later.
+                            <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: 16 }}>
+                                Last step before we generate your reports.
                             </div>
+
+                            {readinessScore < SOFT_READINESS_THRESHOLD && (
+                                <div style={{
+                                    margin: '0 0 16px 0', padding: '10px 14px', borderRadius: 8,
+                                    background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.3)',
+                                    fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.5,
+                                }}>
+                                    <span style={{ color: '#f59e0b', fontWeight: 600 }}>⚠ Coverage is limited ({readinessScore}%)</span>
+                                    <br />
+                                    Reports and BPMN diagrams will be thin. You can re-run analysis later after answering more questions.
+                                </div>
+                            )}
+
+                            <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text)', marginBottom: 6 }}>
+                                Anything we missed?
+                            </div>
+                            <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: 8, lineHeight: 1.5 }}>
+                                Tell us about workarounds, exceptions, edge cases, recent changes, or anything only certain people know about your process.
+                                We'll fold this into the gap report. Optional — leave blank if everything's covered.
+                            </div>
+                            <textarea
+                                className="pa-textarea"
+                                value={wrapUpText}
+                                onChange={(e) => setWrapUpText(e.target.value)}
+                                placeholder="e.g. There's a manual override for vendor onboarding when the entity is in a sanctioned country — Finance triggers a parallel review with Compliance that isn't documented anywhere."
+                                rows={5}
+                                style={{ width: '100%', marginBottom: 18 }}
+                                disabled={wrapUpSubmitting}
+                            />
+
                             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
                                 <button
                                     className="pa-btn pa-btn--secondary"
-                                    onClick={() => setShowFinishConfirm(false)}
+                                    onClick={() => { setShowWrapUp(false); setWrapUpText(''); }}
+                                    disabled={wrapUpSubmitting}
                                 >
                                     Keep going
                                 </button>
                                 <button
                                     className="pa-btn pa-btn--primary"
-                                    style={{ background: '#f59e0b', borderColor: '#f59e0b' }}
-                                    onClick={() => handleFinishAssessment(true)}
-                                    disabled={submitLoading}
+                                    onClick={handleConfirmFinish}
+                                    disabled={wrapUpSubmitting}
                                 >
-                                    Finish anyway
+                                    {wrapUpSubmitting
+                                        ? 'Finishing…'
+                                        : (wrapUpText.trim() ? 'Submit & finish' : 'Finish without notes')}
                                 </button>
                             </div>
                         </div>
