@@ -1,4 +1,16 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
+
+const TruncatedXTick = ({ x, y, payload }: any) => {
+    const max = 13;
+    const label = payload.value.length > max ? payload.value.slice(0, max) + '…' : payload.value;
+    return (
+        <g transform={`translate(${x},${y})`}>
+            <text x={0} y={0} dy={4} textAnchor="end" fill="#94a3b8" fontSize={10} transform="rotate(-45)">
+                {label}
+            </text>
+        </g>
+    );
+};
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell,
 } from 'recharts';
@@ -754,7 +766,7 @@ export default function ProcessAnalysis() {
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={barData} margin={{ bottom: 90, left: 10, right: 10 }}>
                                 <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                                <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 9 }} angle={-45} textAnchor="end" interval={0} />
+                                <XAxis dataKey="name" tick={<TruncatedXTick />} interval={0} />
                                 <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} domain={[0, 100]} />
                                 <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8 }} itemStyle={{ color: '#f8fafc' }} />
                                 <Bar dataKey="efficiency" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Efficiency %" />
