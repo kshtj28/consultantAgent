@@ -14,7 +14,7 @@ interface Props {
 }
 
 // ── Layout constants ──────────────────────────────────────────────
-const TASK_W = 140, TASK_H = 56, TASK_GAP = 18;
+const TASK_W = 150, TASK_H = 64, TASK_GAP = 18;
 const SP_PAD_X = 28, SP_PAD_TOP = 46, SP_PAD_BOT = 22;
 const SP_GAP = 56;
 const PROC_PAD_X = 44, PROC_PAD_TOP = 54, PROC_PAD_BOT = 32;
@@ -36,6 +36,24 @@ const STATUS_COLOR: Record<string, { border: string; bg: string }> = {
   unique:    { border: '#6366f1', bg: 'rgba(99,102,241,0.12)' },
 };
 const DEFAULT_TASK = { border: '#475569', bg: 'rgba(71,85,105,0.18)' };
+
+/**
+ * Derive a concise phase name from the steps in a sub-process group.
+ * Takes the first step's label and strips common filler words to get a topic.
+ * Falls back to meaningful ordered labels (Initiation, Processing, etc.).
+ */
+function derivePhaseName(steps: DiagramStep[], phaseIndex: number, totalPhases: number, processName: string): string {
+  if (totalPhases === 1) return processName;
+  const firstLabel = steps[0]?.label || '';
+  const stopWords = new Set(['and', 'or', 'the', 'a', 'an', 'of', 'for', 'with', 'in', 'on', 'at', 'to', 'by', 'is', 'are', 'was', 'be']);
+  const words = firstLabel.split(/[\s\-_/]+/).filter(w => w.length > 2 && !stopWords.has(w.toLowerCase()));
+  if (words.length > 0) {
+    const name = words.slice(0, 3).join(' ');
+    return name.length > 24 ? name.slice(0, 22) + '…' : name;
+  }
+  const phaseLabels = ['Initiation', 'Processing', 'Review & Approval', 'Execution', 'Reporting', 'Closure'];
+  return phaseLabels[phaseIndex] || `Stage ${phaseIndex + 1}`;
+}
 
 function wrap(text: string, maxCh: number): string[] {
   const words = text.split(' ');
@@ -151,6 +169,8 @@ export default function BpmnDiagramViewer({ steps, processName }: Props) {
             const pc = PHASE_PALETTE[pi % PHASE_PALETTE.length];
             const spY = PROC_PAD_TOP;
             const spCY = spY + spH / 2;
+            // Derive a meaningful phase name from the steps' labels
+            const phaseName = derivePhaseName(phases[pi], pi, phases.length, processName);
 
             return (
               <g key={pi}>
@@ -162,15 +182,17 @@ export default function BpmnDiagramViewer({ steps, processName }: Props) {
                 <rect x={pl.spX + 8} y={spY + 6} width={72} height={14} rx={3} fill={`${pc.border}30`} />
                 <text x={pl.spX + 44} y={spY + 16.5} textAnchor="middle" fontSize={8} fill={pc.text} fontWeight="700" fontFamily={FONT}>SUB-PROCESS</text>
 
-                {/* Phase name */}
+                {/* Phase name — derived from step content, not hardcoded "Phase X of N" */}
                 <text x={pl.spX + 10} y={spY + 36} fontSize={11} fill={pc.text} fontWeight="600" fontFamily={FONT}>
-                  {phases.length > 1 ? `Phase ${pi + 1} of ${phases.length}` : processName}
+                  {phaseName}
                 </text>
 
                 {/* Tasks */}
                 {pl.tasks.map((tl, _ti) => {
                   const tc = STATUS_COLOR[tl.step.status] || DEFAULT_TASK;
-                  const lines = wrap(tl.step.label.length > 42 ? tl.step.label.slice(0, 40) + '…' : tl.step.label, 17);
+                  // Improved text wrap: 50-char truncation, 20-char width for wrapping
+                  const labelText = tl.step.label.length > 50 ? tl.step.label.slice(0, 48) + '…' : tl.step.label;
+                  const lines = wrap(labelText, 20);
                   const lh = 13;
                   const ty0 = tl.ty + TASK_H / 2 - (lines.length * lh) / 2 + lh * 0.75;
 
@@ -178,9 +200,11 @@ export default function BpmnDiagramViewer({ steps, processName }: Props) {
                     <g key={tl.step.stepId}>
                       <rect x={tl.tx} y={tl.ty} width={TASK_W} height={TASK_H} rx={5}
                         fill={tc.bg} stroke={tc.border} strokeWidth={1.5} />
+                      {/* Colored left accent bar for status */}
+                      <rect x={tl.tx} y={tl.ty + 4} width={4} height={TASK_H - 8} rx={2} fill={tc.border} opacity={0.8} />
                       {/* Step number badge */}
-                      <circle cx={tl.tx + 11} cy={tl.ty + 11} r={9} fill={tc.border} opacity={0.25} />
-                      <text x={tl.tx + 11} y={tl.ty + 14.5} textAnchor="middle" fontSize={8} fill={tc.border} fontWeight="700" fontFamily={FONT}>
+                      <circle cx={tl.tx + 14} cy={tl.ty + 12} r={9} fill={tc.border} opacity={0.25} />
+                      <text x={tl.tx + 14} y={tl.ty + 15.5} textAnchor="middle" fontSize={8} fill={tc.border} fontWeight="700" fontFamily={FONT}>
                         {tl.step.order}
                       </text>
                       {lines.map((ln, li) => (
@@ -219,7 +243,7 @@ export default function BpmnDiagramViewer({ steps, processName }: Props) {
               stroke={ARROW_COLOR} strokeWidth={1.5} markerEnd="url(#arh)" />
           )}
 
-          {/* ── END EVENT ── */}
+          {/* ── END EVENT (double-border per BPMN 2.0 standard) ── */}
           <circle cx={endX} cy={midY} r={EV_R}     fill="#450a0a" stroke="#ef4444" strokeWidth={2.5} filter="url(#glow)" />
           <circle cx={endX} cy={midY} r={EV_R - 5} fill="none"   stroke="#ef4444" strokeWidth={2} />
           <text x={endX} y={midY + EV_R + 11} textAnchor="middle" fontSize={9} fill="#f87171" fontFamily={FONT}>End</text>

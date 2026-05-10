@@ -304,6 +304,114 @@ async function runMetricsComputation(): Promise<{ success: boolean }> {
   return { success: true };
 }
 
+/**
+ * Lane E: For banking domain sessions, extract AS-IS/TO-BE KPIs from the
+ * generated gap reports and save them as `content.bankingKpis` on the first
+ * ready broad_area report. This is what the `GET /api/dashboard/banking-kpis`
+ * endpoint reads — without this, the banking dashboard always shows empty.
+ */
+async function runBankingKpiExtraction(input: {
+  areaReports: any[];
+  session: any;
+}): Promise<{ success: boolean }> {
+  // Only run for banking domain sessions (check session.domainId, not global active domain)
+  if ((input.session.domainId || 'finance') !== 'banking') return { success: true };
+  if (input.areaReports.length === 0) return { success: true };
+
+  try {
+    // Collect all Q&A from the session for KPI extraction
+    const allQA: string[] = [];
+    for (const [subAreaId, answers] of Object.entries(input.session.responses || {})) {
+      for (const a of (answers as any[])) {
+        allQA.push(`Q: ${(a.question || '').slice(0, 200)}\nA: ${String(a.answer || '').slice(0, 400)}`);
+      }
+    }
+
+    // Also include gap summaries from area reports as rich context
+    const gapContext = input.areaReports.slice(0, 3).map((r: any) =>
+      `${r.broadAreaName}: ${(r.content?.executiveSummary || '').slice(0, 300)}`
+    ).join('\n\n');
+
+    const prompt = `You are a banking process analyst. Based on the interview Q&A and gap analysis below, extract current (AS-IS) and target (TO-BE) KPI values for a banking operations assessment.
+
+## INTERVIEW DATA (excerpt)
+${allQA.slice(0, 20).join('\n\n')}
+
+## GAP ANALYSIS SUMMARY
+${gapContext}
+
+Extract the following 4 KPIs. For each, provide:
+- current: the AS-IS value mentioned or inferred from the interview (null if not mentioned)
+- target: the TO-BE best-practice target value (use industry benchmarks if not mentioned)
+- unit: the measurement unit
+- label: a short human-readable label
+
+KPIs to extract:
+1. avgCycleTimeDays — Average loan/process cycle time in days
+2. costPerLoan — Cost per loan or transaction processed (USD)
+3. stpRate — Straight-through processing rate (%)
+4. npaRatio — Non-performing assets ratio (%)
+
+Return ONLY valid JSON:
+{
+  "avgCycleTimeDays": { "current": 14, "target": 5, "unit": "days", "label": "Avg. Cycle Time" },
+  "costPerLoan": { "current": 850, "target": 400, "unit": "USD", "label": "Cost per Loan" },
+  "stpRate": { "current": 35, "target": 75, "unit": "%", "label": "STP Rate" },
+  "npaRatio": { "current": 4.2, "target": 2.0, "unit": "%", "label": "NPA Ratio" }
+}
+
+If a value cannot be inferred at all, use null. Do NOT make up specific numbers — only infer from the interview data or use well-known industry benchmarks for the target.`;
+
+    const response = await generateCompletion([
+      { role: 'system', content: 'You are a banking operations analyst. Extract KPI values from interview data. Return valid JSON only.' },
+      { role: 'user', content: prompt },
+    ], { temperature: 0.2 });
+
+    const match = response.content.match(/\{[\s\S]*\}/);
+    if (!match) {
+      console.warn('[pipeline] Banking KPI extraction returned no JSON');
+      return { success: false };
+    }
+
+    const bankingKpis = JSON.parse(match[0]);
+
+    // Patch the first generated report with the bankingKpis field.
+    // NOTE: The content field uses enabled:false mapping in OpenSearch, so
+    // nested dot-notation updates don't work. We must fetch and re-index the full doc.
+    const firstReport = input.areaReports[0];
+    if (!firstReport?.reportId) return { success: true };
+
+    try {
+      const existing = await opensearchClient.get({
+        index: INDICES.REPORTS,
+        id: firstReport.reportId,
+      });
+      const existingDoc = existing.body._source as any;
+      const updatedContent = { ...(existingDoc.content || {}), bankingKpis };
+
+      await opensearchClient.index({
+        index: INDICES.REPORTS,
+        id: firstReport.reportId,
+        body: {
+          ...existingDoc,
+          content: updatedContent,
+          updatedAt: new Date().toISOString(),
+        },
+        refresh: true,
+      });
+    } catch (updateErr: any) {
+      console.error('[pipeline] Failed to patch report with bankingKpis:', updateErr.message);
+      return { success: false };
+    }
+
+    console.log('[pipeline] Banking KPIs extracted and saved:', JSON.stringify(bankingKpis));
+    return { success: true };
+  } catch (err: any) {
+    console.error('[pipeline] Banking KPI extraction failed (non-fatal):', err.message);
+    return { success: false };
+  }
+}
+
 /** Lane C: Generate session-level reports (readiness, consolidated, strategic). */
 async function runSessionReportGeneration(input: {
   areaReports: any[];
@@ -434,10 +542,14 @@ export async function executeDataPipeline(input: {
     ]);
     console.log('[pipeline] Phase 2 complete.');
 
-    // Phase 2.5: Recompute metrics AGAIN now that area reports are saved as 'ready'
-    // This ensures the dashboard stats reflect the completed reports via SSE immediately.
+    // Phase 2.5: Recompute metrics AND extract banking KPIs in parallel.
+    // Metrics recompute ensures dashboard stats reflect completed reports via SSE.
+    // Banking KPI extraction saves the bankingKpis field that the banking dashboard reads.
     runMetricsComputation().catch(err =>
       console.error('[pipeline] Post-report metrics recompute failed (non-fatal):', err.message)
+    );
+    runBankingKpiExtraction({ areaReports: areaResult.areaReports, session }).catch(err =>
+      console.error('[pipeline] Banking KPI extraction failed (non-fatal):', err.message)
     );
 
     // Phase 3: Check pending regeneration

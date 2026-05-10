@@ -74,9 +74,9 @@ export type InterviewDepth = 'quick' | 'standard' | 'deep';
 export type CategoryId = string;
 
 export const DEPTH_THRESHOLDS: Record<InterviewDepth, number> = {
-    quick: 3,
-    standard: 5,
-    deep: 8,
+    quick: 2,
+    standard: 3,
+    deep: 5,
 };
 
 export interface GeneratedInterviewQuestion {
@@ -851,14 +851,22 @@ export async function submitInterviewAnswer(
         (session.responses[targetId] ?? []).map(a => a.sufficiency)
     );
 
-    // Coverage status: 'covered' when questionsAnswered >= 2 AND aiConfident === true
-    // AND, if any answers were classified, the average sufficiency is at least
-    // 50/100 — otherwise the sub-area is "in_progress" until SMEs add detail.
+    // Coverage status update:
+    // A sub-area is 'covered' when:
+    //   (a) 3+ substantive answers are recorded (regardless of aiConfident), OR
+    //   (b) 2+ answers AND the LLM marked it covered (aiConfident=true), OR
+    //   (c) 2+ answers AND all classified answers pass sufficiency (avgScore >= 60)
+    // This removes the hard dependency on the LLM self-reporting subAreaCovered=true,
+    // which was causing the readiness score to plateau and Completion Rate to show 0%.
     const sufficiencyOk = !cov.sufficiency || cov.sufficiency.classifiedCount === 0
         ? true
-        : cov.sufficiency.avgScore >= 50;
+        : cov.sufficiency.avgScore >= 60;
 
-    if (cov.questionsAnswered >= 2 && cov.aiConfident && sufficiencyOk) {
+    const coveredByVolume = cov.questionsAnswered >= 3;
+    const coveredByAI = cov.questionsAnswered >= 2 && cov.aiConfident;
+    const coveredBySufficiency = cov.questionsAnswered >= 2 && sufficiencyOk;
+
+    if (coveredByVolume || coveredByAI || coveredBySufficiency) {
         cov.status = 'covered';
     } else if (cov.questionsAnswered > 0) {
         cov.status = 'in_progress';

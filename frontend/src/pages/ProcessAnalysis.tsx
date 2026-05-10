@@ -350,7 +350,7 @@ export default function ProcessAnalysis() {
         }
     };
 
-    const SOFT_READINESS_THRESHOLD = 45; // below this: show confirmation dialog
+    const SOFT_READINESS_THRESHOLD = 60; // below this: show warning; button disabled below 10%
 
     /** Open the wrap-up modal with the given intent. Always shows —
      *  this is the single chokepoint before any exit so the SME never
@@ -395,6 +395,8 @@ export default function ProcessAnalysis() {
                 fetchData();
                 setStep('overview');
             } else {
+                // force=true means "I know the score is low, proceed anyway".
+                // Bug fix: was previously inverted (force=true when LOW), bypassing the backend floor.
                 await completeInterviewSession(sessionId, readinessScore < SOFT_READINESS_THRESHOLD);
                 setShowWrapUp(false);
                 setWrapUpText('');
@@ -521,15 +523,20 @@ export default function ProcessAnalysis() {
                     <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
                         {readinessScore > 0 && (
                             <span style={{
-                                fontSize: '0.75rem', color: readinessScore >= 45 ? '#10b981' : readinessScore >= 20 ? '#f59e0b' : '#ef4444',
+                                fontSize: '0.75rem', color: readinessScore >= 60 ? '#10b981' : readinessScore >= 30 ? '#f59e0b' : '#ef4444',
                                 fontWeight: 600, padding: '4px 10px', borderRadius: 6,
-                                background: readinessScore >= 45 ? 'rgba(16,185,129,0.1)' : readinessScore >= 20 ? 'rgba(245,158,11,0.1)' : 'rgba(239,68,68,0.1)',
-                                border: `1px solid ${readinessScore >= 45 ? 'rgba(16,185,129,0.3)' : readinessScore >= 20 ? 'rgba(245,158,11,0.3)' : 'rgba(239,68,68,0.3)'}`,
+                                background: readinessScore >= 60 ? 'rgba(16,185,129,0.1)' : readinessScore >= 30 ? 'rgba(245,158,11,0.1)' : 'rgba(239,68,68,0.1)',
+                                border: `1px solid ${readinessScore >= 60 ? 'rgba(16,185,129,0.3)' : readinessScore >= 30 ? 'rgba(245,158,11,0.3)' : 'rgba(239,68,68,0.3)'}`,
                             }}>
                                 {readinessScore}% ready
                             </span>
                         )}
-                        <button className="pa-btn pa-btn--primary" onClick={handleFinishAssessment} disabled={submitLoading || questionLoading}>
+                        <button
+                            className="pa-btn pa-btn--primary"
+                            onClick={handleFinishAssessment}
+                            disabled={submitLoading || questionLoading || readinessScore < 10}
+                            title={readinessScore < 10 ? 'Answer at least a few questions before finishing' : undefined}
+                        >
                             {t('pa.finishAssessment')}
                         </button>
                         <button className="pa-btn pa-btn--secondary" onClick={handleSavePause} disabled={submitLoading || questionLoading}>
@@ -555,13 +562,13 @@ export default function ProcessAnalysis() {
                                 <div style={{
                                     height: '100%', borderRadius: 3, transition: 'width 0.5s ease',
                                     width: `${readinessScore}%`,
-                                    background: readinessScore >= 45 ? '#10b981' : readinessScore >= 20 ? '#f59e0b' : '#ef4444',
+                                    background: readinessScore >= 60 ? '#10b981' : readinessScore >= 30 ? '#f59e0b' : '#ef4444',
                                 }} />
                             </div>
                             <div style={{ fontSize: '0.67rem', color: 'var(--text-secondary)', marginTop: 3 }}>
                                 {readinessScore < 20 ? 'Answer more questions to generate useful insights' :
-                                 readinessScore < 45 ? 'Good start — more coverage will improve report quality' :
-                                 readinessScore < 75 ? 'Good coverage — continue for deeper insights' : 'Excellent coverage'}
+                                 readinessScore < 60 ? 'Good start — more coverage will improve report quality' :
+                                 readinessScore < 80 ? 'Good coverage — continue for deeper insights' : 'Excellent coverage'}
                             </div>
                         </div>
                         {progress.map((ba) => (

@@ -261,7 +261,17 @@ export default function Dashboard() {
         const es = subscribeToDashboardStream(
             (updatedStats) => {
                 setStats(updatedStats);
+                // Re-fetch data that depends on completed reports (pipeline just finished)
                 fetchExecutiveSummary().then(setExecSummary).catch(() => {});
+                fetchCumulativeGaps().then(data => { if (data) setCumulativeGaps(data); }).catch(() => {});
+                // Re-fetch banking KPIs — the pipeline generates these after reports are ready
+                fetchBankingKpis().then(kpiData => {
+                    const newKpis = kpiData?.available && kpiData.kpis ? kpiData.kpis : null;
+                    if (newKpis) {
+                        setBankingKpis(newKpis);
+                        _cache.bankingKpis = newKpis;
+                    }
+                }).catch(() => {});
             },
             () => {},
         );
