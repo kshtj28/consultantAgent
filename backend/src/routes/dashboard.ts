@@ -556,11 +556,10 @@ router.post('/retrigger-banking-kpis', async (req: Request, res: Response) => {
             // We deliberately DO NOT skip if doc.content?.bankingKpis exists.
             // When the user clicks "Re-extract", they want to forcefully overwrite 
             // old KPIs (e.g. to update USD -> SAR or apply new LLM fixes).
-            if (!doc.content?.areaReports || !Array.isArray(doc.content.areaReports)) continue;
-
-            // Mock an input object matching the pipeline lane's expected interface
+            // Mock an input object matching the pipeline lane's expected interface.
+            // In the live pipeline, areaReports is an array of broad-area reports.
             const input = {
-                areaReports: doc.content.areaReports,
+                areaReports: [doc],
                 session: { domainId: 'banking' }
             };
 
