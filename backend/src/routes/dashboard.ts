@@ -522,4 +522,66 @@ router.get('/banking-kpis', async (req: Request, res: Response) => {
     }
 });
 
+// POST /api/dashboard/retrigger-banking-kpis — retrofits old sessions with the new LLM extraction
+router.post('/retrigger-banking-kpis', async (req: Request, res: Response) => {
+    try {
+        if (getActiveDomainId() !== 'banking') return res.json({ success: true, count: 0 });
+        
+        const indexExists = await opensearchClient.indices.exists({ index: INDICES.REPORTS });
+        if (!indexExists.body) return res.json({ success: true, count: 0 });
+
+        // Find the most recent ready banking report that LACKS bankingKpis
+        const result = await opensearchClient.search({
+            index: INDICES.REPORTS,
+            body: {
+                query: { bool: { must: [
+                    { term: { status: 'ready' } },
+                    { term: { domainId: 'banking' } },
+                ] } },
+                size: 5,
+                sort: [{ createdAt: { order: 'desc' } }],
+                _source: true,
+            },
+        });
+
+        const hits = (result.body.hits.hits as any[]);
+        let updatedCount = 0;
+
+        // Since workflows are not easily importable here without circular deps,
+        // we import runBankingKpiExtraction directly.
+        const { runBankingKpiExtraction } = require('../mastra/workflows/interviewDataPipeline');
+
+        for (const hit of hits) {
+            const doc = hit._source;
+            if (doc.content?.bankingKpis) continue; // Already extracted
+            if (!doc.content?.areaReports || !Array.isArray(doc.content.areaReports)) continue;
+
+            // Mock an input object matching the pipeline lane's expected interface
+            const input = {
+                areaReports: doc.content.areaReports,
+                session: { domainId: 'banking' }
+            };
+
+            const kpiResult = await runBankingKpiExtraction(input);
+            
+            if (kpiResult && typeof kpiResult === 'object' && 'bankingKpis' in kpiResult) {
+                // We have extracted KPIs, now patch the report in OpenSearch
+                doc.content.bankingKpis = kpiResult.bankingKpis;
+                await opensearchClient.index({
+                    index: INDICES.REPORTS,
+                    id: hit._id,
+                    body: doc,
+                    refresh: true, // Force refresh so the next GET sees it
+                });
+                updatedCount++;
+            }
+        }
+
+        return res.json({ success: true, count: updatedCount });
+    } catch (err: any) {
+        console.error('Error re-triggering banking KPIs:', err.message);
+        return res.status(500).json({ error: err.message });
+    }
+});
+
 export default router;

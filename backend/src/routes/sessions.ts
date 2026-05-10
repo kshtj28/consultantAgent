@@ -214,4 +214,82 @@ router.get('/sessions/all', async (req: Request, res: Response) => {
     }
 });
 
+/**
+ * POST /api/sessions/recompute-coverage
+ * Fixes existing sessions whose coverage statuses are stuck at 'in_progress'
+ * because the old logic required aiConfident=true (which the LLM rarely returned).
+ * The new rule: sub-area is 'covered' if questionsAnswered >= 3, regardless of aiConfident.
+ * No new assessment required — just re-evaluates the existing answer counts.
+ */
+router.post('/sessions/recompute-coverage', async (req: Request, res: Response) => {
+    try {
+        const indexExists = await opensearchClient.indices.exists({ index: INDICES.CONVERSATIONS });
+        if (!indexExists.body) return res.json({ updated: 0, message: 'No sessions index found' });
+
+        // Fetch all interview sessions
+        const result = await opensearchClient.search({
+            index: INDICES.CONVERSATIONS,
+            body: {
+                query: { match: { sessionType: 'interview_session' } },
+                size: 500,
+            },
+        });
+
+        const hits = (result.body.hits.hits as any[]);
+        let updated = 0;
+        let skipped = 0;
+
+        for (const hit of hits) {
+            const doc = hit._source;
+            if (!doc?.coverage || typeof doc.coverage !== 'object') { skipped++; continue; }
+
+            let changed = false;
+            const updatedCoverage = { ...doc.coverage };
+
+            for (const [subAreaId, cov] of Object.entries(updatedCoverage) as [string, any][]) {
+                const questionsAnswered = cov.questionsAnswered ?? (doc.responses?.[subAreaId]?.length ?? 0);
+                const oldStatus = cov.status;
+
+                // Apply the same rule as the fixed interviewService:
+                // 3+ answers → covered; 2+ with aiConfident → covered; else in_progress
+                const coveredByVolume = questionsAnswered >= 3;
+                const coveredByAI = questionsAnswered >= 2 && cov.aiConfident === true;
+                const newStatus = (coveredByVolume || coveredByAI)
+                    ? 'covered'
+                    : (questionsAnswered > 0 ? 'in_progress' : 'not_started');
+
+                if (newStatus !== oldStatus) {
+                    updatedCoverage[subAreaId] = { ...cov, status: newStatus, questionsAnswered };
+                    changed = true;
+                }
+            }
+
+            if (changed) {
+                await opensearchClient.index({
+                    index: INDICES.CONVERSATIONS,
+                    id: hit._id,
+                    body: { ...doc, coverage: updatedCoverage, updatedAt: new Date().toISOString() },
+                    refresh: false,
+                });
+                updated++;
+            } else {
+                skipped++;
+            }
+        }
+
+        // Refresh index so next /sessions/all call sees updated data
+        await opensearchClient.indices.refresh({ index: INDICES.CONVERSATIONS }).catch(() => {});
+
+        return res.json({
+            updated,
+            skipped,
+            total: hits.length,
+            message: `Re-evaluated ${hits.length} sessions. ${updated} updated to reflect correct coverage status.`,
+        });
+    } catch (error: any) {
+        console.error('Error recomputing coverage:', error);
+        return res.status(500).json({ error: error.message });
+    }
+});
+
 export default router;

@@ -625,6 +625,18 @@ export async function fetchDashboardStats() {
     return request<DashboardStats>(`${API_BASE}/dashboard/stats`);
 }
 
+export async function recomputeCoverage() {
+    return request<any>(`${API_BASE}/sessions/recompute-coverage`, {
+        method: 'POST',
+    });
+}
+
+export async function retriggerBankingKpis() {
+    return request<any>(`${API_BASE}/dashboard/retrigger-banking-kpis`, {
+        method: 'POST',
+    });
+}
+
 export interface BankingKpiValue {
     current: number | null;
     target: number | null;

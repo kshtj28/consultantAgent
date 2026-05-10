@@ -215,6 +215,21 @@ export default function Dashboard() {
         return () => window.removeEventListener('domain-changed', handler);
     }, []);
 
+    // Recompute old session coverage manually (admin tool)
+    const handleRecomputeCoverage = async () => {
+        try {
+            const res = await fetch('/api/sessions/recompute-coverage', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` }
+            });
+            const data = await res.json();
+            alert(`Success: ${data.message}`);
+            setDataVersion(v => v + 1); // trigger reload
+        } catch (err: any) {
+            alert(`Failed: ${err.message}`);
+        }
+    };
+
     // Fetch all dashboard data — re-runs whenever dataVersion increments (domain change)
     useEffect(() => {
         // Fetch domain independently — data failures must not block the domain switch
@@ -354,6 +369,17 @@ export default function Dashboard() {
                             Start an assessment <ArrowRight size={15} />
                         </button>
                         <RecomputeKpisButton variant="prominent" onComplete={triggerRefetch} />
+                        <button
+                            onClick={handleRecomputeCoverage}
+                            style={{
+                                display: 'inline-flex', alignItems: 'center', gap: 8,
+                                background: 'transparent', color: 'var(--text-secondary)', padding: '10px 20px',
+                                borderRadius: 8, fontSize: '0.9rem', fontWeight: 600,
+                                border: '1px solid var(--border)', cursor: 'pointer',
+                            }}
+                        >
+                            <Target size={15} /> Fix Sessions & Recompute Coverage
+                        </button>
                     </div>
                 </div>
             </div>
@@ -566,9 +592,27 @@ export default function Dashboard() {
                 }
             >
                 {!cumulativeGaps || cumulativeGaps.broadAreas.length === 0 ? (
-                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', textAlign: 'center', padding: '2rem' }}>
-                        {t('dash.noGapData')}
-                    </p>
+                    <div style={{ textAlign: 'center', padding: '3rem' }}>
+                        <h2 style={{ marginBottom: 8 }}>{t('dash.noData')}</h2>
+                        <p style={{ color: 'var(--text-secondary)', marginBottom: 24 }}>
+                            {t('dash.noDataDesc')}
+                        </p>
+                        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
+                            <button
+                                className="btn-primary"
+                                onClick={() => navigate('/sessions/new')}
+                            >
+                                {t('dash.startNewAssesment')}
+                            </button>
+                            <button
+                                className="btn-secondary"
+                                onClick={handleRecomputeCoverage}
+                                style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+                            >
+                                <Target size={16} /> Fix Sessions & Recompute Coverage
+                            </button>
+                        </div>
+                    </div>
                 ) : (
                     <div className="dashboard__gap-overview">
                         {/* Broad Area Gap Cards */}

@@ -31,7 +31,7 @@ Even if the interview was a knowledge assessment (not an explicit process walkth
 
 For every step you identify, output:
 - "order"        — sequential index starting at 1 (infer sequence from context)
-- "label"        — concise step name (≤120 chars)
+- "label"        — concise step name (MUST BE ≤5 WORDS)
 - "description"  — one short sentence (≤200 chars) describing what happens, in the SME's own framing
 - "quote"        — a relevant phrase or sentence from the transcript (≤180 chars) that supports this step
 
