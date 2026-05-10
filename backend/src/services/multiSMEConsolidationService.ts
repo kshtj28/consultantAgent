@@ -1375,7 +1375,7 @@ function buildBpmnXml(processId: string, processName: string, steps: Consolidate
     const spW = SP_PAD_X * 2 + phase.length * (TASK_W + TASK_GAP_X) - TASK_GAP_X;
     const tasks = phase.map((step, si) => ({
       taskId: `Task_${xmlId(step.stepId)}`,
-      label: step.label.length > 50 ? step.label.slice(0, 47) + '…' : step.label,
+      label: step.label,
       x: cursorX + SP_PAD_X + si * (TASK_W + TASK_GAP_X),
       y: spY + SP_PAD_Y,
       w: TASK_W,

@@ -360,7 +360,8 @@ Return ONLY valid JSON:
   "npaRatio": { "current": 4.2, "target": 2.0, "unit": "%", "label": "NPA Ratio" }
 }
 
-If a value cannot be inferred at all, use null. Do NOT make up specific numbers — only infer from the interview data or use well-known industry benchmarks for the target.`;
+CRITICAL RULE: If the interview data does NOT explicitly discuss loans, volumes, or costs, you MUST return `null` for `costPerLoan.current` and `costPerLoan.target`. If it does NOT discuss non-performing assets, you MUST return `null` for `npaRatio`. 
+DO NOT guess or use `0` when data is missing. Use `null` for both current and target. Only provide target benchmarks if the topic was actually relevant to the assessment.`;
 
     const response = await generateCompletion([
       { role: 'system', content: 'You are a banking operations analyst. Extract KPI values from interview data. Return valid JSON only.' },

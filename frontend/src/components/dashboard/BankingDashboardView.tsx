@@ -222,19 +222,21 @@ export default function BankingDashboardView({ kpis, onRecomputed }: BankingDash
             {/* ── KPI Grid ── */}
             <div className="banking-kpi-grid">
                 {cards.map((c) => {
-                    const current = c.metric.current ?? 0;
-                    const target = c.metric.target ?? 0;
-                    const diff = Math.abs(current - target);
+                    const current = c.metric.current;
+                    const target = c.metric.target;
+                    const diff = (current != null && target != null) ? Math.abs(current - target) : 0;
                     let pctStr = '';
                     
-                    if (c.key === 'automation') {
-                        pctStr = `+${diff.toFixed(0)} pp`; // Percentage points
-                    } else if (current > 0) {
-                        pctStr = `${Math.round((diff / current) * 100)}% ${c.trendLabel}`;
+                    if (current != null && target != null) {
+                        if (c.key === 'automation') {
+                            pctStr = `+${diff.toFixed(0)} pp`; // Percentage points
+                        } else if (current > 0) {
+                            pctStr = `${Math.round((diff / current) * 100)}% ${c.trendLabel}`;
+                        }
                     }
 
-                    const improved = c.lowerIsBetter ? target < current : target > current;
-                    const deltaClass = improved ? 'banking-kpi-delta--good' : (target === current ? 'banking-kpi-delta--neutral' : 'banking-kpi-delta--bad');
+                    const improved = (current != null && target != null) ? (c.lowerIsBetter ? target < current : target > current) : false;
+                    const deltaClass = (current == null || target == null) ? 'banking-kpi-delta--neutral' : improved ? 'banking-kpi-delta--good' : (target === current ? 'banking-kpi-delta--neutral' : 'banking-kpi-delta--bad');
 
                     return (
                         <div key={c.key} className={`banking-kpi-card banking-kpi-card--${c.key}`}>
@@ -247,14 +249,14 @@ export default function BankingDashboardView({ kpis, onRecomputed }: BankingDash
                                 <div className="banking-kpi-stat">
                                     <span className="banking-kpi-label-small">AS-IS</span>
                                     <span className="banking-kpi-value">
-                                        {c.format(current)}<span style={{ fontSize: '1rem', marginLeft: 2, fontWeight: 600 }}>{c.metric.unit}</span>
+                                        {current != null ? <>{c.format(current)}<span style={{ fontSize: '1rem', marginLeft: 2, fontWeight: 600 }}>{c.metric.unit}</span></> : 'N/A'}
                                     </span>
                                 </div>
                                 <ArrowRight className="banking-kpi-arrow" size={20} />
                                 <div className="banking-kpi-stat">
                                     <span className="banking-kpi-label-small" style={{ color: '#3b82f6' }}>TO-BE</span>
                                     <span className="banking-kpi-value banking-kpi-value--tobe">
-                                        {c.format(target)}<span style={{ fontSize: '1rem', marginLeft: 2, fontWeight: 600 }}>{c.metric.unit}</span>
+                                        {target != null ? <>{c.format(target)}<span style={{ fontSize: '1rem', marginLeft: 2, fontWeight: 600 }}>{c.metric.unit}</span></> : 'N/A'}
                                     </span>
                                 </div>
                             </div>
