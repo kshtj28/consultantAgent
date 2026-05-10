@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { RefreshCw } from 'lucide-react';
-import { recomputeDashboardMetrics } from '../../services/api';
+import { recomputeDashboardMetrics, retriggerBankingKpis } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 
 interface Props {
@@ -32,6 +32,7 @@ export default function RecomputeKpisButton({ onComplete, variant = 'subtle' }: 
         setStatus('idle');
         try {
             await recomputeDashboardMetrics();
+            await retriggerBankingKpis();
             setStatus('success');
             onComplete?.();
             setTimeout(() => setStatus('idle'), 2500);

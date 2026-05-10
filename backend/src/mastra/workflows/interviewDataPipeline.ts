@@ -368,13 +368,12 @@ DO NOT guess or use '0' when data is missing. Use 'null' for both current and ta
       { role: 'user', content: prompt },
     ], { temperature: 0.2 });
 
-    const match = response.content.match(/\{[\s\S]*\}/);
-    if (!match) {
-      console.warn('[pipeline] Banking KPI extraction returned no JSON');
+    const { extractJSON } = require('../../utils/jsonUtils');
+    const bankingKpis = extractJSON(response.content);
+    if (!bankingKpis) {
+      console.warn('[pipeline] Banking KPI extraction returned invalid JSON');
       return { success: false };
     }
-
-    const bankingKpis = JSON.parse(match[0]);
 
     // Patch the first generated report with the bankingKpis field.
     // NOTE: The content field uses enabled:false mapping in OpenSearch, so
