@@ -126,11 +126,14 @@ function buildFlatBpmnXml(proc: FlatProcess): string {
 </bpmn2:definitions>`;
 }
 
+import { extractJSON } from '../utils/jsonUtils';
+
 async function llmJson<T>(modelId: string, system: string, user: string): Promise<T> {
   const msgs: LLMMessage[] = [{ role: 'system', content: system }, { role: 'user', content: user }];
   const res = await generateCompletion(modelId, msgs);
-  const raw = res.content.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
-  return JSON.parse(raw) as T;
+  const parsed = extractJSON<T>(res.content);
+  if (!parsed) throw new Error('LLM failed to return valid JSON');
+  return parsed;
 }
 
 async function analyzeIssues(c: MultiSMEConsolidation, modelId: string): Promise<any[]> {

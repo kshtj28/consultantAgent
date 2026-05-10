@@ -553,7 +553,9 @@ router.post('/retrigger-banking-kpis', async (req: Request, res: Response) => {
 
         for (const hit of hits) {
             const doc = hit._source;
-            if (doc.content?.bankingKpis) continue; // Already extracted
+            // We deliberately DO NOT skip if doc.content?.bankingKpis exists.
+            // When the user clicks "Re-extract", they want to forcefully overwrite 
+            // old KPIs (e.g. to update USD -> SAR or apply new LLM fixes).
             if (!doc.content?.areaReports || !Array.isArray(doc.content.areaReports)) continue;
 
             // Mock an input object matching the pipeline lane's expected interface

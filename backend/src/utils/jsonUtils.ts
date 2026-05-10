@@ -72,14 +72,9 @@ function repairJSONString(json: string): string {
     // Remove trailing commas before closing braces/brackets
     s = s.replace(/,\s*([\}\]])/g, '$1');
 
-    // Fix common "unescaped double quote" issue for nested strings
-    // If we see a " followed by text that isn't a key or a value-ending quote,
-    // it might be an internal quote. This is very hard to fix perfectly via regex.
-    // We'll focus on the most common error: "Some word "quoted" more words"
-    // s = s.replace(/: \s*"([\s\S]*?)"/g, (match, p1) => {
-    //    // escape internal quotes in values
-    //    return ': "' + p1.replace(/(?<!\\)"/g, '\\"') + '"';
-    // });
+    // Fix unquoted property names (e.g. { key: "value" } -> { "key": "value" })
+    // This is a common issue with Gemini models generating JS-style objects instead of strict JSON
+    s = s.replace(/([{,]\s*)([a-zA-Z0-9_]+)\s*:/g, '$1"$2":');
 
     return s;
 }

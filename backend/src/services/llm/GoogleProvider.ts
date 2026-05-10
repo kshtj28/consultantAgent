@@ -32,7 +32,9 @@ export class GoogleProvider implements LLMProvider {
 
     async generate(messages: LLMMessage[], options: LLMOptions = {}): Promise<LLMResponse> {
         const client = this.getClient();
-        const modelToUse = options.model || this.model;
+        let modelToUse = options.model || this.model;
+        if (modelToUse === 'gemini-1.5-flash') modelToUse = 'gemini-1.5-flash-latest';
+        if (modelToUse === 'gemini-1.5-pro') modelToUse = 'gemini-1.5-pro-latest';
         const startMs = Date.now();
         const genModel = client.getGenerativeModel({ 
             model: modelToUse,
