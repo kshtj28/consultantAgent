@@ -348,14 +348,14 @@ Extract the following 4 KPIs. For each, provide:
 
 KPIs to extract:
 1. avgCycleTimeDays — Average loan/process cycle time in days
-2. costPerLoan — Cost per loan or transaction processed (USD)
+2. costPerLoan — Cost per loan or transaction processed (SAR)
 3. stpRate — Straight-through processing rate (%)
 4. npaRatio — Non-performing assets ratio (%)
 
 Return ONLY valid JSON:
 {
   "avgCycleTimeDays": { "current": 14, "target": 5, "unit": "days", "label": "Avg. Cycle Time" },
-  "costPerLoan": { "current": 850, "target": 400, "unit": "USD", "label": "Cost per Loan" },
+  "costPerLoan": { "current": 3000, "target": 1500, "unit": "SAR", "label": "Cost per Loan" },
   "stpRate": { "current": 35, "target": 75, "unit": "%", "label": "STP Rate" },
   "npaRatio": { "current": 4.2, "target": 2.0, "unit": "%", "label": "NPA Ratio" }
 }

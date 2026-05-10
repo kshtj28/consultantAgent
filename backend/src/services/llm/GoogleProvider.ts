@@ -58,7 +58,7 @@ export class GoogleProvider implements LLMProvider {
 
         const chat = genModel.startChat({
             history,
-            systemInstruction: systemMessage || undefined,
+            systemInstruction: systemMessage ? { role: 'system', parts: [{ text: systemMessage }] } : undefined,
             generationConfig: {
                 temperature: options.temperature ?? 0.7,
                 maxOutputTokens: options.maxTokens ?? 2000,
