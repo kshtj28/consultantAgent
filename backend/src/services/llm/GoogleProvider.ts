@@ -2,7 +2,7 @@
  * Google/Gemini Provider Implementation
  */
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
 import { LLMProvider, LLMMessage, LLMResponse, LLMOptions } from './LLMProvider';
 import { getProviderApiKey } from '../../config/env';
 
@@ -34,7 +34,15 @@ export class GoogleProvider implements LLMProvider {
         const client = this.getClient();
         const modelToUse = options.model || this.model;
         const startMs = Date.now();
-        const genModel = client.getGenerativeModel({ model: modelToUse });
+        const genModel = client.getGenerativeModel({ 
+            model: modelToUse,
+            safetySettings: [
+                { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+                { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+                { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+                { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE }
+            ]
+        });
 
         // Extract system instruction and build history
         const systemMessage = messages.find(m => m.role === 'system')?.content || '';
