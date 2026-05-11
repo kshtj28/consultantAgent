@@ -1318,6 +1318,15 @@ export async function generateUnifiedBPMN(consolidationId: string, targetState: 
     : 'Showing accepted steps only. Accept more steps in the Consolidated Process Flow to expand the diagram.';
 
   if (!targetState) {
+    if (stepsToRender.length === 0) {
+      // Don't hallucinate an AS-IS process if no steps exist
+      const fallbackXml = buildBpmnXml(consolidation.processId, consolidation.processName, [], false);
+      return { 
+        bpmnXml: fallbackXml, 
+        note: 'No interview data available yet to generate an AS-IS diagram. Please complete an SME interview.' 
+      };
+    }
+
     // AS-IS: Use LLM to build a structured swimlane model
     try {
       const prompt = buildAsIsModelPrompt(
@@ -1751,26 +1760,27 @@ function buildSwimlaneXml(processId: string, processName: string, model: AsIsMod
     const label = xmlEsc(n.label.slice(0, 28));
     if (n.type === 'startEvent' || n.type === 'endEvent') {
       const x = nodeX(n), y = evtY(n);
-      shapes.push(`      <bpmndi:BPMNShape id="${eid}_di" bpmnElement="${eid}">
+      const colorAttr = n.type === 'startEvent' ? 'bioc:stroke="#10b981" bioc:fill="#d1fae5"' : 'bioc:stroke="#ef4444" bioc:fill="#fee2e2"';
+      shapes.push(`      <bpmndi:BPMNShape id="${eid}_di" bpmnElement="${eid}" ${colorAttr}>
         <dc:Bounds x="${x}" y="${y}" width="${EVT_R * 2}" height="${EVT_R * 2}" />
         <bpmndi:BPMNLabel><dc:Bounds x="${x - 10}" y="${y + EVT_R * 2 + 5}" width="${EVT_R * 3}" height="14" /></bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>`);
     } else if (n.type === 'exclusiveGateway') {
       const x = nodeX(n), y = gwY(n);
-      shapes.push(`      <bpmndi:BPMNShape id="${eid}_di" bpmnElement="${eid}" isMarkerVisible="true">
+      shapes.push(`      <bpmndi:BPMNShape id="${eid}_di" bpmnElement="${eid}" isMarkerVisible="true" bioc:stroke="#f59e0b" bioc:fill="#fef3c7">
         <dc:Bounds x="${x}" y="${y}" width="${GW_SIZE}" height="${GW_SIZE}" />
         <bpmndi:BPMNLabel><dc:Bounds x="${x - 10}" y="${y + GW_SIZE + 5}" width="${GW_SIZE + 20}" height="28" /></bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>`);
     } else {
       const x = nodeX(n), y = nodeY(n);
-      shapes.push(`      <bpmndi:BPMNShape id="${eid}_di" bpmnElement="${eid}">
+      shapes.push(`      <bpmndi:BPMNShape id="${eid}_di" bpmnElement="${eid}" bioc:stroke="#3b82f6" bioc:fill="#eff6ff">
         <dc:Bounds x="${x}" y="${y}" width="${TASK_W}" height="${TASK_H}" />
         <bpmndi:BPMNLabel />
       </bpmndi:BPMNShape>`);
     }
   }
 
-  // Edge waypoints
+  // Edge waypoints (orthogonal routing)
   const edges: string[] = [];
   for (const f of flows) {
     const fid = xmlId(f.id);
@@ -1778,12 +1788,19 @@ function buildSwimlaneXml(processId: string, processName: string, model: AsIsMod
     const tgt = nodes.find(n => n.id === f.to);
     if (!src || !tgt) continue;
     const sx = nodeX(src) + (src.type === 'exclusiveGateway' ? GW_SIZE : src.type === 'startEvent' || src.type === 'endEvent' ? EVT_R * 2 : TASK_W);
-    const sy = nodeY(src) + TASK_H / 2;
+    const sy = nodeY(src) + (src.type === 'exclusiveGateway' ? GW_SIZE/2 : src.type === 'startEvent' || src.type === 'endEvent' ? EVT_R : TASK_H / 2);
     const tx = nodeX(tgt);
-    const ty = nodeY(tgt) + TASK_H / 2;
-    const cond = f.label ? `<bpmndi:BPMNLabel><dc:Bounds x="${(sx + tx) / 2 - 15}" y="${(sy + ty) / 2 - 10}" width="30" height="14" /></bpmndi:BPMNLabel>` : '';
+    const ty = nodeY(tgt) + (tgt.type === 'exclusiveGateway' ? GW_SIZE/2 : tgt.type === 'startEvent' || tgt.type === 'endEvent' ? EVT_R : TASK_H / 2);
+    
+    // Manhattan routing
+    let midX = sx + 20;
+    if (tx > sx) midX = sx + (tx - sx) / 2;
+
+    const cond = f.label ? `<bpmndi:BPMNLabel><dc:Bounds x="${midX - 15}" y="${(sy + ty) / 2 - 10}" width="30" height="14" /></bpmndi:BPMNLabel>` : '';
     edges.push(`      <bpmndi:BPMNEdge id="${fid}_di" bpmnElement="${fid}">
         <di:waypoint x="${sx}" y="${sy}" />
+        <di:waypoint x="${midX}" y="${sy}" />
+        <di:waypoint x="${midX}" y="${ty}" />
         <di:waypoint x="${tx}" y="${ty}" />
         ${cond}
       </bpmndi:BPMNEdge>`);
@@ -1794,6 +1811,8 @@ function buildSwimlaneXml(processId: string, processName: string, model: AsIsMod
                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:bioc="http://bpmn.io/schema/bpmn/biocolor/1.0"
+                  xmlns:color="http://www.omg.org/spec/BPMN/non-normative/color/1.0"
                   id="${defId}" targetNamespace="http://bpmn.io/schema/bpmn">
   <bpmn:collaboration id="Collab_${xmlId(processId)}">
     <bpmn:participant id="${partId}" name="${xmlEsc(processName)}" processRef="${procId}" />
