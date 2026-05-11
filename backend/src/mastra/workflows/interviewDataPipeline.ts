@@ -327,46 +327,52 @@ export async function runBankingKpiExtraction(input: {
       }
     }
 
-    // Also include gap summaries from area reports as rich context
-    const gapContext = input.areaReports.slice(0, 3).map((r: any) =>
-      `${r.broadAreaName}: ${(r.content?.executiveSummary || '').slice(0, 300)}`
-    ).join('\n\n');
+    // Build rich context from the gap analysis reports (gaps, scores, executive summary)
+    const gapContext = input.areaReports.slice(0, 5).map((r: any) => {
+      const summary = (r.content?.executiveSummary || r.broadAreaName || '').slice(0, 400);
+      const gaps = (r.content?.gaps || []).slice(0, 6).map((g: any) =>
+        `  - ${(g.gap || g.description || g.title || '').slice(0, 150)} (impact: ${g.impact || 'medium'}, effort: ${g.effort || 'medium'})`
+      ).join('\n');
+      const kpiScores = (r.content?.kpiScores || []).slice(0, 4).map((k: any) =>
+        `  - ${k.category}: score ${k.score}/100, benchmark ${k.benchmark}/100`
+      ).join('\n');
+      return `### ${r.broadAreaName || 'Banking Process'}\n${summary}\nGaps:\n${gaps}\nKPI Scores:\n${kpiScores}`;
+    }).join('\n\n');
 
-    const prompt = `You are a banking process analyst. Based on the interview Q&A and gap analysis below, extract current (AS-IS) and target (TO-BE) KPI values for a banking operations assessment.
+    const prompt = `You are a senior banking operations analyst specialising in Saudi Arabian banking (SAMA regulated institutions). Based on the gap analysis data below, estimate realistic AS-IS and TO-BE KPI values.
 
-## INTERVIEW DATA (excerpt)
-${allQA.slice(0, 20).join('\n\n')}
-
-## GAP ANALYSIS SUMMARY
+## GAP ANALYSIS DATA
 ${gapContext}
 
-Extract the following 4 KPIs. For each, provide:
-- current: the AS-IS value mentioned or inferred from the interview (null if not mentioned)
-- target: the TO-BE best-practice target value (use industry benchmarks if not mentioned)
-- unit: the measurement unit
-- label: a short human-readable label
+## INTERVIEW Q&A (if available)
+${allQA.slice(0, 15).join('\n\n') || '(No raw Q&A available — use gap analysis data above)'}
+
+Extract the following 4 KPIs. Use the gap analysis content to infer realistic values. When specific numbers are not present, apply Saudi banking industry benchmarks (SAMA regulatory environment, Vision 2030 digital banking context).
 
 KPIs to extract:
 1. avgCycleTimeDays — Average loan/process cycle time in days
-2. costPerLoan — Cost per loan or transaction processed (SAR)
+2. costPerLoan — Cost per loan or transaction in SAR (Saudi Riyal)
 3. stpRate — Straight-through processing rate (%)
 4. npaRatio — Non-performing assets ratio (%)
 
-Return ONLY valid JSON:
+RULES:
+- Always return a number (not null) for both current and target for ALL four KPIs
+- Use Saudi banking benchmarks: avgCycleTime AS-IS typically 10-20 days, TO-BE target 3-7 days; costPerLoan AS-IS typically 1500-4000 SAR, TO-BE target 500-1500 SAR; stpRate AS-IS typically 30-50%, TO-BE target 70-90%; npaRatio AS-IS typically 2-5%, TO-BE target 1-2%
+- If the gap analysis shows HIGH severity issues, bias current values toward the worse end of the benchmark range
+- All monetary values MUST use SAR (Saudi Riyal), NOT USD
+
+Return ONLY valid JSON with NO markdown:
 {
   "avgCycleTimeDays": { "current": 14, "target": 5, "unit": "days", "label": "Avg. Cycle Time" },
-  "costPerLoan": { "current": 3000, "target": 1500, "unit": "SAR", "label": "Cost per Loan" },
-  "stpRate": { "current": 35, "target": 75, "unit": "%", "label": "STP Rate" },
-  "npaRatio": { "current": 4.2, "target": 2.0, "unit": "%", "label": "NPA Ratio" }
-}
-
-CRITICAL RULE: If the interview data does NOT explicitly discuss loans, volumes, or costs, you MUST return 'null' for costPerLoan.current and costPerLoan.target. If it does NOT discuss non-performing assets, you MUST return 'null' for npaRatio. 
-DO NOT guess or use '0' when data is missing. Use 'null' for both current and target. Only provide target benchmarks if the topic was actually relevant to the assessment.`;
+  "costPerLoan": { "current": 3200, "target": 1200, "unit": "SAR", "label": "Cost per Loan" },
+  "stpRate": { "current": 38, "target": 78, "unit": "%", "label": "STP Rate" },
+  "npaRatio": { "current": 3.8, "target": 1.5, "unit": "%", "label": "NPA Ratio" }
+}`;
 
     const response = await generateCompletion([
-      { role: 'system', content: 'You are a banking operations analyst. Extract KPI values from interview data. Return valid JSON only.' },
+      { role: 'system', content: 'You are a banking operations analyst specialising in Saudi Arabian banking. Return valid JSON only with no markdown formatting.' },
       { role: 'user', content: prompt },
-    ], { temperature: 0.2 });
+    ], { temperature: 0.3 });
 
     const { extractJSON } = require('../../utils/jsonUtils');
     const bankingKpis = extractJSON(response.content);
