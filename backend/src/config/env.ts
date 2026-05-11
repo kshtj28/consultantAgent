@@ -28,6 +28,10 @@ const envSchema = z.object({
   NGINX_OLLAMA_EMBED_MODEL: z.string().optional(),
   NGINX_OLLAMA_AUTH_HEADER: z.string().optional().default('Authorization'),
 
+  // OpenRouter (for Qwen and others)
+  OPENROUTER_API_KEY: z.string().optional(),
+  OPENROUTER_MODELS: z.string().optional(),
+
   // Default model (format: provider:model)
   DEFAULT_MODEL: z.string().default('openai:gpt-4o'),
 
@@ -110,6 +114,14 @@ export const getProviders = (): ProviderConfig[] => {
       name: 'google',
       apiKey: env.GOOGLE_API_KEY,
       models: parseModels(env.GOOGLE_MODELS),
+    });
+  }
+
+  if (env.OPENROUTER_API_KEY) {
+    providers.push({
+      name: 'openrouter',
+      apiKey: env.OPENROUTER_API_KEY,
+      models: parseModels(env.OPENROUTER_MODELS || 'qwen/qwen-2.5-72b-instruct,qwen/qwen-2.5-coder-32b-instruct'),
     });
   }
 

@@ -35,6 +35,7 @@ export { AnthropicProvider } from './AnthropicProvider';
 export { GoogleProvider } from './GoogleProvider';
 export { OllamaProvider, OllamaConfig } from './OllamaProvider';
 export { NginxOllamaProvider } from './NginxOllamaProvider';
+export { OpenRouterProvider } from './OpenRouterProvider';
 export { GroqProvider } from './GroqProvider';
 
 // Import providers for registration
@@ -44,6 +45,7 @@ import { AnthropicProvider } from './AnthropicProvider';
 import { GoogleProvider } from './GoogleProvider';
 import { OllamaProvider } from './OllamaProvider';
 import { NginxOllamaProvider } from './NginxOllamaProvider';
+import { OpenRouterProvider } from './OpenRouterProvider';
 import { GroqProvider } from './GroqProvider';
 import { env, getDefaultModel } from '../../config/env';
 
@@ -97,6 +99,9 @@ export function initializeLLMProviders(): void {
 
     // Register Ollama provider
     llmFactory.register('ollama', () => new OllamaProvider());
+
+    // Register OpenRouter provider
+    llmFactory.register('openrouter', () => new OpenRouterProvider());
 
     // Register Groq provider
     llmFactory.register('groq', () => new GroqProvider());
@@ -164,7 +169,7 @@ export async function generateCompletion(
         // If we only have a model name with a slash like "groq/compound-mini", we can infer the provider
         if (modelStr && typeof modelStr === 'string' && modelStr.includes('/')) {
             const [p] = modelStr.split('/');
-             if (['openai', 'anthropic', 'google', 'groq', 'ollama'].includes(p)) {
+             if (['openai', 'anthropic', 'google', 'groq', 'ollama', 'openrouter'].includes(p)) {
                   providerName = p;
                   // Don't change options.model here, keep it as "groq/compound-mini"
              }
