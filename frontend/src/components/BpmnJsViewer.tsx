@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import NavigatedViewer from 'bpmn-js/lib/NavigatedViewer';
-import { ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
+import { ZoomIn, ZoomOut, Maximize2, X } from 'lucide-react';
 import './BpmnJsViewer.css';
 
 interface BpmnJsViewerProps {
@@ -115,6 +116,8 @@ export default function BpmnJsViewer({ xml }: BpmnJsViewerProps) {
     viewerRef.current = new NavigatedViewer({
       container: containerRef.current,
       keyboard: { bindTo: document },
+      // Disable mouse-wheel zoom in the diagram to avoid page-scrolling interference
+      zoomScroll: { enabled: false }
     });
 
     return () => {
@@ -154,14 +157,24 @@ export default function BpmnJsViewer({ xml }: BpmnJsViewerProps) {
 
   const handleZoomIn = () => { const c = getCanvas(); if (c) { c.zoom(zoom * 1.25); setZoom(c.zoom()); } };
   const handleZoomOut = () => { const c = getCanvas(); if (c) { c.zoom(zoom / 1.25); setZoom(c.zoom()); } };
-  const handleFit = () => { const c = getCanvas(); if (c) { c.zoom('fit-viewport', 'center'); setZoom(c.zoom()); } };
-  const toggleFullscreen = () => setIsFullscreen(!isFullscreen);
+  const toggleFullscreen = () => {
+    const next = !isFullscreen;
+    setIsFullscreen(next);
+    
+    // Enable/disable scroll depending on mode
+    if (viewerRef.current) {
+      try {
+        const zoomScroll = viewerRef.current.get('zoomScroll') as any;
+        if (zoomScroll) zoomScroll.toggle(next);
+      } catch (e) {}
+    }
+  };
 
   // Close fullscreen on escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isFullscreen) {
-        setIsFullscreen(false);
+        toggleFullscreen();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -177,31 +190,58 @@ export default function BpmnJsViewer({ xml }: BpmnJsViewerProps) {
     );
   }
 
-  const wrapperStyle: React.CSSProperties = isFullscreen
-    ? {
-        position: 'fixed',
-        top: 0, left: 0, right: 0, bottom: 0,
-        zIndex: 9999,
-        background: 'var(--surface, #1e293b)',
-        display: 'flex', flexDirection: 'column',
-        padding: '20px',
-      }
-    : { display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' };
+  const wrapperStyle: React.CSSProperties = {
+    position: 'fixed',
+    top: 0, left: 0, right: 0, bottom: 0,
+    zIndex: 99999,
+    background: 'rgba(15, 23, 42, 0.95)',
+    backdropFilter: 'blur(12px)',
+    display: 'flex', 
+    flexDirection: 'column',
+    padding: '40px',
+  };
 
-  return (
-    <div className="bpmn-js-wrapper" style={wrapperStyle}>
-      <div className="bpmn-js-toolbar">
+  const content = (
+    <div 
+      className={`bpmn-js-wrapper ${isFullscreen ? 'bpmn-js-wrapper--fullscreen' : ''}`} 
+      style={isFullscreen ? wrapperStyle : { position: 'relative', height: '100%', display: 'flex', flexDirection: 'column' }}
+    >
+      <div className="bpmn-js-toolbar" style={isFullscreen ? { bottom: 'auto', top: 60, right: 60, scale: '1.2' } : {}}>
         <button onClick={handleZoomIn} title="Zoom In"><ZoomIn size={14} /></button>
-        <button onClick={handleFit} title="Fit to Screen"><Maximize2 size={14} /></button>
+        <button onClick={toggleFullscreen} title={isFullscreen ? "Close Fullscreen" : "Enlarge to Fullscreen"}>
+          {isFullscreen ? <X size={14} /> : <Maximize2 size={14} />}
+        </button>
         <button onClick={handleZoomOut} title="Zoom Out"><ZoomOut size={14} /></button>
         <div className="bpmn-js-toolbar-sep" />
         <span className="bpmn-js-zoom-pct">{Math.round(zoom * 100)}%</span>
-        <div style={{ flex: 1 }} />
-        <button onClick={toggleFullscreen} title={isFullscreen ? "Close Fullscreen" : "Enlarge (Fullscreen)"} style={{ marginLeft: 'auto', background: isFullscreen ? 'var(--primary)' : 'transparent', color: isFullscreen ? 'white' : 'inherit' }}>
-          {isFullscreen ? 'Close Fullscreen' : 'Enlarge'}
-        </button>
+        {!isFullscreen && (
+          <span style={{ fontSize: '0.65rem', color: '#475569', marginLeft: 8, opacity: 0.7 }}>
+            (Click enlarge to scroll)
+          </span>
+        )}
       </div>
-      <div ref={containerRef} className="bpmn-js-container" style={{ flex: 1, overflow: 'hidden', background: isFullscreen ? 'var(--surface-low, #0f172a)' : 'transparent', borderRadius: isFullscreen ? 8 : 0, border: isFullscreen ? '1px solid var(--border)' : 'none' }} />
+      <div 
+        ref={containerRef} 
+        className="bpmn-js-container" 
+        style={{ 
+          flex: 1, 
+          overflow: 'hidden', 
+          background: isFullscreen ? 'transparent' : 'transparent',
+          borderRadius: isFullscreen ? 12 : 0,
+          border: isFullscreen ? '1px solid rgba(255,255,255,0.1)' : 'none'
+        }} 
+      />
+      {isFullscreen && (
+        <div style={{ position: 'absolute', top: 20, left: 40, color: 'white', opacity: 0.8, fontSize: '0.9rem', fontWeight: 600 }}>
+          {isFullscreen ? 'Full Process View' : ''}
+        </div>
+      )}
     </div>
   );
+
+  if (isFullscreen) {
+    return createPortal(content, document.body);
+  }
+
+  return content;
 }
