@@ -530,7 +530,7 @@ router.post('/retrigger-banking-kpis', async (req: Request, res: Response) => {
         const indexExists = await opensearchClient.indices.exists({ index: INDICES.REPORTS });
         if (!indexExists.body) return res.json({ success: true, count: 0 });
 
-        // Find the most recent ready banking report that LACKS bankingKpis
+        // Find the most recent ready banking reports
         const result = await opensearchClient.search({
             index: INDICES.REPORTS,
             body: {
@@ -547,33 +547,33 @@ router.post('/retrigger-banking-kpis', async (req: Request, res: Response) => {
         const hits = (result.body.hits.hits as any[]);
         let updatedCount = 0;
 
-        // Since workflows are not easily importable here without circular deps,
-        // we import runBankingKpiExtraction directly.
         const { runBankingKpiExtraction } = require('../mastra/workflows/interviewDataPipeline');
 
         for (const hit of hits) {
             const doc = hit._source;
-            // We deliberately DO NOT skip if doc.content?.bankingKpis exists.
-            // When the user clicks "Re-extract", they want to forcefully overwrite 
-            // old KPIs (e.g. to update USD -> SAR or apply new LLM fixes).
-            // Mock an input object matching the pipeline lane's expected interface.
-            // In the live pipeline, areaReports is an array of broad-area reports.
-            const input = {
-                areaReports: [doc],
-                session: { domainId: 'banking', sessionId: doc.sessionId }
-            };
 
-            const kpiResult = await runBankingKpiExtraction(input);
-            
-            if (kpiResult && typeof kpiResult === 'object' && 'bankingKpis' in kpiResult) {
-                // We have extracted KPIs, now patch the report in OpenSearch
-                doc.content.bankingKpis = kpiResult.bankingKpis;
-                await opensearchClient.index({
-                    index: INDICES.REPORTS,
-                    id: hit._id,
-                    body: doc,
-                    refresh: true, // Force refresh so the next GET sees it
-                });
+            // Fetch the actual interview session to get real Q&A responses for LLM context
+            let sessionData: any = { domainId: 'banking', sessionId: doc.sessionId, responses: {} };
+            if (doc.sessionId) {
+                try {
+                    const sessResult = await opensearchClient.get({
+                        index: INDICES.CONVERSATIONS,
+                        id: doc.sessionId,
+                    });
+                    sessionData = { ...(sessResult.body._source || {}), domainId: 'banking' };
+                } catch {
+                    // Session not found — continue with gap context only
+                    console.warn(`[retrigger] Session ${doc.sessionId} not found, using gap context only`);
+                }
+            }
+
+            // runBankingKpiExtraction handles its own OpenSearch update internally
+            const kpiResult = await runBankingKpiExtraction({
+                areaReports: [doc],
+                session: sessionData,
+            });
+
+            if (kpiResult?.success) {
                 updatedCount++;
             }
         }
