@@ -560,7 +560,7 @@ router.post('/retrigger-banking-kpis', async (req: Request, res: Response) => {
             // In the live pipeline, areaReports is an array of broad-area reports.
             const input = {
                 areaReports: [doc],
-                session: { domainId: 'banking' }
+                session: { domainId: 'banking', sessionId: doc.sessionId }
             };
 
             const kpiResult = await runBankingKpiExtraction(input);
