@@ -85,3 +85,34 @@ Return ONLY valid JSON in this exact shape, no prose, no markdown fences:
   "rationale": "<≤320 char explanation of how the seniors' accounts shape the canonical version and what the junior(s) seem to represent — onboarding gap, exception path, etc.>"
 }`;
 }
+
+/**
+ * Prompt for transforming raw consolidated process steps into a structured
+ * swimlane model with short labels, decision gateways, and role assignments.
+ * Used to generate the AS-IS BPMN diagram.
+ */
+export function buildAsIsModelPrompt(processName: string, steps: Array<{ label: string; description: string }>): string {
+  const stepsBlock = steps.map((s, i) => `${i + 1}. ${s.label}: ${s.description}`).join('\n');
+
+  return `You are a banking process architect creating an AS-IS (current state) BPMN process model for "${processName}".
+
+## RAW PROCESS STEPS (from SME interviews)
+${stepsBlock}
+
+Transform these raw steps into a structured BPMN process model with:
+1. Swimlanes - assign each step to one of: "Customer", "Branch Staff", "Back Office", "System/IT", "Compliance/Risk"
+2. Short labels - each step label MUST be 2-4 words maximum (e.g. "Submit Application", "KYC Check", "Approve Loan")
+3. Task types - classify each as: "userTask" (human), "serviceTask" (automated), or "manualTask" (manual/paper)
+4. Decision gateways - add exclusiveGateway nodes for natural Yes/No decision points
+5. Duration - estimate durationDays per step based on typical Saudi banking operations
+
+CRITICAL RULES:
+- Labels MUST be 2-4 words ONLY, no longer
+- Add 1-3 gateways at natural decision points (approvals, escalations)
+- Keep total node count between 8 and 14 (including gateways, start, end)
+- Every gateway must have exactly 2 exit flows with Yes/No labels
+- All nodes must be connected (no orphans)
+
+Return ONLY valid JSON, no markdown, no explanation:
+{"lanes":[{"id":"customer","name":"Customer","color":"#dbeafe"},{"id":"branch","name":"Branch Staff","color":"#dcfce7"},{"id":"backoffice","name":"Back Office","color":"#fef9c3"},{"id":"system","name":"System / IT","color":"#f3e8ff"}],"nodes":[{"id":"start","type":"startEvent","label":"Start","lane":"customer"},{"id":"n1","type":"userTask","label":"Submit Request","lane":"customer","durationDays":1},{"id":"gw1","type":"exclusiveGateway","label":"Docs Complete?","lane":"branch"},{"id":"n2","type":"userTask","label":"Gather Documents","lane":"branch","durationDays":2},{"id":"n3","type":"serviceTask","label":"KYC Screening","lane":"system","durationDays":0},{"id":"end","type":"endEvent","label":"End","lane":"backoffice"}],"flows":[{"id":"f1","from":"start","to":"n1"},{"id":"f2","from":"n1","to":"gw1"},{"id":"f3","from":"gw1","to":"n2","label":"No"},{"id":"f4","from":"gw1","to":"n3","label":"Yes"},{"id":"f5","from":"n2","to":"n3"},{"id":"f6","from":"n3","to":"end"}]}`;
+}

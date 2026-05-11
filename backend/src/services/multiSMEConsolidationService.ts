@@ -6,6 +6,7 @@ import { generateEmbedding } from './knowledgeBase';
 import {
   buildStepExtractionPrompt,
   buildConflictResolutionPrompt,
+  buildAsIsModelPrompt,
   type ExtractedStep,
 } from '../prompts/multiSMEConsolidation.prompt';
 import { getBroadAreas, getBroadArea } from './domainService';
@@ -1312,13 +1313,34 @@ export async function generateUnifiedBPMN(consolidationId: string, targetState: 
     ? consolidation.steps.filter(s => s.accepted)
     : [...consolidation.steps].sort((a, b) => a.order - b.order);
 
-  // In target state, we might want to highlight AI-augmented steps or simplify
-  // For now, we'll pass the targetState flag to the builder to handle styling
-  const bpmnXml = buildBpmnXml(consolidation.processId, consolidation.processName, stepsToRender, targetState);
   const note = stepsToRender.length === consolidation.steps.length && consolidation.steps.filter(s => s.accepted).length < 2
     ? 'Fewer than 2 steps are accepted — showing all steps. Accept steps in the Consolidated Process Flow to refine the diagram.'
     : 'Showing accepted steps only. Accept more steps in the Consolidated Process Flow to expand the diagram.';
 
+  if (!targetState) {
+    // AS-IS: Use LLM to build a structured swimlane model
+    try {
+      const prompt = buildAsIsModelPrompt(
+        consolidation.processName,
+        stepsToRender.map(s => ({ label: s.label, description: s.description }))
+      );
+      const res = await generateCompletion([
+        { role: 'system', content: 'You are a BPMN process architect. Return only valid JSON.' },
+        { role: 'user', content: prompt },
+      ], { temperature: 0.2, maxTokens: 2000 });
+      const { extractJSON } = require('../utils/jsonUtils');
+      const model = extractJSON(res.content);
+      if (model && model.nodes && model.flows) {
+        const bpmnXml = buildSwimlaneXml(consolidation.processId, consolidation.processName, model);
+        return { bpmnXml, note };
+      }
+    } catch (err: any) {
+      console.warn('[bpmn] LLM swimlane generation failed, falling back to flat layout:', err.message);
+    }
+  }
+
+  // TO-BE or AS-IS fallback: use the existing flat builder
+  const bpmnXml = buildBpmnXml(consolidation.processId, consolidation.processName, stepsToRender, targetState);
   return { bpmnXml, note };
 }
 
@@ -1580,4 +1602,213 @@ async function persistConsolidation(consolidation: MultiSMEConsolidation): Promi
     body: consolidation,
     refresh: 'wait_for',
   });
+}
+
+// ─── Swimlane BPMN XML Builder ────────────────────────────────────────────────
+
+interface AsIsNode {
+  id: string;
+  type: 'startEvent' | 'endEvent' | 'userTask' | 'serviceTask' | 'manualTask' | 'exclusiveGateway';
+  label: string;
+  lane: string;
+  durationDays?: number;
+}
+
+interface AsIsFlow {
+  id: string;
+  from: string;
+  to: string;
+  label?: string;
+}
+
+interface AsIsLane {
+  id: string;
+  name: string;
+  color?: string;
+}
+
+interface AsIsModel {
+  lanes: AsIsLane[];
+  nodes: AsIsNode[];
+  flows: AsIsFlow[];
+}
+
+/**
+ * Builds a BPMN 2.0 XML string with role-based swimlanes from an LLM-generated
+ * structured process model. Produces a bpmn:Collaboration > bpmn:Participant >
+ * bpmn:LaneSet layout with proper 2D coordinates.
+ */
+function buildSwimlaneXml(processId: string, processName: string, model: AsIsModel): string {
+  function xmlId(raw: string) { return raw.replace(/[^a-zA-Z0-9_-]/g, '_'); }
+  function xmlEsc(s: string) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;'); }
+
+  const procId = `Process_${xmlId(processId)}`;
+  const defId = `Defs_${xmlId(processId)}`;
+  const partId = `Part_${xmlId(processId)}`;
+
+  const TASK_W = 120, TASK_H = 56;
+  const GW_SIZE = 48;
+  const EVT_R = 18;
+  const H_GAP = 60;    // horizontal gap between nodes
+  const LANE_H = 160;  // height per lane
+  const LANE_LABEL_W = 120;
+  const TOP_PAD = 20;
+  const LEFT_PAD = 80;
+
+  const lanes = model.lanes || [];
+  const nodes = model.nodes || [];
+  const flows = model.flows || [];
+
+  // Assign sequential X positions based on flow order (topological-ish)
+  const nodeOrder: Map<string, number> = new Map();
+  let col = 0;
+  // BFS order from start
+  const visited = new Set<string>();
+  const queue = nodes.filter(n => n.type === 'startEvent').map(n => n.id);
+  if (queue.length === 0 && nodes.length > 0) queue.push(nodes[0].id);
+  while (queue.length > 0) {
+    const id = queue.shift()!;
+    if (visited.has(id)) continue;
+    visited.add(id);
+    nodeOrder.set(id, col++);
+    for (const f of flows) {
+      if (f.from === id && !visited.has(f.to)) queue.push(f.to);
+    }
+  }
+  // Any nodes not reached
+  for (const n of nodes) {
+    if (!nodeOrder.has(n.id)) nodeOrder.set(n.id, col++);
+  }
+
+  const laneIds = lanes.map(l => l.id);
+  const laneIndex = (laneId: string) => {
+    const i = laneIds.indexOf(laneId);
+    return i >= 0 ? i : 0;
+  };
+
+  const nodeX = (n: AsIsNode) => LEFT_PAD + LANE_LABEL_W + (nodeOrder.get(n.id) || 0) * (TASK_W + H_GAP);
+  const nodeY = (n: AsIsNode) => TOP_PAD + laneIndex(n.lane) * LANE_H + (LANE_H - TASK_H) / 2;
+  const gwY = (n: AsIsNode) => TOP_PAD + laneIndex(n.lane) * LANE_H + (LANE_H - GW_SIZE) / 2;
+  const evtY = (n: AsIsNode) => TOP_PAD + laneIndex(n.lane) * LANE_H + (LANE_H - EVT_R * 2) / 2;
+
+  const totalCols = col;
+  const totalW = LEFT_PAD + LANE_LABEL_W + totalCols * (TASK_W + H_GAP) + H_GAP;
+  const totalH = TOP_PAD + lanes.length * LANE_H + 40;
+
+  // ── BPMN semantic elements ─────────────────────────────────────────────────
+  const processElements: string[] = [];
+
+  for (const n of nodes) {
+    const eid = xmlId(n.id);
+    const label = xmlEsc(n.label.slice(0, 28));
+    if (n.type === 'startEvent') {
+      processElements.push(`    <bpmn:startEvent id="${eid}" name="${label}"><bpmn:outgoing>${flows.filter(f => f.from === n.id).map(f => xmlId(f.id)).join(' ')}</bpmn:outgoing></bpmn:startEvent>`);
+    } else if (n.type === 'endEvent') {
+      processElements.push(`    <bpmn:endEvent id="${eid}" name="${label}"><bpmn:incoming>${flows.filter(f => f.to === n.id).map(f => xmlId(f.id)).join(' ')}</bpmn:incoming></bpmn:endEvent>`);
+    } else if (n.type === 'exclusiveGateway') {
+      const inc = flows.filter(f => f.to === n.id).map(f => `<bpmn:incoming>${xmlId(f.id)}</bpmn:incoming>`).join('');
+      const out = flows.filter(f => f.from === n.id).map(f => `<bpmn:outgoing>${xmlId(f.id)}</bpmn:outgoing>`).join('');
+      processElements.push(`    <bpmn:exclusiveGateway id="${eid}" name="${label}">${inc}${out}</bpmn:exclusiveGateway>`);
+    } else {
+      const bpmnType = n.type === 'serviceTask' ? 'bpmn:serviceTask' : n.type === 'manualTask' ? 'bpmn:manualTask' : 'bpmn:userTask';
+      const inc = flows.filter(f => f.to === n.id).map(f => `<bpmn:incoming>${xmlId(f.id)}</bpmn:incoming>`).join('');
+      const out = flows.filter(f => f.from === n.id).map(f => `<bpmn:outgoing>${xmlId(f.id)}</bpmn:outgoing>`).join('');
+      processElements.push(`    <${bpmnType} id="${eid}" name="${label}">${inc}${out}</${bpmnType}>`);
+    }
+  }
+
+  for (const f of flows) {
+    const fid = xmlId(f.id);
+    const cond = f.label ? ` name="${xmlEsc(f.label)}"` : '';
+    processElements.push(`    <bpmn:sequenceFlow id="${fid}" sourceRef="${xmlId(f.from)}" targetRef="${xmlId(f.to)}"${cond} />`);
+  }
+
+  // ── Lane set ───────────────────────────────────────────────────────────────
+  const laneElements = lanes.map((lane, li) => {
+    const laneNodes = nodes.filter(n => n.lane === lane.id);
+    const refs = laneNodes.map(n => `      <bpmn:flowNodeRef>${xmlId(n.id)}</bpmn:flowNodeRef>`).join('\n');
+    return `    <bpmn:lane id="Lane_${xmlId(lane.id)}" name="${xmlEsc(lane.name)}">\n${refs}\n    </bpmn:lane>`;
+  }).join('\n');
+
+  // ── DI shapes ─────────────────────────────────────────────────────────────
+  const shapes: string[] = [];
+
+  // Participant shape
+  shapes.push(`      <bpmndi:BPMNShape id="${partId}_di" bpmnElement="${partId}" isHorizontal="true">
+        <dc:Bounds x="${LEFT_PAD}" y="${TOP_PAD}" width="${totalW}" height="${totalH}" />
+      </bpmndi:BPMNShape>`);
+
+  // Lane shapes
+  lanes.forEach((lane, li) => {
+    shapes.push(`      <bpmndi:BPMNShape id="Lane_${xmlId(lane.id)}_di" bpmnElement="Lane_${xmlId(lane.id)}" isHorizontal="true">
+        <dc:Bounds x="${LEFT_PAD + LANE_LABEL_W}" y="${TOP_PAD + li * LANE_H}" width="${totalW - LANE_LABEL_W}" height="${LANE_H}" />
+      </bpmndi:BPMNShape>`);
+  });
+
+  // Node shapes
+  for (const n of nodes) {
+    const eid = xmlId(n.id);
+    const label = xmlEsc(n.label.slice(0, 28));
+    if (n.type === 'startEvent' || n.type === 'endEvent') {
+      const x = nodeX(n), y = evtY(n);
+      shapes.push(`      <bpmndi:BPMNShape id="${eid}_di" bpmnElement="${eid}">
+        <dc:Bounds x="${x}" y="${y}" width="${EVT_R * 2}" height="${EVT_R * 2}" />
+        <bpmndi:BPMNLabel><dc:Bounds x="${x - 10}" y="${y + EVT_R * 2 + 5}" width="${EVT_R * 3}" height="14" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>`);
+    } else if (n.type === 'exclusiveGateway') {
+      const x = nodeX(n), y = gwY(n);
+      shapes.push(`      <bpmndi:BPMNShape id="${eid}_di" bpmnElement="${eid}" isMarkerVisible="true">
+        <dc:Bounds x="${x}" y="${y}" width="${GW_SIZE}" height="${GW_SIZE}" />
+        <bpmndi:BPMNLabel><dc:Bounds x="${x - 10}" y="${y + GW_SIZE + 5}" width="${GW_SIZE + 20}" height="28" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>`);
+    } else {
+      const x = nodeX(n), y = nodeY(n);
+      shapes.push(`      <bpmndi:BPMNShape id="${eid}_di" bpmnElement="${eid}">
+        <dc:Bounds x="${x}" y="${y}" width="${TASK_W}" height="${TASK_H}" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>`);
+    }
+  }
+
+  // Edge waypoints
+  const edges: string[] = [];
+  for (const f of flows) {
+    const fid = xmlId(f.id);
+    const src = nodes.find(n => n.id === f.from);
+    const tgt = nodes.find(n => n.id === f.to);
+    if (!src || !tgt) continue;
+    const sx = nodeX(src) + (src.type === 'exclusiveGateway' ? GW_SIZE : src.type === 'startEvent' || src.type === 'endEvent' ? EVT_R * 2 : TASK_W);
+    const sy = nodeY(src) + TASK_H / 2;
+    const tx = nodeX(tgt);
+    const ty = nodeY(tgt) + TASK_H / 2;
+    const cond = f.label ? `<bpmndi:BPMNLabel><dc:Bounds x="${(sx + tx) / 2 - 15}" y="${(sy + ty) / 2 - 10}" width="30" height="14" /></bpmndi:BPMNLabel>` : '';
+    edges.push(`      <bpmndi:BPMNEdge id="${fid}_di" bpmnElement="${fid}">
+        <di:waypoint x="${sx}" y="${sy}" />
+        <di:waypoint x="${tx}" y="${ty}" />
+        ${cond}
+      </bpmndi:BPMNEdge>`);
+  }
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  id="${defId}" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:collaboration id="Collab_${xmlId(processId)}">
+    <bpmn:participant id="${partId}" name="${xmlEsc(processName)}" processRef="${procId}" />
+  </bpmn:collaboration>
+  <bpmn:process id="${procId}" isExecutable="false">
+    <bpmn:laneSet id="LaneSet_${xmlId(processId)}">
+${laneElements}
+    </bpmn:laneSet>
+${processElements.join('\n')}
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collab_${xmlId(processId)}">
+${shapes.join('\n')}
+${edges.join('\n')}
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>`;
 }
