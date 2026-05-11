@@ -26,6 +26,8 @@ const SHAPE_COLORS: Record<string, { fill: string; stroke: string; sw?: string }
   'bpmn:IntermediateThrowEvent': { fill: '#1e3a5f', stroke: '#60a5fa' },
   'bpmn:SubProcess':             { fill: '#0f172a', stroke: '#334155' },
   'bpmn:CallActivity':           { fill: '#1e3a5f', stroke: '#3b82f6', sw: '3' },
+  'bpmn:Participant':            { fill: '#0f172a', stroke: '#334155' },
+  'bpmn:Lane':                   { fill: 'none', stroke: '#334155' },
 };
 
 function applyThemeColors(viewer: NavigatedViewer) {

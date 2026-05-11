@@ -164,11 +164,24 @@ Optimize using: STP (Straight-Through Processing), digital automation, parallel 
 }
 
 async function generateComparison(c: MultiSMEConsolidation, tobe: FlatProcess, issues: any[], modelId: string): Promise<any> {
+  const asisDays = c.steps.length * 2.5;
   const system = `You are a banking process efficiency analyst. Calculate realistic improvement metrics.
 Return ONLY valid JSON — no markdown:
 {"timeSavings":{"asis":"X days","tobe":"Y days","reduction":"Z%","detail":"..."},"costReduction":{"percentage":"...","detail":"..."},"efficiencyGain":{"percentage":"...","detail":"..."},"automationRate":{"asis":"...","tobe":"...","detail":"..."},"riskReduction":{"percentage":"...","detail":"..."},"customerExperience":{"improvement":"...","detail":"..."},"keyImprovements":["..."]}`;
   return llmJson<any>(modelId, system,
-    `Process: ${c.processName}\nAs-is: ${c.steps.length} steps, ${c.metrics.conflicts} conflict areas, ${c.metrics.consensusPct}% SME consensus\nTo-be: ${tobe.steps.length} steps (optimized)\nIssues resolved: ${issues.map(i => i.title).join(', ')}\nCalculate expected improvements.`);
+    `Process: ${c.processName}
+As-is Metrics:
+- Duration: ${asisDays} days
+- Manual Steps: ${c.steps.length}
+- Conflict areas: ${c.metrics.conflicts}
+- SME Consensus: ${c.metrics.consensusPct}%
+
+To-be Metrics:
+- Total steps: ${tobe.steps.length} (optimized)
+
+Issues resolved: ${issues.map(i => i.title).join(', ')}
+
+Calculate expected improvements. CRITICAL RULE: The 'tobe' time in timeSavings MUST be significantly lower than the 'asis' time (${asisDays} days) to reflect efficiency gains, and the 'reduction' percentage must be mathematically accurate.`);
 }
 
 // GET /api/multi-sme-consolidation/processes — list every interviewable process and how much SME data exists
