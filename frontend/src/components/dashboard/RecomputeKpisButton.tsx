@@ -32,7 +32,6 @@ export default function RecomputeKpisButton({ onComplete, variant = 'subtle' }: 
         setStatus('idle');
         try {
             await recomputeDashboardMetrics();
-            await retriggerBankingKpis();
             setStatus('success');
             onComplete?.();
             setTimeout(() => setStatus('idle'), 2500);
@@ -43,6 +42,13 @@ export default function RecomputeKpisButton({ onComplete, variant = 'subtle' }: 
         } finally {
             setBusy(false);
         }
+        // Fire banking KPI extraction independently — don't let it affect button state
+        retriggerBankingKpis().then(() => {
+            // After LLM extraction completes, silently re-fetch so the chart updates
+            onComplete?.();
+        }).catch((err) => {
+            console.warn('Banking KPI retrigger failed (non-fatal):', err);
+        });
     };
 
     const label = busy
