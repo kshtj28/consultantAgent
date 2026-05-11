@@ -149,7 +149,8 @@ export default function ProcessAnalysis() {
                         const flatHistory: any[] = [];
                         if (sessionData.responses) {
                             Object.entries(sessionData.responses).forEach(([areaId, answers]: [string, any]) => {
-                                answers.forEach((ans: any) => {
+                                if (Array.isArray(answers)) {
+                                    answers.forEach((ans: any) => {
                                     flatHistory.push({
                                         question: {
                                             id: ans.questionId,
@@ -162,7 +163,8 @@ export default function ProcessAnalysis() {
                                         answer: ans.answer,
                                         timestamp: new Date(ans.timestamp || 0).getTime()
                                     });
-                                });
+                                    });
+                                }
                             });
                         }
                         
@@ -222,7 +224,9 @@ export default function ProcessAnalysis() {
             const history: { question: GeneratedQuestion; answer: string | string[] | number }[] = [];
             if (res.responses) {
                 for (const subAreaId of Object.keys(res.responses)) {
-                    for (const r of res.responses[subAreaId]) {
+                    const subAreaResponses = res.responses[subAreaId];
+                    if (Array.isArray(subAreaResponses)) {
+                        for (const r of subAreaResponses) {
                         history.push({
                             question: {
                                 id: r.questionId,
@@ -232,6 +236,7 @@ export default function ProcessAnalysis() {
                             },
                             answer: r.answer,
                         });
+                        }
                     }
                 }
             }

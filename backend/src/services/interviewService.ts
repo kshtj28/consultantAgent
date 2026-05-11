@@ -728,10 +728,11 @@ REMINDER: The "question" text and all "options" MUST be written in the language 
 
     const completion = await generateCompletion(modelId || null, messages, { temperature: 0.4 });
 
-    const jsonMatch = completion.content.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('No JSON in response');
-
-    const parsed = JSON.parse(jsonMatch[0]);
+    const parsed = extractJSON<any>(completion.content);
+    if (!parsed) {
+        console.error('[interview] Failed to extract JSON from completion:', completion.content);
+        throw new Error('AI failed to generate a valid question format. Please try again.');
+    }
 
     const validTypes: QuestionType[] = ['single_choice', 'multi_choice', 'scale', 'open_ended', 'yes_no'];
     const type = validTypes.includes(parsed.type) ? parsed.type : 'open_ended';

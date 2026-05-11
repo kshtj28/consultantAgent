@@ -10,6 +10,7 @@ import {
   type ExtractedStep,
 } from '../prompts/multiSMEConsolidation.prompt';
 import { getBroadAreas, getBroadArea } from './domainService';
+import { extractJSON } from '../utils/jsonUtils';
 
 export interface AvailableProcess {
   processId: string;        // broad-area id (or "loan-origination" for the demo)
@@ -1334,10 +1335,10 @@ export async function generateUnifiedBPMN(consolidationId: string, targetState: 
         stepsToRender.map(s => ({ label: s.label, description: s.description }))
       );
       const res = await generateCompletion([
-        { role: 'system', content: 'You are a BPMN process architect. Return only valid JSON.' },
+        { role: 'system', content: 'You are a senior BPMN process architect. Your job is to analyze process steps and return a structured swimlane model in valid JSON. You MUST use ultra-short labels (2-4 words) for all nodes.' },
         { role: 'user', content: prompt },
-      ], { temperature: 0.2, maxTokens: 2000 });
-      const { extractJSON } = require('../utils/jsonUtils');
+      ], { temperature: 0.1, maxTokens: 2500 });
+      
       const model = extractJSON(res.content);
       if (model && model.nodes && model.flows) {
         const bpmnXml = buildSwimlaneXml(consolidation.processId, consolidation.processName, model);
