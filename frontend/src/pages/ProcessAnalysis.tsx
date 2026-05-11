@@ -910,8 +910,8 @@ export default function ProcessAnalysis() {
                     </p>
                 </div>
                 <button className="pa-badge-btn" onClick={handleStartNew}>
-                    <Users size={14} />
-                    {readinessSessions.length} {t('pa.myAssessments')}
+                    <Users size={16} />
+                    {t('pa.myAssessments')}
                 </button>
             </div>
 

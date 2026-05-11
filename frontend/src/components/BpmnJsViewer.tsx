@@ -107,6 +107,7 @@ export default function BpmnJsViewer({ xml }: BpmnJsViewerProps) {
   const viewerRef = useRef<NavigatedViewer | null>(null);
   const [zoom, setZoom] = useState(1);
   const [error, setError] = useState<string | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -154,6 +155,18 @@ export default function BpmnJsViewer({ xml }: BpmnJsViewerProps) {
   const handleZoomIn = () => { const c = getCanvas(); if (c) { c.zoom(zoom * 1.25); setZoom(c.zoom()); } };
   const handleZoomOut = () => { const c = getCanvas(); if (c) { c.zoom(zoom / 1.25); setZoom(c.zoom()); } };
   const handleFit = () => { const c = getCanvas(); if (c) { c.zoom('fit-viewport', 'center'); setZoom(c.zoom()); } };
+  const toggleFullscreen = () => setIsFullscreen(!isFullscreen);
+
+  // Close fullscreen on escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isFullscreen) {
+        setIsFullscreen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isFullscreen]);
 
   if (error) {
     return (
@@ -164,16 +177,31 @@ export default function BpmnJsViewer({ xml }: BpmnJsViewerProps) {
     );
   }
 
+  const wrapperStyle: React.CSSProperties = isFullscreen
+    ? {
+        position: 'fixed',
+        top: 0, left: 0, right: 0, bottom: 0,
+        zIndex: 9999,
+        background: 'var(--surface, #1e293b)',
+        display: 'flex', flexDirection: 'column',
+        padding: '20px',
+      }
+    : { display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' };
+
   return (
-    <div className="bpmn-js-wrapper" style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
+    <div className="bpmn-js-wrapper" style={wrapperStyle}>
       <div className="bpmn-js-toolbar">
         <button onClick={handleZoomIn} title="Zoom In"><ZoomIn size={14} /></button>
-        <button onClick={handleFit} title="Fit"><Maximize2 size={14} /></button>
+        <button onClick={handleFit} title="Fit to Screen"><Maximize2 size={14} /></button>
         <button onClick={handleZoomOut} title="Zoom Out"><ZoomOut size={14} /></button>
         <div className="bpmn-js-toolbar-sep" />
         <span className="bpmn-js-zoom-pct">{Math.round(zoom * 100)}%</span>
+        <div style={{ flex: 1 }} />
+        <button onClick={toggleFullscreen} title={isFullscreen ? "Close Fullscreen" : "Enlarge (Fullscreen)"} style={{ marginLeft: 'auto', background: isFullscreen ? 'var(--primary)' : 'transparent', color: isFullscreen ? 'white' : 'inherit' }}>
+          {isFullscreen ? 'Close Fullscreen' : 'Enlarge'}
+        </button>
       </div>
-      <div ref={containerRef} className="bpmn-js-container" style={{ flex: 1, overflow: 'hidden' }} />
+      <div ref={containerRef} className="bpmn-js-container" style={{ flex: 1, overflow: 'hidden', background: isFullscreen ? 'var(--surface-low, #0f172a)' : 'transparent', borderRadius: isFullscreen ? 8 : 0, border: isFullscreen ? '1px solid var(--border)' : 'none' }} />
     </div>
   );
 }
