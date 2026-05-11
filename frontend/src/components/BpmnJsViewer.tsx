@@ -101,14 +101,21 @@ function applyThemeColors(viewer: NavigatedViewer) {
   }
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
+// ── Internal Core Viewer ──────────────────────────────────────────────────────
 
-export default function BpmnJsViewer({ xml }: BpmnJsViewerProps) {
+function BpmnJsViewerInternal({ 
+  xml, 
+  isFullscreen = false, 
+  onToggleFullscreen 
+}: { 
+  xml: string; 
+  isFullscreen?: boolean; 
+  onToggleFullscreen: () => void;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<NavigatedViewer | null>(null);
   const [zoom, setZoom] = useState(1);
   const [error, setError] = useState<string | null>(null);
-  const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -116,14 +123,13 @@ export default function BpmnJsViewer({ xml }: BpmnJsViewerProps) {
     viewerRef.current = new NavigatedViewer({
       container: containerRef.current,
       keyboard: { bindTo: document },
-      // Disable mouse-wheel zoom in the diagram to avoid page-scrolling interference
-      zoomScroll: { enabled: false }
+      zoomScroll: { enabled: isFullscreen } // Only enable scroll in fullscreen
     });
 
     return () => {
       viewerRef.current?.destroy();
     };
-  }, []);
+  }, [isFullscreen]);
 
   useEffect(() => {
     if (!viewerRef.current || !xml) return;
@@ -154,32 +160,8 @@ export default function BpmnJsViewer({ xml }: BpmnJsViewerProps) {
   }, [xml]);
 
   const getCanvas = () => viewerRef.current?.get('canvas') as any;
-
   const handleZoomIn = () => { const c = getCanvas(); if (c) { c.zoom(zoom * 1.25); setZoom(c.zoom()); } };
   const handleZoomOut = () => { const c = getCanvas(); if (c) { c.zoom(zoom / 1.25); setZoom(c.zoom()); } };
-  const toggleFullscreen = () => {
-    const next = !isFullscreen;
-    setIsFullscreen(next);
-    
-    // Enable/disable scroll depending on mode
-    if (viewerRef.current) {
-      try {
-        const zoomScroll = viewerRef.current.get('zoomScroll') as any;
-        if (zoomScroll) zoomScroll.toggle(next);
-      } catch (e) {}
-    }
-  };
-
-  // Close fullscreen on escape key
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isFullscreen) {
-        toggleFullscreen();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isFullscreen]);
 
   if (error) {
     return (
@@ -190,33 +172,32 @@ export default function BpmnJsViewer({ xml }: BpmnJsViewerProps) {
     );
   }
 
-  const wrapperStyle: React.CSSProperties = {
-    position: 'fixed',
-    top: 0, left: 0, right: 0, bottom: 0,
-    zIndex: 99999,
-    background: 'rgba(15, 23, 42, 0.95)',
-    backdropFilter: 'blur(12px)',
-    display: 'flex', 
-    flexDirection: 'column',
-    padding: '40px',
-  };
+  const wrapperStyle: React.CSSProperties = isFullscreen
+    ? {
+        position: 'fixed',
+        top: 0, left: 0, right: 0, bottom: 0,
+        zIndex: 99999,
+        background: 'rgba(15, 23, 42, 0.98)',
+        backdropFilter: 'blur(16px)',
+        display: 'flex', 
+        flexDirection: 'column',
+        padding: '30px',
+      }
+    : { position: 'relative', height: '100%', display: 'flex', flexDirection: 'column' };
 
-  const content = (
-    <div 
-      className={`bpmn-js-wrapper ${isFullscreen ? 'bpmn-js-wrapper--fullscreen' : ''}`} 
-      style={isFullscreen ? wrapperStyle : { position: 'relative', height: '100%', display: 'flex', flexDirection: 'column' }}
-    >
-      <div className="bpmn-js-toolbar" style={isFullscreen ? { bottom: 'auto', top: 60, right: 60, scale: '1.2' } : {}}>
+  return (
+    <div className={`bpmn-js-wrapper ${isFullscreen ? 'bpmn-js-wrapper--fullscreen' : ''}`} style={wrapperStyle}>
+      <div className="bpmn-js-toolbar" style={isFullscreen ? { bottom: '40px', right: '40px', padding: '8px 12px' } : {}}>
         <button onClick={handleZoomIn} title="Zoom In"><ZoomIn size={14} /></button>
-        <button onClick={toggleFullscreen} title={isFullscreen ? "Close Fullscreen" : "Enlarge to Fullscreen"}>
-          {isFullscreen ? <X size={14} /> : <Maximize2 size={14} />}
+        <button onClick={onToggleFullscreen} title={isFullscreen ? "Close" : "Enlarge"}>
+          {isFullscreen ? <X size={16} /> : <Maximize2 size={14} />}
         </button>
         <button onClick={handleZoomOut} title="Zoom Out"><ZoomOut size={14} /></button>
         <div className="bpmn-js-toolbar-sep" />
         <span className="bpmn-js-zoom-pct">{Math.round(zoom * 100)}%</span>
         {!isFullscreen && (
           <span style={{ fontSize: '0.65rem', color: '#475569', marginLeft: 8, opacity: 0.7 }}>
-            (Click enlarge to scroll)
+            (Enlarge to scroll)
           </span>
         )}
       </div>
@@ -226,22 +207,51 @@ export default function BpmnJsViewer({ xml }: BpmnJsViewerProps) {
         style={{ 
           flex: 1, 
           overflow: 'hidden', 
-          background: isFullscreen ? 'transparent' : 'transparent',
+          background: 'transparent',
           borderRadius: isFullscreen ? 12 : 0,
           border: isFullscreen ? '1px solid rgba(255,255,255,0.1)' : 'none'
         }} 
       />
       {isFullscreen && (
-        <div style={{ position: 'absolute', top: 20, left: 40, color: 'white', opacity: 0.8, fontSize: '0.9rem', fontWeight: 600 }}>
-          {isFullscreen ? 'Full Process View' : ''}
+        <div style={{ position: 'absolute', top: 20, left: 30, color: 'white', opacity: 0.9, fontSize: '1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#3b82f6' }} />
+          Full Process Visualization
         </div>
       )}
     </div>
   );
+}
 
-  if (isFullscreen) {
-    return createPortal(content, document.body);
-  }
+// ── Main Export ───────────────────────────────────────────────────────────────
 
-  return content;
+export default function BpmnJsViewer({ xml }: BpmnJsViewerProps) {
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Close on Escape
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isFullscreen) setIsFullscreen(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isFullscreen]);
+
+  return (
+    <>
+      <BpmnJsViewerInternal 
+        xml={xml} 
+        isFullscreen={false} 
+        onToggleFullscreen={() => setIsFullscreen(true)} 
+      />
+
+      {isFullscreen && createPortal(
+        <BpmnJsViewerInternal 
+          xml={xml} 
+          isFullscreen={true} 
+          onToggleFullscreen={() => setIsFullscreen(false)} 
+        />,
+        document.body
+      )}
+    </>
+  );
 }
