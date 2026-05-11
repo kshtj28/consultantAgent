@@ -310,7 +310,7 @@ async function runMetricsComputation(): Promise<{ success: boolean }> {
  * ready broad_area report. This is what the `GET /api/dashboard/banking-kpis`
  * endpoint reads — without this, the banking dashboard always shows empty.
  */
-async function runBankingKpiExtraction(input: {
+export async function runBankingKpiExtraction(input: {
   areaReports: any[];
   session: any;
 }): Promise<{ success: boolean }> {
