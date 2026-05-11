@@ -74,9 +74,9 @@ export type InterviewDepth = 'quick' | 'standard' | 'deep';
 export type CategoryId = string;
 
 export const DEPTH_THRESHOLDS: Record<InterviewDepth, number> = {
-    quick: 2,
-    standard: 3,
-    deep: 5,
+    quick: 3,
+    standard: 6,
+    deep: 10,
 };
 
 export interface GeneratedInterviewQuestion {

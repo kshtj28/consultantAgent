@@ -71,6 +71,7 @@ export default function ProcessAnalysis() {
     const [progress, setProgress] = useState<BroadAreaProgressInfo[]>([]);
     const [currentQuestion, setCurrentQuestion] = useState<GeneratedQuestion | null>(null);
     const [answer, setAnswer] = useState<string | string[] | number>('');
+    const [customDetails, setCustomDetails] = useState('');
     const [chatHistory, setChatHistory] = useState<{
         question: GeneratedQuestion;
         answer: string | string[] | number;
@@ -272,11 +273,18 @@ export default function ProcessAnalysis() {
             setError(null);
             setVagueWarning(null);
             setLatestSufficiency(null);
-            const submittedAnswer = answer;
+            
+            // Combine structured answer with custom details
+            let finalAnswer = answer;
+            if (customDetails.trim()) {
+                const structuredStr = Array.isArray(answer) ? answer.join(', ') : (answer ? String(answer) : '');
+                finalAnswer = structuredStr ? `${structuredStr}. Additional details: ${customDetails}` : customDetails;
+            }
+
             const res = await submitInterviewAnswer(sessionId, {
                 questionId: currentQuestion.id,
                 question: currentQuestion.text || (currentQuestion as any).question,
-                answer,
+                answer: finalAnswer,
                 type: currentQuestion.type || 'open_ended',
                 mode: currentQuestion.mode,
                 subAreaId: currentQuestion.areaId || (currentQuestion as any).categoryId || '',
@@ -287,7 +295,7 @@ export default function ProcessAnalysis() {
             const submittedSufficiency: SufficiencyAssessment | undefined = res.sufficiency;
             setChatHistory(prev => [...prev, {
                 question: currentQuestion,
-                answer: submittedAnswer,
+                answer: finalAnswer,
                 sufficiency: submittedSufficiency,
             }]);
             setLatestSufficiency(submittedSufficiency ?? null);
@@ -295,6 +303,7 @@ export default function ProcessAnalysis() {
             if (res.readinessScore !== undefined) setReadinessScore(res.readinessScore);
             if (res.vagueWarning) setVagueWarning(res.vagueWarning);
             setAnswer('');
+            setCustomDetails('');
             setPendingAttachments([]);
             if (res.completed) {
                 // Auto-complete: backend reports all sub-areas covered.
@@ -729,83 +738,94 @@ export default function ProcessAnalysis() {
                                     </div>
 
                                     <div className="pa-chat-input-area">
-                                        {currentQuestion.type === 'open_ended' && (
-                                            <div style={{ position: 'relative' }}>
-                                                <textarea
-                                                    className="pa-textarea"
-                                                    value={answer as string}
-                                                    onChange={(e) => setAnswer(e.target.value)}
-                                                    placeholder={t('pa.typeAnswer')}
-                                                    rows={4}
-                                                    style={{ paddingRight: '2.5rem' }}
-                                                />
-                                                <div style={{ position: 'absolute', right: '0.5rem', top: '0.5rem' }}>
-                                                    <VoiceInputButton
-                                                        onTranscript={(t) => setAnswer((prev) => {
-                                                            const current = typeof prev === 'string' ? prev : '';
-                                                            return current ? `${current} ${t}` : t;
-                                                        })}
-                                                    />
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {currentQuestion.type === 'yes_no' && (
-                                            <div className="pa-options">
-                                                {['Yes', 'No'].map((opt) => (
-                                                    <label key={opt} className={`pa-option ${answer === opt ? 'pa-option--selected' : ''}`}>
-                                                        <input type="radio" name="yn" value={opt} checked={answer === opt} onChange={() => setAnswer(opt)} />
-                                                        {opt}
-                                                    </label>
-                                                ))}
-                                            </div>
-                                        )}
-
-                                        {currentQuestion.type === 'single_choice' && currentQuestion.options && (
-                                            <div className="pa-options">
-                                                {currentQuestion.options.map((opt) => (
-                                                    <label key={opt} className={`pa-option ${answer === opt ? 'pa-option--selected' : ''}`}>
-                                                        <input type="radio" name="sc" value={opt} checked={answer === opt} onChange={() => setAnswer(opt)} />
-                                                        {opt}
-                                                    </label>
-                                                ))}
-                                            </div>
-                                        )}
-
-                                        {currentQuestion.type === 'multi_choice' && currentQuestion.options && (
-                                            <div className="pa-options">
-                                                {currentQuestion.options.map((opt) => {
-                                                    const selected = Array.isArray(answer) && answer.includes(opt);
-                                                    return (
-                                                        <label key={opt} className={`pa-option ${selected ? 'pa-option--selected' : ''}`}>
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={selected}
-                                                                onChange={() => {
-                                                                    const arr = Array.isArray(answer) ? answer : [];
-                                                                    setAnswer(selected ? arr.filter((x) => x !== opt) : [...arr, opt]);
-                                                                }}
-                                                            />
+                                        {/* Structured Options (if any) */}
+                                        <div style={{ marginBottom: '1rem' }}>
+                                            {currentQuestion.type === 'yes_no' && (
+                                                <div className="pa-options">
+                                                    {['Yes', 'No'].map((opt) => (
+                                                        <label key={opt} className={`pa-option ${answer === opt ? 'pa-option--selected' : ''}`}>
+                                                            <input type="radio" name="yn" value={opt} checked={answer === opt} onChange={() => setAnswer(opt)} />
                                                             {opt}
                                                         </label>
-                                                    );
-                                                })}
-                                            </div>
-                                        )}
+                                                    ))}
+                                                </div>
+                                            )}
 
-                                        {currentQuestion.type === 'scale' && (
-                                            <div className="pa-scale">
-                                                {[1, 2, 3, 4, 5].map((n) => (
-                                                    <button
-                                                        key={n}
-                                                        className={`pa-scale-btn ${answer === n ? 'pa-scale-btn--selected' : ''}`}
-                                                        onClick={() => setAnswer(n)}
-                                                    >
-                                                        {n}
-                                                    </button>
-                                                ))}
+                                            {currentQuestion.type === 'single_choice' && currentQuestion.options && (
+                                                <div className="pa-options">
+                                                    {currentQuestion.options.map((opt) => (
+                                                        <label key={opt} className={`pa-option ${answer === opt ? 'pa-option--selected' : ''}`}>
+                                                            <input type="radio" name="sc" value={opt} checked={answer === opt} onChange={() => setAnswer(opt)} />
+                                                            {opt}
+                                                        </label>
+                                                    ))}
+                                                </div>
+                                            )}
+
+                                            {currentQuestion.type === 'multi_choice' && currentQuestion.options && (
+                                                <div className="pa-options">
+                                                    {currentQuestion.options.map((opt) => {
+                                                        const selected = Array.isArray(answer) && answer.includes(opt);
+                                                        return (
+                                                            <label key={opt} className={`pa-option ${selected ? 'pa-option--selected' : ''}`}>
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={selected}
+                                                                    onChange={() => {
+                                                                        const arr = Array.isArray(answer) ? answer : [];
+                                                                        setAnswer(selected ? arr.filter((x) => x !== opt) : [...arr, opt]);
+                                                                    }}
+                                                                />
+                                                                {opt}
+                                                            </label>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+
+                                            {currentQuestion.type === 'scale' && (
+                                                <div className="pa-scale">
+                                                    {[1, 2, 3, 4, 5].map((n) => (
+                                                        <button
+                                                            key={n}
+                                                            className={`pa-scale-btn ${answer === n ? 'pa-scale-btn--selected' : ''}`}
+                                                            onClick={() => setAnswer(n)}
+                                                        >
+                                                            {n}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Main Narrative Input / Additional Details */}
+                                        <div style={{ position: 'relative' }}>
+                                            <textarea
+                                                className="pa-textarea"
+                                                value={currentQuestion.type === 'open_ended' ? (answer as string) : customDetails}
+                                                onChange={(e) => {
+                                                    if (currentQuestion.type === 'open_ended') {
+                                                        setAnswer(e.target.value);
+                                                    } else {
+                                                        setCustomDetails(e.target.value);
+                                                    }
+                                                }}
+                                                placeholder={currentQuestion.type === 'open_ended' ? t('pa.typeAnswer') : 'Add more details or custom answer...'}
+                                                rows={currentQuestion.type === 'open_ended' ? 4 : 2}
+                                                style={{ paddingRight: '2.5rem' }}
+                                            />
+                                            <div style={{ position: 'absolute', right: '0.5rem', top: '0.5rem' }}>
+                                                <VoiceInputButton
+                                                    onTranscript={(t) => {
+                                                        const setter = currentQuestion.type === 'open_ended' ? setAnswer : setCustomDetails;
+                                                        setter((prev: any) => {
+                                                            const current = typeof prev === 'string' ? prev : '';
+                                                            return current ? `${current} ${t}` : t;
+                                                        });
+                                                    }}
+                                                />
                                             </div>
-                                        )}
+                                        </div>
 
                                         {/* Attached files for this answer (shown above the actions row) */}
                                         {pendingAttachments.length > 0 && (
@@ -839,7 +859,7 @@ export default function ProcessAnalysis() {
                                             <button
                                                 className="pa-btn pa-btn--primary"
                                                 onClick={handleSubmitAnswer}
-                                                disabled={!answer || submitLoading || attachUploading}
+                                                disabled={(!answer && !customDetails.trim()) || submitLoading || attachUploading}
                                             >
                                                 {submitLoading ? <Loader size={16} className="spin" /> : t('pa.submitAnswer')}
                                             </button>

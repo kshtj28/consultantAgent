@@ -11,24 +11,24 @@ interface BpmnJsViewerProps {
 // ── Type-specific colors ──────────────────────────────────────────────────────
 
 const SHAPE_COLORS: Record<string, { fill: string; stroke: string; sw?: string }> = {
-  'bpmn:StartEvent':             { fill: '#064e3b', stroke: '#10b981', sw: '2.5' },
-  'bpmn:EndEvent':               { fill: '#7f1d1d', stroke: '#f87171', sw: '3' },
-  'bpmn:Task':                   { fill: '#1e3a5f', stroke: '#3b82f6' },
-  'bpmn:UserTask':               { fill: '#2d1b69', stroke: '#8b5cf6' },
-  'bpmn:ServiceTask':            { fill: '#0c4a6e', stroke: '#38bdf8' },
-  'bpmn:ManualTask':             { fill: '#1e293b', stroke: '#64748b' },
-  'bpmn:SendTask':               { fill: '#0c4a6e', stroke: '#38bdf8' },
-  'bpmn:ReceiveTask':            { fill: '#0c4a6e', stroke: '#38bdf8' },
-  'bpmn:ScriptTask':             { fill: '#1c1917', stroke: '#78716c' },
-  'bpmn:ExclusiveGateway':       { fill: '#451a03', stroke: '#f59e0b', sw: '2' },
-  'bpmn:ParallelGateway':        { fill: '#042f2e', stroke: '#14b8a6', sw: '2' },
-  'bpmn:InclusiveGateway':       { fill: '#3b0764', stroke: '#a855f7', sw: '2' },
+  'bpmn:StartEvent': { fill: '#064e3b', stroke: '#10b981', sw: '2.5' },
+  'bpmn:EndEvent': { fill: '#7f1d1d', stroke: '#f87171', sw: '3' },
+  'bpmn:Task': { fill: '#1e3a5f', stroke: '#3b82f6' },
+  'bpmn:UserTask': { fill: '#2d1b69', stroke: '#8b5cf6' },
+  'bpmn:ServiceTask': { fill: '#0c4a6e', stroke: '#38bdf8' },
+  'bpmn:ManualTask': { fill: '#1e293b', stroke: '#64748b' },
+  'bpmn:SendTask': { fill: '#0c4a6e', stroke: '#38bdf8' },
+  'bpmn:ReceiveTask': { fill: '#0c4a6e', stroke: '#38bdf8' },
+  'bpmn:ScriptTask': { fill: '#1c1917', stroke: '#78716c' },
+  'bpmn:ExclusiveGateway': { fill: '#451a03', stroke: '#f59e0b', sw: '2' },
+  'bpmn:ParallelGateway': { fill: '#042f2e', stroke: '#14b8a6', sw: '2' },
+  'bpmn:InclusiveGateway': { fill: '#3b0764', stroke: '#a855f7', sw: '2' },
   'bpmn:IntermediateCatchEvent': { fill: '#1e3a5f', stroke: '#60a5fa' },
   'bpmn:IntermediateThrowEvent': { fill: '#1e3a5f', stroke: '#60a5fa' },
-  'bpmn:SubProcess':             { fill: '#0f172a', stroke: '#334155' },
-  'bpmn:CallActivity':           { fill: '#1e3a5f', stroke: '#3b82f6', sw: '3' },
-  'bpmn:Participant':            { fill: '#0f172a', stroke: '#334155' },
-  'bpmn:Lane':                   { fill: 'none', stroke: '#334155' },
+  'bpmn:SubProcess': { fill: '#0f172a', stroke: '#334155' },
+  'bpmn:CallActivity': { fill: '#1e3a5f', stroke: '#3b82f6', sw: '3' },
+  'bpmn:Participant': { fill: '#0f172a', stroke: '#334155' },
+  'bpmn:Lane': { fill: 'none', stroke: '#334155' },
 };
 
 function applyThemeColors(viewer: NavigatedViewer) {
@@ -103,13 +103,13 @@ function applyThemeColors(viewer: NavigatedViewer) {
 
 // ── Internal Core Viewer ──────────────────────────────────────────────────────
 
-function BpmnJsViewerInternal({ 
-  xml, 
-  isFullscreen = false, 
-  onToggleFullscreen 
-}: { 
-  xml: string; 
-  isFullscreen?: boolean; 
+function BpmnJsViewerInternal({
+  xml,
+  isFullscreen = false,
+  onToggleFullscreen
+}: {
+  xml: string;
+  isFullscreen?: boolean;
   onToggleFullscreen: () => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -174,15 +174,15 @@ function BpmnJsViewerInternal({
 
   const wrapperStyle: React.CSSProperties = isFullscreen
     ? {
-        position: 'fixed',
-        top: 0, left: 0, right: 0, bottom: 0,
-        zIndex: 99999,
-        background: 'rgba(15, 23, 42, 0.98)',
-        backdropFilter: 'blur(16px)',
-        display: 'flex', 
-        flexDirection: 'column',
-        padding: '30px',
-      }
+      position: 'fixed',
+      top: 0, left: 0, right: 0, bottom: 0,
+      zIndex: 99999,
+      background: 'rgba(15, 23, 42, 0.98)',
+      backdropFilter: 'blur(16px)',
+      display: 'flex',
+      flexDirection: 'column',
+      padding: '30px',
+    }
     : { position: 'relative', height: '100%', display: 'flex', flexDirection: 'column' };
 
   return (
@@ -201,16 +201,16 @@ function BpmnJsViewerInternal({
           </span>
         )}
       </div>
-      <div 
-        ref={containerRef} 
-        className="bpmn-js-container" 
-        style={{ 
-          flex: 1, 
-          overflow: 'hidden', 
+      <div
+        ref={containerRef}
+        className="bpmn-js-container"
+        style={{
+          flex: 1,
+          overflow: 'hidden',
           background: 'transparent',
           borderRadius: isFullscreen ? 12 : 0,
           border: isFullscreen ? '1px solid rgba(255,255,255,0.1)' : 'none'
-        }} 
+        }}
       />
       {isFullscreen && (
         <div style={{ position: 'absolute', top: 20, left: 30, color: 'white', opacity: 0.9, fontSize: '1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -238,17 +238,17 @@ export default function BpmnJsViewer({ xml }: BpmnJsViewerProps) {
 
   return (
     <>
-      <BpmnJsViewerInternal 
-        xml={xml} 
-        isFullscreen={false} 
-        onToggleFullscreen={() => setIsFullscreen(true)} 
+      <BpmnJsViewerInternal
+        xml={xml}
+        isFullscreen={false}
+        onToggleFullscreen={() => setIsFullscreen(true)}
       />
 
       {isFullscreen && createPortal(
-        <BpmnJsViewerInternal 
-          xml={xml} 
-          isFullscreen={true} 
-          onToggleFullscreen={() => setIsFullscreen(false)} 
+        <BpmnJsViewerInternal
+          xml={xml}
+          isFullscreen={true}
+          onToggleFullscreen={() => setIsFullscreen(false)}
         />,
         document.body
       )}
