@@ -113,5 +113,60 @@ Return ONLY a valid JSON object following this schema:
   "lanes": [{ "id": "string", "name": "string", "color": "hex" }],
   "nodes": [{ "id": "string", "type": "startEvent|endEvent|userTask|serviceTask|manualTask|exclusiveGateway", "label": "2-4 words", "lane": "laneId", "durationDays": number }],
   "flows": [{ "id": "string", "from": "nodeId", "to": "nodeId", "label": "Yes|No|optional" }]
+}
+`;
+}
+
+/**
+ * Prompt for reimagining an AS-IS process as a high-efficiency, AI-driven TO-BE process.
+ * Focuses on replacing manual steps with AI agents and service tasks.
+ */
+export function buildToBeModelPrompt(processName: string, asIsSteps: Array<{ label: string; description: string }>): string {
+  const stepsBlock = asIsSteps.map((s, i) => `${i + 1}. ${s.label}: ${s.description}`).join('\n');
+
+  return `You are a senior Strategy and AI Transformation Architect. Your task is to reimagine the AS-IS process for "${processName}" as a high-efficiency, AI-first TO-BE target state.
+
+## AS-IS PROCESS DATA
+${stepsBlock}
+
+## TO-BE TRANSFORMATION GOALS
+1. AI ADOPTION: Replace manual data entry, validation, and routine document review with "AI Agents" (serviceTasks).
+2. STEP ELIMINATION: Remove redundant handoffs and administrative bottlenecks.
+3. SWIMLANES: Use lanes: "Customer", "AI Agent", "Analyst/Manager", "System/IT", "Compliance".
+4. ULTRA-SHORT LABELS: Use 2-4 word labels only. (e.g., "AI Validates Data").
+5. DURATION: Significantly reduce durationDays for automated tasks (should be 0 or <0.1).
+
+Return ONLY a valid JSON object following this schema:
+{
+  "lanes": [{ "id": "string", "name": "string", "color": "hex" }],
+  "nodes": [{ "id": "string", "type": "startEvent|endEvent|userTask|serviceTask|manualTask|exclusiveGateway", "label": "2-4 words", "lane": "laneId", "durationDays": number }],
+  "flows": [{ "id": "string", "from": "nodeId", "to": "nodeId", "label": "Yes|No|optional" }]
+}
+`;
+}
+
+/**
+ * Prompt for analyzing gaps and estimating savings between AS-IS and TO-BE states.
+ */
+export function buildProcessAnalysisPrompt(processName: string, asIsModel: any, toBeModel: any): string {
+  return `Compare these two BPMN models for "${processName}" and identify critical issues and quantified benefits.
+
+AS-IS MODEL: ${JSON.stringify(asIsModel)}
+TO-BE MODEL: ${JSON.stringify(toBeModel)}
+
+Identify 4-6 critical issues in the AS-IS process and estimate savings (Time, Cost, Efficiency) for the TO-BE state.
+
+Return ONLY valid JSON:
+{
+  "issues": [
+    { "id": "string", "title": "string", "description": "string", "severity": "high|medium|low", "category": "efficiency|cost|risk|automation", "impact": "string" }
+  ],
+  "metrics": {
+    "timeSavings": { "asis": "string", "tobe": "string", "reduction": "string", "detail": "string" },
+    "costReduction": { "percentage": "string", "detail": "string" },
+    "efficiencyGain": { "percentage": "string", "detail": "string" },
+    "automationRate": { "asis": "string", "tobe": "string", "detail": "string" }
+  }
 }`;
 }
+

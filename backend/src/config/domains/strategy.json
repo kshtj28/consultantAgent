@@ -1,0 +1,149 @@
+{
+  "id": "strategy",
+  "name": "Corporate Strategy",
+  "description": "Corporate Strategy, PMO, and Transformation Management for banking and enterprise institutions. Covers strategy development, KPI cascading, portfolio management, and process re-engineering.",
+  "persona": "You are a senior Strategy Consultant and Transformation Architect with 18 years of experience in Corporate Strategy, EPMO, and Process Excellence within the banking sector. You specialize in the Saudi Arabian market, with deep knowledge of SAMA and Vision 2030 strategic objectives. You have led strategy refreshes for major Saudi banks, cascading KPIs from the board level to divisional units. You are an expert in Balanced Scorecard methodologies, OKRs, and Enterprise Portfolio Management (EPMO). You also specialize in 'Workflow Intelligence' — mapping complex AS-IS processes to identify bottlenecks and designing automated TO-BE target states using technologies like AI and BPM. You benchmark maturity against industry frameworks like APQC, BSC Institute, and PMI standards.",
+  "broadAreas": [
+    {
+      "id": "strategy_development",
+      "name": "Strategy Development & Refresh",
+      "icon": "compass",
+      "description": "Market research, vision/mission setting, and alignment with senior leadership for strategy revamping",
+      "order": 1,
+      "subAreas": [
+        {
+          "id": "market_research",
+          "name": "Market Research & Analysis",
+          "icon": "search",
+          "description": "Investigating bank status, benchmarking, and market research for strategic direction",
+          "order": 1,
+          "basePrompt": "Ask about how the bank conducts market research and benchmarking — what sources are used (Gartner, McKinsey reports, SAMA bulletins), how internal performance is investigated relative to competitors, how offsites with senior levels are organized to gather strategic directions, and how the current vision/mission is reviewed against external market trends.",
+          "benchmarks": {
+            "maturity_1": "Ad-hoc research using public news; no formal benchmarking; vision/mission rarely reviewed; senior meetings have no structured strategic output",
+            "maturity_2": "Occasional use of paid research reports; basic SWOT analysis conducted annually; vision/mission reviewed every 5 years; offsites produce high-level goals but no detailed roadmaps",
+            "maturity_3": "Dedicated strategy team conducts quarterly market scans and peer benchmarking; structured offsites with defined outputs; vision/mission refresh follows a standard 3-year cycle with stakeholder alignment",
+            "maturity_4": "Continuous market intelligence feed; real-time competitor tracking; strategy refresh involves deep AI-driven data analysis; vision/mission alignment is validated through employee and customer sentiment analysis",
+            "maturity_5": "Hyper-agile strategy development where direction is adjusted based on real-time macro and micro-economic shifts; full alignment across all levels; vision/mission is living and breathes through every strategic initiative"
+          }
+        },
+        {
+          "id": "strategy_alignment",
+          "name": "Alignment & Approvals",
+          "icon": "users",
+          "description": "Securing buy-in and formal approvals for refreshed strategy from committees and board",
+          "order": 2,
+          "basePrompt": "Ask about the approval process for new strategies — how alignment sessions are conducted with business unit heads, how feedback is integrated, the role of the T&I (Transformation & Innovation) Committee, and how board approvals are secured for the 3-5 year plan.",
+          "benchmarks": {
+            "maturity_1": "Strategy is dictated from the top with no alignment sessions; approvals are informal; board review is a formality",
+            "maturity_2": "Alignment sessions are conducted but feedback is rarely integrated; approval process is lengthy and document-heavy; board receives strategy only once a year",
+            "maturity_3": "Structured alignment sessions with all N-1 and N-2 heads; formal T&I Committee review before board presentation; approvals are tracked and documented",
+            "maturity_4": "Collaborative digital alignment platforms; real-time feedback loops during strategy formulation; T&I Committee acts as an active steering body; board has visibility into draft strategy",
+            "maturity_5": "Dynamic alignment where strategy is co-created with business units; board-level digital twin of the strategy allows for scenario testing before final approval; frictionless approval workflow"
+          }
+        }
+      ]
+    },
+    {
+      "id": "epmo_kpi",
+      "name": "Portfolio Management & KPI Cascading",
+      "icon": "layers",
+      "description": "Cascading bank-level KPIs to divisions and managing the enterprise initiative portfolio",
+      "order": 2,
+      "subAreas": [
+        {
+          "id": "kpi_cascading",
+          "name": "KPI Cascading & Benefit Tracking",
+          "icon": "activity",
+          "description": "Linking Bank-level KPIs to Group and Division targets; tracking benefit realization",
+          "order": 1,
+          "basePrompt": "Ask about how the bank cascades its top-level KPIs to N-1 (Groups) and N-2 (Divisions) — how the linkage is established, how benefit realization is tracked (financial vs non-financial), and how often KPI trends are reviewed to decide on re-prioritization.",
+          "benchmarks": {
+            "maturity_1": "KPIs exist only at the bank level; divisions have different, unlinked metrics; tracking is manual and annually reviewed; benefit realization is not measured",
+            "maturity_2": "Top-level KPIs are manually cascaded in Excel; tracking happens quarterly but is not linked to project outcomes; basic financial benefits are measured after project completion",
+            "maturity_3": "Structured cascading using Balanced Scorecard; all N-1 and N-2 units have linked KPIs; monthly reporting to T&I Committee; benefit tracking starts from project inception",
+            "maturity_4": "Automated KPI dashboarding with real-time drill-down from bank to team level; automated benefit realization tracking linked to budget consumption; monthly re-prioritization based on trend data",
+            "maturity_5": "Real-time KPI synchronization across the enterprise; predictive analytics forecast KPI misses and suggest early interventions; benefit realization is live and directly impacts strategic budget allocation"
+          }
+        },
+        {
+          "id": "initiative_approval",
+          "name": "Change Control & Initiative Approvals",
+          "icon": "check-circle",
+          "description": "The process for approving new initiatives, budget control, and change requests",
+          "order": 2,
+          "basePrompt": "Ask about the workflow for approving new initiatives — how business cases are submitted, the criteria for selection (ROI, strategic fit, risk), how budget is controlled via the Strategy Budget, and how change requests for existing projects are managed.",
+          "benchmarks": {
+            "maturity_1": "Initiatives approved based on department influence; no formal business case; budget is fragmented across teams; change requests are handled verbally",
+            "maturity_2": "Standard business case template exists; annual budgeting cycle with limited mid-year flexibility; change requests require committee review but lack data-driven criteria",
+            "maturity_3": "Centralized PMO reviews all business cases against a scoring matrix; Strategy Budget is controlled by Corporate Strategy; formal change control board (CCB) process in place",
+            "maturity_4": "Digital initiative intake portal with automated ROI calculation; dynamic budget reallocation; change requests are assessed for impact on overall portfolio KPIs before approval",
+            "maturity_5": "AI-prioritized portfolio where initiatives are auto-scored based on live market and internal data; budget flows dynamically to highest-impact areas; self-correcting portfolio with automated change triggers"
+          }
+        }
+      ]
+    },
+    {
+      "id": "workflow_intelligence",
+      "name": "Workflow Intelligence & Process Re-eng",
+      "icon": "cpu",
+      "description": "Process discovery, inventory, mapping, and AS-IS vs TO-BE analysis",
+      "order": 3,
+      "subAreas": [
+        {
+          "id": "process_inventory",
+          "name": "Process Inventory & Discovery",
+          "icon": "clipboard",
+          "description": "Mapping the process inventory across Treasury, Retail, and Corporate banking",
+          "order": 1,
+          "basePrompt": "Ask about how the bank creates and maintains its process inventory — how processes are categorized (core vs support), which divisions are prioritized (Treasury, Retail, Corporate), and how process owners are engaged for discovery sessions.",
+          "benchmarks": {
+            "maturity_1": "No central process inventory; processes are known only by the people doing them; discovery is done via ad-hoc interviews when issues arise",
+            "maturity_2": "Static process inventory list in Excel; basic categorization into departments; discovery sessions are inconsistent across divisions",
+            "maturity_3": "Centralized process repository (BPM tool); full inventory for core groups (Retail, Corporate, Treasury); standard discovery methodology with process owner sign-off",
+            "maturity_4": "Automated process discovery using task mining and logs; hierarchical process maps linked to KPI performance; continuous inventory updates",
+            "maturity_5": "Dynamic Process Digital Twin; real-time visibility into all banking workflows; inventory is automatically updated as systems change; automated identification of orphan or redundant processes"
+          }
+        },
+        {
+          "id": "process_analysis",
+          "name": "AS-IS vs TO-BE Analysis",
+          "icon": "git-pull-request",
+          "description": "Analyzing bottlenecks, waste, and designing automated target states with AI adoption",
+          "order": 2,
+          "basePrompt": "Ask about the methodology for analyzing AS-IS processes — how bottlenecks and waste are identified, how the 'savings' (time, cost, FTE) are calculated for TO-BE designs, and how new technologies like AI are introduced into the target state maps.",
+          "benchmarks": {
+            "maturity_1": "Analysis is qualitative only; no clear distinction between AS-IS and TO-BE; 'savings' are not quantified; technology adoption is an afterthought",
+            "maturity_2": "Bottlenecks identified through manual observation; simple time-saving estimates provided for TO-BE; basic automation (RPA) included in redesigns",
+            "maturity_3": "Data-driven bottleneck analysis (Cycle time, throughput); quantified business case for TO-BE state (ROI, FTE saving); standard process re-engineering toolkit (Six Sigma, Lean) applied",
+            "maturity_4": "Simulation of TO-BE processes to validate savings before implementation; AI-first design principles where agents handle low-complexity tasks; automated bottleneck detection via process mining",
+            "maturity_5": "Self-optimizing processes where target states are continuously refined based on execution data; AI agents autonomously handle exceptions; savings are tracked and realized in real-time against the business case"
+          }
+        }
+      ]
+    },
+    {
+      "id": "strategic_support",
+      "name": "Support Functions & Data Intelligence",
+      "icon": "info",
+      "description": "Data intelligence, research reviews, and workflow support intelligence",
+      "order": 4,
+      "subAreas": [
+        {
+          "id": "data_intelligence",
+          "name": "Data Intelligence & AI Trends",
+          "icon": "database",
+          "description": "Reviewing insights, cutting-edge technologies, and providing executive insights",
+          "order": 1,
+          "basePrompt": "Ask about the Data Intelligence function — how insights from within the bank are reviewed and compared against the exterior environment, how cutting-edge subjects (AI, Blockchain) are tracked, and how insights are provided to the T&I Committee and Board.",
+          "benchmarks": {
+            "maturity_1": "Informal news tracking; no structured reports for the board; data intelligence is reactive",
+            "maturity_2": "Regular newsletters on banking trends; periodic data reports; awareness of AI but no formal evaluation for strategic fit",
+            "maturity_3": "Structured data intelligence team; quarterly external-vs-internal benchmark reports; formal evaluation of 2-3 emerging technologies annually",
+            "maturity_4": "AI-powered trend scouting; automated insight dashboards for senior leadership; proactive recommendations on technology adoption based on competitor analysis",
+            "maturity_5": "Integrated strategic foresight function; predictive models identify market shifts before they occur; board receives real-time intelligence briefings with actionable strategic options"
+          }
+        }
+      ]
+    }
+  ]
+}

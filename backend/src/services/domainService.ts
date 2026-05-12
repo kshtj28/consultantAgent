@@ -47,7 +47,7 @@ export type DomainArea = SubArea;
 export type DomainInterviewCategory = { id: string; name: string; order: number; description: string };
 
 // Available domain IDs
-export type DomainId = 'finance' | 'hr' | 'supplychain' | 'construction' | 'manufacturing' | 'banking';
+export type DomainId = 'finance' | 'hr' | 'supplychain' | 'construction' | 'manufacturing' | 'banking' | 'strategy';
 
 // Cache loaded domain configs
 const domainCache: Map<string, DomainConfig> = new Map();
@@ -232,7 +232,7 @@ export function getAreaBenchmarks(areaId: string): SubArea['benchmarks'] | null 
  * Get list of available domains
  */
 export function getAvailableDomains(): { id: DomainId; name: string; description: string }[] {
-    const domainIds: DomainId[] = ['finance', 'hr', 'supplychain', 'construction', 'manufacturing', 'banking'];
+    const domainIds: DomainId[] = ['finance', 'hr', 'supplychain', 'construction', 'manufacturing', 'banking', 'strategy'];
 
     return domainIds.map(id => {
         try {

@@ -1305,7 +1305,7 @@ export async function inviteSMEToConsolidation(
   return consolidation;
 }
 
-export async function generateUnifiedBPMN(consolidationId: string, targetState: boolean = false): Promise<{ bpmnXml: string; note: string } | null> {
+export async function generateUnifiedBPMN(consolidationId: string, targetState: boolean = false): Promise<{ bpmnXml: string; note: string; analysis?: any } | null> {
   const consolidation = await getConsolidationById(consolidationId);
   if (!consolidation) return null;
 
@@ -1318,38 +1318,78 @@ export async function generateUnifiedBPMN(consolidationId: string, targetState: 
     ? 'Fewer than 2 steps are accepted — showing all steps. Accept steps in the Consolidated Process Flow to refine the diagram.'
     : 'Showing accepted steps only. Accept more steps in the Consolidated Process Flow to expand the diagram.';
 
-  if (!targetState) {
-    if (stepsToRender.length === 0) {
-      // Don't hallucinate an AS-IS process if no steps exist
-      const fallbackXml = buildBpmnXml(consolidation.processId, consolidation.processName, [], false);
-      return { 
-        bpmnXml: fallbackXml, 
-        note: 'No interview data available yet to generate an AS-IS diagram. Please complete an SME interview.' 
-      };
-    }
-
-    // AS-IS: Use LLM to build a structured swimlane model
-    try {
-      const prompt = buildAsIsModelPrompt(
-        consolidation.processName,
-        stepsToRender.map(s => ({ label: s.label, description: s.description }))
-      );
-      const res = await generateCompletion([
-        { role: 'system', content: 'You are a senior BPMN process architect. Your job is to analyze process steps and return a structured swimlane model in valid JSON. You MUST use ultra-short labels (2-4 words) for all nodes.' },
-        { role: 'user', content: prompt },
-      ], { temperature: 0.1, maxTokens: 2500 });
-      
-      const model = extractJSON(res.content);
-      if (model && model.nodes && model.flows) {
-        const bpmnXml = buildSwimlaneXml(consolidation.processId, consolidation.processName, model);
-        return { bpmnXml, note };
-      }
-    } catch (err: any) {
-      console.warn('[bpmn] LLM swimlane generation failed, falling back to flat layout:', err.message);
-    }
+  if (stepsToRender.length === 0) {
+    const fallbackXml = buildBpmnXml(consolidation.processId, consolidation.processName, [], false);
+    return { 
+      bpmnXml: fallbackXml, 
+      note: 'No interview data available yet. Please complete an SME interview.' 
+    };
   }
 
-  // TO-BE or AS-IS fallback: use the existing flat builder
+  // 1. Generate AS-IS Model (we always need this for comparison)
+  let asIsModel: any = null;
+  try {
+    const prompt = buildAsIsModelPrompt(
+      consolidation.processName,
+      stepsToRender.map(s => ({ label: s.label, description: s.description }))
+    );
+    const res = await generateCompletion([
+      { role: 'system', content: 'You are a senior BPMN process architect.' },
+      { role: 'user', content: prompt },
+    ], { temperature: 0.1 });
+    asIsModel = extractJSON(res.content);
+  } catch (err) {
+    console.warn('[bpmn] AS-IS generation failed:', err);
+  }
+
+  if (!targetState) {
+    if (asIsModel && asIsModel.nodes && asIsModel.flows) {
+      const bpmnXml = buildSwimlaneXml(consolidation.processId, consolidation.processName, asIsModel);
+      return { bpmnXml, note };
+    }
+    // Fallback to flat layout
+    const bpmnXml = buildBpmnXml(consolidation.processId, consolidation.processName, stepsToRender, false);
+    return { bpmnXml, note };
+  }
+
+  // 2. Generate TO-BE Model (Transformation)
+  let toBeModel: any = null;
+  try {
+    const prompt = buildToBeModelPrompt(
+      consolidation.processName,
+      stepsToRender.map(s => ({ label: s.label, description: s.description }))
+    );
+    const res = await generateCompletion([
+      { role: 'system', content: 'You are a senior Strategy and AI Transformation Architect.' },
+      { role: 'user', content: prompt },
+    ], { temperature: 0.1 });
+    toBeModel = extractJSON(res.content);
+  } catch (err) {
+    console.warn('[bpmn] TO-BE generation failed:', err);
+  }
+
+  if (targetState && toBeModel && toBeModel.nodes && toBeModel.flows) {
+    const bpmnXml = buildSwimlaneXml(consolidation.processId, consolidation.processName, toBeModel);
+    
+    // 3. Analyze Transformation (Issues & Metrics)
+    let analysis: any = null;
+    if (asIsModel) {
+      try {
+        const analysisPrompt = buildProcessAnalysisPrompt(consolidation.processName, asIsModel, toBeModel);
+        const analysisRes = await generateCompletion([
+          { role: 'system', content: 'You are a senior transformation analyst.' },
+          { role: 'user', content: analysisPrompt },
+        ], { temperature: 0.1 });
+        analysis = extractJSON(analysisRes.content);
+      } catch (err) {
+        console.warn('[bpmn] Analysis failed:', err);
+      }
+    }
+
+    return { bpmnXml, note, analysis };
+  }
+
+  // Final fallback
   const bpmnXml = buildBpmnXml(consolidation.processId, consolidation.processName, stepsToRender, targetState);
   return { bpmnXml, note };
 }
