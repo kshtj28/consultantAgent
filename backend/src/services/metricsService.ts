@@ -339,24 +339,63 @@ export async function recomputeAndStoreMetrics(projectId = DEFAULT_PROJECT_ID): 
     const daysLeft = discoveryPct > 0 ? Math.round(((100 - discoveryPct) / discoveryPct) * 14) : 30;
     const estCompletion = new Date(now.getTime() + daysLeft * 86400000);
 
-    // Preserve existing process flow if stored, otherwise build from domain areas
-    const existing = await getMetrics(projectId);
+    // ── Build Process Flow from actual Consolidated Data ──────────────────
     const domainAreas = getAllSubAreas();
-
-    const processFlow = existing?.processFlow ?? {
-        title: `${domainAreas.length > 0 ? domainAreas[0].name : 'Process'} Flow`,
-        steps: domainAreas.slice(0, 5).map((a, i) => ({
-            name: a.name,
-            stepNumber: i + 1,
-            status: 'normal' as const,
-            avgDuration: 0,
-            durationUnit: 'hrs' as const,
-        })),
+    let processFlow: DashboardMetrics['processFlow'] = {
+        title: 'Global Process Flow',
+        steps: [],
         totalCycleTime: 0,
         cycleTimeUnit: 'days',
         criticalBottlenecks: 0,
-        automationOpportunity: 'Low' as const,
+        automationOpportunity: 'Low',
     };
+
+    try {
+        const consolidationRes = await opensearchClient.search({
+            index: INDICES.MULTI_SME_CONSOLIDATIONS,
+            body: {
+                query: { match_all: {} },
+                sort: [{ updatedAt: { order: 'desc' } }],
+                size: 1,
+            },
+        });
+
+        const latestConsolidation = consolidationRes.body.hits.hits[0]?._source;
+        if (latestConsolidation && Array.isArray(latestConsolidation.steps) && latestConsolidation.steps.length > 0) {
+            processFlow = {
+                title: `${latestConsolidation.processName} Flow`,
+                steps: latestConsolidation.steps.slice(0, 8).map((s: any, i: number) => ({
+                    name: s.label,
+                    stepNumber: i + 1,
+                    status: s.status === 'conflict' ? 'critical' : 'normal',
+                    avgDuration: 0, // Duration could be derived from ERP evidence in future
+                    durationUnit: 'hrs',
+                })),
+                totalCycleTime: 0,
+                cycleTimeUnit: 'days',
+                criticalBottlenecks: latestConsolidation.metrics?.conflicts || 0,
+                automationOpportunity: latestConsolidation.metrics?.consensusPct > 70 ? 'High' : 'Medium',
+            };
+        } else {
+            // Fallback: build from domain areas if no consolidation yet
+            processFlow = {
+                title: `${domainAreas.length > 0 ? domainAreas[0].name : 'Process'} Flow`,
+                steps: domainAreas.slice(0, 6).map((a, i) => ({
+                    name: a.name,
+                    stepNumber: i + 1,
+                    status: 'normal' as const,
+                    avgDuration: 0,
+                    durationUnit: 'hrs' as const,
+                })),
+                totalCycleTime: 0,
+                cycleTimeUnit: 'days',
+                criticalBottlenecks: 0,
+                automationOpportunity: 'Low',
+            };
+        }
+    } catch (err: any) {
+        console.warn('[metrics] Failed to build flow from consolidation:', err.message);
+    }
 
     const metrics: Partial<DashboardMetrics> = {
         gapSeverity: { level: gapLevel, avgRisk, maxRisk: 100 },

@@ -339,34 +339,30 @@ export async function runBankingKpiExtraction(input: {
       return `### ${r.broadAreaName || 'Banking Process'}\n${summary}\nGaps:\n${gaps}\nKPI Scores:\n${kpiScores}`;
     }).join('\n\n');
 
-    const prompt = `You are a senior banking operations analyst specialising in Saudi Arabian banking (SAMA regulated institutions). Based on the gap analysis data below, estimate realistic AS-IS and TO-BE KPI values.
+    const prompt = `You are a senior banking operations analyst specialising in Saudi Arabian banking (SAMA regulated institutions). Your task is to estimate realistic AS-IS and TO-BE KPI values based STRICTLY on the identified gaps and interview data.
 
 ## GAP ANALYSIS DATA
 ${gapContext}
 
-## INTERVIEW Q&A (if available)
-${allQA.slice(0, 15).join('\n\n') || '(No raw Q&A available — use gap analysis data above)'}
+## INTERVIEW Q&A
+${allQA.slice(0, 15).join('\n\n') || '(No raw Q&A available — derive estimates from gap severity)'}
 
-Extract the following 4 KPIs. Use the gap analysis content to infer realistic values. When specific numbers are not present, apply Saudi banking industry benchmarks (SAMA regulatory environment, Vision 2030 digital banking context).
+## ESTIMATION RULES
+1. CORRELATION: If the gaps show "High" impact in "Manual Processing" or "Data Entry", the stpRate should be at the lower end (20-35%) and costPerLoan should be at the higher end (3500-5000 SAR).
+2. SPECIFICITY: Avoid returning the same "average" benchmarks. Look for specific tools or bottlenecks mentioned.
+3. BENCHMARKS (for guidance only):
+   - avgCycleTimeDays: AS-IS 10-25 days, TO-BE 3-7 days
+   - costPerLoan: AS-IS 2000-5000 SAR, TO-BE 800-1500 SAR
+   - stpRate: AS-IS 15-55%, TO-BE 75-95%
+   - npaRatio: AS-IS 1-7%, TO-BE 0.5-2%
+4. TO-BE STATE: The TO-BE targets should be aggressive but realistic for a top-tier digital bank in Saudi Arabia.
 
-KPIs to extract:
-1. avgCycleTimeDays — Average loan/process cycle time in days
-2. costPerLoan — Cost per loan or transaction in SAR (Saudi Riyal)
-3. stpRate — Straight-through processing rate (%)
-4. npaRatio — Non-performing assets ratio (%)
-
-RULES:
-- Always return a number (not null) for both current and target for ALL four KPIs
-- Use Saudi banking benchmarks: avgCycleTime AS-IS typically 10-20 days, TO-BE target 3-7 days; costPerLoan AS-IS typically 1500-4000 SAR, TO-BE target 500-1500 SAR; stpRate AS-IS typically 30-50%, TO-BE target 70-90%; npaRatio AS-IS typically 2-5%, TO-BE target 1-2%
-- If the gap analysis shows HIGH severity issues, bias current values toward the worse end of the benchmark range
-- All monetary values MUST use SAR (Saudi Riyal), NOT USD
-
-Return ONLY valid JSON with NO markdown:
+Return ONLY a valid JSON object following this schema:
 {
-  "avgCycleTimeDays": { "current": 14, "target": 5, "unit": "days", "label": "Avg. Cycle Time" },
-  "costPerLoan": { "current": 3200, "target": 1200, "unit": "SAR", "label": "Cost per Loan" },
-  "stpRate": { "current": 38, "target": 78, "unit": "%", "label": "STP Rate" },
-  "npaRatio": { "current": 3.8, "target": 1.5, "unit": "%", "label": "NPA Ratio" }
+  "avgCycleTimeDays": { "current": number, "target": number, "unit": "days", "label": "Avg. Cycle Time" },
+  "costPerLoan": { "current": number, "target": number, "unit": "SAR", "label": "Cost per Loan" },
+  "stpRate": { "current": number, "target": number, "unit": "%", "label": "STP Rate" },
+  "npaRatio": { "current": number, "target": number, "unit": "%", "label": "NPA Ratio" }
 }`;
 
     const response = await generateCompletion([
