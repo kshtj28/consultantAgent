@@ -7,6 +7,8 @@ import {
   buildStepExtractionPrompt,
   buildConflictResolutionPrompt,
   buildAsIsModelPrompt,
+  buildToBeModelPrompt,
+  buildProcessAnalysisPrompt,
   type ExtractedStep,
 } from '../prompts/multiSMEConsolidation.prompt';
 import { getBroadAreas, getBroadArea } from './domainService';
